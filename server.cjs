@@ -38,7 +38,7 @@ __export(auth_exports, {
   verifyAdminToken: () => verifyAdminToken
 });
 function adminEmail() {
-  return (process.env.ADMIN_EMAIL || "admin@lajuaquina.com").toLowerCase().trim();
+  return (process.env.ADMIN_EMAIL || "admin@lajoaquina.com").toLowerCase().trim();
 }
 function adminPassword() {
   return process.env.ADMIN_PASSWORD || "";
@@ -67,7 +67,7 @@ function verifyAdminCredentials(email, password) {
   const emailOk = safeEqual((email || "").toLowerCase().trim(), adminEmail());
   const passOk = safeEqual(password || "", adminPassword());
   if (!emailOk || !passOk) return null;
-  return { id: "admin-master", email: adminEmail(), name: "Administrador La Juaquina", role: "admin" };
+  return { id: "admin-master", email: adminEmail(), name: "Administrador La Joaquina", role: "admin" };
 }
 function b64url(obj) {
   return Buffer.from(JSON.stringify(obj)).toString("base64url");
@@ -143,7 +143,7 @@ function defaultDb() {
     products: [],
     orders: [],
     users: [
-      { id: "admin-1", email: "admin@lajuaquina.com", name: "Administrador La Juaquina", role: "admin" }
+      { id: "admin-1", email: "admin@lajoaquina.com", name: "Administrador La Joaquina", role: "admin" }
     ],
     adminPin: "admin123",
     stockAlerts: [],
@@ -273,7 +273,7 @@ async function createOrder(order) {
   return full;
 }
 async function patchOrder(id, patch) {
-  const allowed = ["status", "trackingCode", "adminNotes"];
+  const allowed = ["status", "trackingCode", "adminNotes", "history"];
   const list = await listOrders();
   const idx = list.findIndex((o) => o.orderId === id);
   if (idx === -1) throw new Error("Pedido no encontrado.");
@@ -297,7 +297,7 @@ async function createStockAlert(alert) {
     productId: alert.productId,
     productName: alert.productName || "Producto",
     productImage: alert.productImage || "",
-    productBrand: alert.productBrand || "La Juaquina",
+    productBrand: alert.productBrand || "La Joaquina",
     variantWeight: alert.variantWeight || "",
     customerEmail: String(alert.customerEmail).trim(),
     customerPhone: String(alert.customerPhone || "").trim(),
@@ -395,26 +395,26 @@ function fallbackReply(message) {
   if (lower.includes("precio") || lower.includes("cuanto") || lower.includes("cu\xE1nto") || lower.includes("costo")) {
     return "Pod\xE9s ver todos los precios actualizados en el cat\xE1logo de la tienda, con presentaciones por kilo y promociones marcadas. Sum\xE1 al carrito y el total se calcula solo.";
   }
-  return "\xA1Hola! \u{1F43E} En La Juaquina tenemos alimentos balanceados, piedras sanitarias y accesorios con env\xEDo a todo el pa\xEDs. Preguntame por nutrici\xF3n, env\xEDos, pagos o contame qu\xE9 mascota ten\xE9s.";
+  return "\xA1Hola! \u{1F43E} En La Joaquina tenemos alimentos balanceados, piedras sanitarias y accesorios con env\xEDo a todo el pa\xEDs. Preguntame por nutrici\xF3n, env\xEDos, pagos o contame qu\xE9 mascota ten\xE9s.";
 }
 async function chatReply(message, history) {
   if (!message || typeof message !== "string") throw new Error("El mensaje es requerido.");
   const ai = await getGemini().catch(() => null);
   if (!ai) return { reply: fallbackReply(message), source: "local" };
   const systemPrompt = [
-    'Sos JuaquiBot, asistente de "La Juaquina Pet Shop", tienda online argentina de mascotas con base en Bella Vista, Buenos Aires (solo online, sin local).',
+    'Sos JoaquiBot, asistente de "La Joaquina Pet Shop", tienda online argentina de mascotas con base en Bella Vista, Buenos Aires (solo online, sin local).',
     "Vend\xE9s SOLO por esta web con carrito: Mercado Pago online, transferencia con 10% OFF o efectivo. Env\xEDos desde Bella Vista a todo AMBA en 24/48 hs y al pa\xEDs por Correo Argentino.",
     "NO menciones Mercado Libre: no vendemos por ah\xED.",
     "Tono argentino cordial, respuestas cortas con negritas. Ante s\xEDntomas graves, deriv\xE1 a un veterinario."
   ].join("\n");
   try {
-    const convo = (Array.isArray(history) ? history.slice(-6) : []).map((h) => `${h.sender === "user" ? "Cliente" : "JuaquiBot"}: ${h.text}`).join("\n");
+    const convo = (Array.isArray(history) ? history.slice(-6) : []).map((h) => `${h.sender === "user" ? "Cliente" : "JoaquiBot"}: ${h.text}`).join("\n");
     const response = await Promise.race([
       ai.models.generateContent({ model: "gemini-2.0-flash", contents: `${systemPrompt}
 
 ${convo}
 Cliente: ${message}
-JuaquiBot:` }),
+JoaquiBot:` }),
       new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), 8e3))
     ]);
     const text = response.text || "";
@@ -461,7 +461,7 @@ async function createMpPreference(order, baseUrl) {
       auto_return: "approved",
       notification_url: `${baseUrl}/api/payments/webhook`,
       external_reference: order.orderId,
-      statement_descriptor: "LA JUAQUINA"
+      statement_descriptor: "LA JOAQUINA"
     }
   });
   return { preferenceId: res.id, initPoint: res.init_point };
@@ -509,7 +509,7 @@ app.get("/api/health", async (req, res) => {
   const [products, orders] = await Promise.all([listProducts(), listOrders()]);
   ok(res, {
     status: "ok",
-    store: "La Juaquina Pet Shop",
+    store: "La Joaquina Pet Shop",
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     paymentsConfigured: mpConfigured(),
     productsCount: products.length,
@@ -539,7 +539,7 @@ app.get("/api/cloud/status", async (req, res) => {
   const [products, orders] = await Promise.all([listProducts(), listOrders()]);
   ok(res, {
     connected: true,
-    provider: "La Juaquina Cloud DB",
+    provider: "La Joaquina Cloud DB",
     version: "3.0",
     productsCount: products.length,
     ordersCount: orders.length
@@ -737,7 +737,7 @@ async function startServer() {
     });
   }
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`\u{1F43E} La Juaquina Server corriendo en http://localhost:${PORT}`);
+    console.log(`\u{1F43E} La Joaquina Server corriendo en http://localhost:${PORT}`);
   });
 }
 startServer();
