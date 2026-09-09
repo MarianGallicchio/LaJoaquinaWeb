@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 // Fondo vivo y cute: laterales flotantes (solo pantallas grandes) + tira de
 // fotos de mascotas en movimiento. Todo decorativo, sin bloquear clics.
@@ -53,6 +53,100 @@ export const CuteBackground: React.FC = () => (
     <Rail side="right" />
   </>
 );
+
+// Huella de patita en SVG
+const PawPrint: React.FC<{ color: string }> = ({ color }) => (
+  <svg viewBox="0 0 64 64" fill={color} className="w-full h-full">
+    <ellipse cx="32" cy="40" rx="14" ry="11" />
+    <circle cx="13" cy="24" r="6.5" />
+    <circle cx="25" cy="13" r="6.5" />
+    <circle cx="39" cy="13" r="6.5" />
+    <circle cx="51" cy="24" r="6.5" />
+  </svg>
+);
+
+// Fondo de patitas y formitas que se desvanece al scrollear
+export const ScrollFadeBackground: React.FC = () => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = ref.current;
+      if (!el) return;
+      const y = window.scrollY || 0;
+      el.style.opacity = Math.max(0, 1 - y / 550).toFixed(3);
+      el.style.transform = `translateY(${y * 0.12}px)`;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const paws: { left: string; top: string; size: number; rot: number; color: string; o: number }[] = [
+    { left: '4%', top: '8%', size: 56, rot: -18, color: '#1B4E43', o: 0.16 },
+    { left: '12%', top: '32%', size: 34, rot: 12, color: '#EFA332', o: 0.2 },
+    { left: '6%', top: '58%', size: 72, rot: 8, color: '#1B4E43', o: 0.12 },
+    { left: '16%', top: '76%', size: 40, rot: -10, color: '#DE5D4E', o: 0.16 },
+    { left: '26%', top: '18%', size: 30, rot: 20, color: '#EFA332', o: 0.18 },
+    { left: '82%', top: '10%', size: 64, rot: 14, color: '#1B4E43', o: 0.14 },
+    { left: '90%', top: '36%', size: 38, rot: -14, color: '#EFA332', o: 0.2 },
+    { left: '84%', top: '60%', size: 70, rot: -8, color: '#7C3AED', o: 0.12 },
+    { left: '74%', top: '80%', size: 36, rot: 16, color: '#1B4E43', o: 0.16 },
+    { left: '68%', top: '22%', size: 28, rot: -20, color: '#DE5D4E', o: 0.18 },
+    { left: '36%', top: '70%', size: 30, rot: 10, color: '#1B4E43', o: 0.14 },
+    { left: '58%', top: '12%', size: 40, rot: -12, color: '#EFA332', o: 0.16 },
+  ];
+
+  const shapes: { left: string; top: string; size: number; rot: number; color: string; o: number; kind: 'bone' | 'ring' | 'star' }[] = [
+    { left: '20%', top: '48%', size: 44, rot: -16, color: '#EFA332', o: 0.22, kind: 'bone' },
+    { left: '78%', top: '46%', size: 40, rot: 12, color: '#1B4E43', o: 0.16, kind: 'bone' },
+    { left: '10%', top: '88%', size: 34, rot: 0, color: '#7C3AED', o: 0.18, kind: 'ring' },
+    { left: '88%', top: '88%', size: 30, rot: 0, color: '#DE5D4E', o: 0.18, kind: 'ring' },
+    { left: '32%', top: '8%', size: 26, rot: 10, color: '#1B4E43', o: 0.2, kind: 'star' },
+    { left: '62%', top: '86%', size: 28, rot: -10, color: '#EFA332', o: 0.2, kind: 'star' },
+  ];
+
+  return (
+    <div ref={ref} className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden>
+      {/* blobs suaves */}
+      <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#EFA332]/15 blur-3xl" />
+      <div className="absolute top-1/3 -right-28 w-[28rem] h-[28rem] rounded-full bg-[#1B4E43]/10 blur-3xl" />
+      {paws.map((p, i) => (
+        <div
+          key={`paw-${i}`}
+          className="absolute"
+          style={{ left: p.left, top: p.top, width: p.size, height: p.size, opacity: p.o, transform: `rotate(${p.rot}deg)` }}
+        >
+          <PawPrint color={p.color} />
+        </div>
+      ))}
+      {shapes.map((s, i) => (
+        <div
+          key={`shape-${i}`}
+          className="absolute flex items-center justify-center"
+          style={{ left: s.left, top: s.top, width: s.size, height: s.size, opacity: s.o, transform: `rotate(${s.rot}deg)` }}
+        >
+          {s.kind === 'bone' && <span style={{ fontSize: s.size, color: s.color, lineHeight: 1 }}>🦴</span>}
+          {s.kind === 'ring' && (
+            <span
+              className="block rounded-full"
+              style={{ width: s.size, height: s.size, border: `${Math.max(4, s.size / 7)}px solid ${s.color}` }}
+            />
+          )}
+          {s.kind === 'star' && <span style={{ fontSize: s.size, color: s.color, lineHeight: 1 }}>★</span>}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export const PetMarquee: React.FC = () => {
   const loop = [...PHOTOS, ...PHOTOS];
