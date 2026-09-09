@@ -64,7 +64,7 @@ export const FoodCalculator: React.FC<FoodCalculatorProps> = ({
 
 
   return (
-    <section id="calculadora" className="py-12 sm:py-16 bg-[#F6EFE2] border-y border-[#E8DFC9]">
+    <section id="calculadora" className="py-12 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Title */}

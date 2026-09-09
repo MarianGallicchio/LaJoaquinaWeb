@@ -17,10 +17,25 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }) => {
   return (
-    <section className="relative overflow-hidden pt-6 pb-12 sm:pt-10 sm:pb-16 bg-gradient-to-b from-[#FAF7F2] via-[#F6EFE2] to-[#FAF7F2]">
+    <section className="relative overflow-hidden pt-6 pb-12 sm:pt-10 sm:pb-16">
       {/* Decorative subtle background blobs */}
       <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-[#EFA332]/10 blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-[#1B4E43]/10 blur-3xl pointer-events-none" />
+      {/* Huellitas decorativas */}
+      <svg viewBox="0 0 64 64" fill="#D9CBBA" opacity="0.55" className="hidden md:block absolute top-14 left-[4%] w-12 h-12 -rotate-12 pointer-events-none select-none" aria-hidden>
+        <ellipse cx="32" cy="40" rx="14" ry="11" />
+        <circle cx="13" cy="24" r="6.5" />
+        <circle cx="25" cy="13" r="6.5" />
+        <circle cx="39" cy="13" r="6.5" />
+        <circle cx="51" cy="24" r="6.5" />
+      </svg>
+      <svg viewBox="0 0 64 64" fill="#D9CBBA" opacity="0.4" className="hidden md:block absolute bottom-8 left-[44%] w-9 h-9 rotate-12 pointer-events-none select-none" aria-hidden>
+        <ellipse cx="32" cy="40" rx="14" ry="11" />
+        <circle cx="13" cy="24" r="6.5" />
+        <circle cx="25" cy="13" r="6.5" />
+        <circle cx="39" cy="13" r="6.5" />
+        <circle cx="51" cy="24" r="6.5" />
+      </svg>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">

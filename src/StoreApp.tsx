@@ -262,7 +262,7 @@ export default function StoreApp() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#2B231D] selection:bg-[#EFA332]/30 selection:text-[#1B4E43]">
+    <div className="min-h-screen flex flex-col bg-page text-[#2B231D] selection:bg-[#EFA332]/30 selection:text-[#1B4E43]">
       {toastMessage && (
         <div className="fixed top-20 right-4 z-50 bg-[#1B4E43] text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-xl border border-[#256B5C] flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
           <CheckCircle className="w-4 h-4 text-[#EFA332]" />
@@ -328,6 +328,27 @@ export default function StoreApp() {
             <p className="text-xs text-[#7A6A59] mt-1">
               {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} · Precios en ARS · Stock actualizado
             </p>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex -space-x-2">
+                {[
+                  'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=100&auto=format&fit=crop&q=60',
+                  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=100&auto=format&fit=crop&q=60',
+                  'https://images.unsplash.com/photo-1591769225440-811ad7d6eab2?w=100&auto=format&fit=crop&q=60',
+                ].map((src) => (
+                  <img
+                    key={src}
+                    src={src}
+                    alt="Mascota cliente"
+                    loading="lazy"
+                    className="w-7 h-7 rounded-full object-cover border-2 border-[#FAF6EE]"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-[11px] font-semibold text-[#8A7969]">Ellos compran acá 🐾</span>
+            </div>
           </div>
         </div>
 

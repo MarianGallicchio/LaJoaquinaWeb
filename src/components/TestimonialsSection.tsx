@@ -12,7 +12,7 @@ export const TestimonialsSection: React.FC<{ settings?: StoreSettings }> = ({ se
   return (
     <section
       id="testimonios"
-      className="py-16 sm:py-24 bg-[#F5EFE6] border-y border-[#E5D7BF] relative overflow-hidden"
+      className="py-16 sm:py-24 relative overflow-hidden"
     >
       <div className="absolute top-6 left-10 text-[#E8DFC9] text-7xl select-none pointer-events-none opacity-40 font-serif">
         🐾

@@ -132,6 +132,13 @@
   background-size: 22px 22px;
 }
 
+/* Fondo único continuo de la tienda: crema cálido con huellitas sutiles */
+.bg-page {
+  background-color: #FAF6EE;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23C9B797' fill-opacity='0.30'%3E%3Cellipse cx='75' cy='90' rx='19' ry='15'/%3E%3Ccircle cx='45' cy='60' r='8.5'/%3E%3Ccircle cx='62' cy='45' r='8.5'/%3E%3Ccircle cx='84' cy='45' r='8.5'/%3E%3Ccircle cx='101' cy='60' r='8.5'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 150px 150px;
+}
+
 @keyframes marquee-x {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
