@@ -197,10 +197,11 @@ export default function AdminApp() {
               <AtSign className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
               <input
                 type="email"
+                name="lj-admin-email"
+                autoComplete="off"
                 value={gateEmail}
                 onChange={(e) => setGateEmail(e.target.value)}
                 placeholder="Email de administrador"
-                autoComplete="username"
                 className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
               />
             </div>
@@ -208,13 +209,18 @@ export default function AdminApp() {
               <KeyRound className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
               <input
                 type="password"
+                name="lj-admin-pass"
+                autoComplete="new-password"
                 value={gatePassword}
                 onChange={(e) => setGatePassword(e.target.value)}
                 placeholder="Contraseña"
-                autoComplete="current-password"
                 className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
               />
             </div>
+            <p className="text-[11px] text-[#8A7969] bg-[#FAF5EC] border border-[#E8DFC9] rounded-xl px-3 py-2">
+              ⚠️ El email cambió con el nombre nuevo: debe decir <strong>admin@lajoaquina.com</strong> (con O).
+              Si tu navegador autocompleta el viejo, corregilo a mano.
+            </p>
             <button
               type="submit"
               disabled={loginLoading}
