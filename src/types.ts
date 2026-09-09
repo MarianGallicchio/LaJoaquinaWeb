@@ -10,7 +10,9 @@ export interface ProductVariant {
 
 export type OrderStatus =
   | 'pendiente'
+  | 'pago_pendiente'
   | 'confirmado'
+  | 'pagado'
   | 'preparando'
   | 'enviado'
   | 'entregado'
@@ -117,6 +119,7 @@ export interface StoreSettings {
   city: string;
   hours: string;
   whatsapp: string;
+  instagram: string;
   aliasTransferencia: string;
   couponCode: string;
   couponPercent: number;

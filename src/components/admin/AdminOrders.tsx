@@ -11,10 +11,12 @@ interface Props {
   onOrdersChange: (orders: OrderDetails[]) => void;
 }
 
-const STATUS = ['todas', 'pendiente', 'confirmado', 'preparando', 'enviado', 'entregado', 'cancelado'] as const;
+const STATUS = ['todas', 'pendiente', 'pago_pendiente', 'pagado', 'confirmado', 'preparando', 'enviado', 'entregado', 'cancelado'] as const;
 
 const STATUS_STYLE: Record<string, string> = {
   pendiente: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]',
+  pago_pendiente: 'bg-[#FEF9C3] text-[#854D0E] border-[#FDE68A]',
+  pagado: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
   confirmado: 'bg-[#E0F2FE] text-[#0369A1] border-[#BAE6FD]',
   preparando: 'bg-[#EDE9FE] text-[#6D28D9] border-[#DDD6FE]',
   enviado: 'bg-[#FFEDD5] text-[#9A3412] border-[#FDBA74]',
@@ -28,6 +30,7 @@ export const AdminOrders: React.FC<Props> = ({ orders, settings, onReload, onOrd
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editingTracking, setEditingTracking] = useState<Record<string, string>>({});
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const query = q.toLowerCase().trim();
@@ -49,22 +52,37 @@ export const AdminOrders: React.FC<Props> = ({ orders, settings, onReload, onOrd
   );
 
   const handleStatus = async (orderId: string, newStatus: string) => {
-    await updateCloudOrderStatus(orderId, { status: newStatus as any });
-    onOrdersChange(orders.map((o) => (o.orderId === orderId ? { ...o, status: newStatus } : o)));
+    setActionError(null);
+    try {
+      await updateCloudOrderStatus(orderId, { status: newStatus as any });
+      onOrdersChange(orders.map((o) => (o.orderId === orderId ? { ...o, status: newStatus } : o)));
+    } catch (e: any) {
+      setActionError(e.message || 'No se pudo actualizar el pedido.');
+    }
   };
 
   const handleSaveTracking = async (orderId: string) => {
+    setActionError(null);
     const patch: any = {};
     if (editingTracking[orderId] !== undefined) patch.trackingCode = editingTracking[orderId];
     if (editingNotes[orderId] !== undefined) patch.adminNotes = editingNotes[orderId];
-    await updateCloudOrderStatus(orderId, patch);
-    onOrdersChange(orders.map((o) => (o.orderId === orderId ? { ...o, ...patch } : o)));
+    try {
+      await updateCloudOrderStatus(orderId, patch);
+      onOrdersChange(orders.map((o) => (o.orderId === orderId ? { ...o, ...patch } : o)));
+    } catch (e: any) {
+      setActionError(e.message || 'No se pudo guardar.');
+    }
   };
 
   const handleDelete = async (orderId: string) => {
     if (!confirm(`¿Eliminar el pedido ${orderId}?`)) return;
-    await deleteCloudOrder(orderId);
-    onOrdersChange(orders.filter((o) => o.orderId !== orderId));
+    setActionError(null);
+    try {
+      await deleteCloudOrder(orderId);
+      onOrdersChange(orders.filter((o) => o.orderId !== orderId));
+    } catch (e: any) {
+      setActionError(e.message || 'No se pudo eliminar.');
+    }
   };
 
   const exportCSV = () => {
@@ -92,6 +110,9 @@ export const AdminOrders: React.FC<Props> = ({ orders, settings, onReload, onOrd
 
   return (
     <div className="space-y-4">
+      {actionError && (
+        <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 font-bold text-xs">{actionError}</div>
+      )}
       <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-2xl p-4 shadow-xs flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[220px] relative">
           <Search className="w-4 h-4 text-[#8A7969] absolute left-3 top-2.5" />

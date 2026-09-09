@@ -32,6 +32,8 @@ const CAT_COLORS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   pendiente: '⏳ Pendiente',
+  pago_pendiente: '💳 Pago pendiente',
+  pagado: '💰 Pagado',
   confirmado: '✅ Confirmado',
   preparando: '📦 En preparación',
   enviado: '🚚 Enviado',

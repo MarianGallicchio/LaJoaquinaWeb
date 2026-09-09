@@ -86,7 +86,11 @@ export const AdminDistributors: React.FC<Props> = ({ distributors, onChange, not
       phone: form.phone.trim(),
       createdAt: form.createdAt || new Date().toISOString(),
     };
-    const saved = await saveCloudDistributor(item);
+    const saved = await saveCloudDistributor(item).catch((e: any) => {
+      notify(`⚠️ ${e.message || 'No se pudo guardar.'}`);
+      return null;
+    });
+    if (!saved) return;
     const exists = distributors.some((d) => d.id === saved.id);
     onChange(exists ? distributors.map((d) => (d.id === saved.id ? saved : d)) : [saved, ...distributors]);
     setEditing(null);
@@ -96,16 +100,24 @@ export const AdminDistributors: React.FC<Props> = ({ distributors, onChange, not
 
   const confirmDelete = async () => {
     if (!toDelete) return;
-    await deleteCloudDistributor(toDelete.id);
-    onChange(distributors.filter((d) => d.id !== toDelete.id));
-    notify(`🗑️ Mayorista "${toDelete.name}" eliminado.`);
+    try {
+      await deleteCloudDistributor(toDelete.id);
+      onChange(distributors.filter((d) => d.id !== toDelete.id));
+      notify(`🗑️ Mayorista "${toDelete.name}" eliminado.`);
+    } catch (e: any) {
+      notify(`⚠️ ${e.message || 'No se pudo eliminar.'}`);
+    }
     setToDelete(null);
   };
 
   const toggleActive = async (d: Distributor) => {
     const updated = { ...d, active: !d.active };
-    await saveCloudDistributor(updated);
-    onChange(distributors.map((x) => (x.id === d.id ? updated : x)));
+    try {
+      await saveCloudDistributor(updated);
+      onChange(distributors.map((x) => (x.id === d.id ? updated : x)));
+    } catch (e: any) {
+      notify(`⚠️ ${e.message || 'No se pudo guardar.'}`);
+    }
   };
 
   const exportCSV = () => {

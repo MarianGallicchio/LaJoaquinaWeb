@@ -39,7 +39,6 @@ import {
   resetCloudProducts, 
   fetchCloudOrders,
   checkCloudDbStatus,
-  cloudLogin,
   fetchCloudStockAlerts,
   updateCloudStockAlertStatus,
   deleteCloudStockAlert
@@ -98,10 +97,6 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
 
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  // Fast admin gate state
-  const [gatePin, setGatePin] = useState('admin123');
-  const [gateError, setGateError] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -250,8 +245,12 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
     };
     const updated = [copy, ...products];
     onUpdateProducts(updated);
-    await saveCloudProduct(copy);
-    showFeedback(`✅ Producto duplicado como "${copy.name}". Editá la copia.`);
+    try {
+      await saveCloudProduct(copy);
+      showFeedback(`✅ Producto duplicado como "${copy.name}". Editá la copia.`);
+    } catch (e: any) {
+      showFeedback(`⚠️ ${e.message || 'No se pudo guardar en la nube.'}`);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -286,16 +285,24 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
 
       const updated = [newProduct, ...products];
       onUpdateProducts(updated);
-      saveCloudProduct(newProduct);
-      showFeedback(`¡Producto "${newProduct.name}" guardado en la Base de Datos en la Nube!`);
+      try {
+        await saveCloudProduct(newProduct);
+        showFeedback(`¡Producto "${newProduct.name}" guardado en la Base de Datos en la Nube!`);
+      } catch (e: any) {
+        showFeedback(`⚠️ ${e.message || 'No se pudo guardar en la nube.'}`);
+      }
     } else if (editingProduct) {
       const updatedProduct: Product = { ...editingProduct, ...formData, variants: normVariants } as Product;
       const updated = products.map((p) =>
         p.id === editingProduct.id ? updatedProduct : p
       );
       onUpdateProducts(updated);
-      saveCloudProduct(updatedProduct);
-      showFeedback(`¡Producto "${formData.name}" actualizado en la Base de Datos en la Nube!`);
+      try {
+        await saveCloudProduct(updatedProduct);
+        showFeedback(`¡Producto "${formData.name}" actualizado en la Base de Datos en la Nube!`);
+      } catch (e: any) {
+        showFeedback(`⚠️ ${e.message || 'No se pudo guardar en la nube.'}`);
+      }
     }
 
     setEditingProduct(null);
@@ -307,30 +314,24 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
     const { id, name } = itemToDelete;
     const updated = products.filter((p) => p.id !== id);
     onUpdateProducts(updated);
-    await deleteCloudProduct(id);
+    try {
+      await deleteCloudProduct(id);
+      showFeedback(`Producto "${name}" eliminado de la nube.`);
+    } catch (e: any) {
+      showFeedback(`⚠️ ${e.message || 'No se pudo eliminar en la nube.'}`);
+    }
     setItemToDelete(null);
-    showFeedback(`Producto "${name}" eliminado de la nube.`);
   };
 
   const confirmResetCatalog = async () => {
-    const defaultList = await resetCloudProducts();
-    onUpdateProducts(defaultList);
-    setShowResetConfirm(false);
-    showFeedback('Catálogo restablecido a valores originales de fábrica en la nube.');
-  };
-
-  // Alternar sesión a Admin rápidamente si está bloqueado
-  const handleQuickAdminUnlock = async (quick: boolean = true) => {
-    setGateError(null);
     try {
-      const admin = await cloudLogin('admin@lajuaquina.com', quick ? 'admin123' : gatePin, 'admin');
-      if (onLoginSuccess) {
-        onLoginSuccess(admin);
-      }
-      showFeedback('¡Sesión alternada a Administrador con éxito!');
-    } catch {
-      setGateError('Error al validar credenciales de administrador.');
+      const defaultList = await resetCloudProducts();
+      onUpdateProducts(defaultList);
+      showFeedback('Catálogo restablecido a valores originales de fábrica en la nube.');
+    } catch (e: any) {
+      showFeedback(`⚠️ ${e.message || 'No se pudo restablecer.'}`);
     }
+    setShowResetConfirm(false);
   };
 
   // Variants editing helpers
@@ -370,7 +371,10 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
     onUpdateProducts(updated);
     const changed = updated.find((p) => p.id === productId);
     if (changed) {
-      saveCloudProduct(changed);
+      saveCloudProduct(changed).catch((e: any) => {
+        showFeedback(`⚠️ ${e.message || 'No se pudo guardar en la nube.'}`);
+        return null;
+      });
       const v = changed.variants.find((x) => x.weight === variantWeight);
       showFeedback(`📦 Stock de "${changed.name}" (${variantWeight}): ${v?.stock ?? 0} u.`);
     }
@@ -396,73 +400,22 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
       return 0; // recientes: orden actual del catálogo
     });
 
-  // ================= ADMIN ACCESS GATE (ALTERNADOR) =================
-  // If currentUser is not admin, show clear switcher so they can enter in 1 click
+  // ================= ACCESO RESTRINGIDO =================
+  // El login real vive en AdminApp (admin.html). Sin sesión válida no se muestra nada.
   if (currentUser?.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-[#FAF7F2] flex items-center justify-center p-4">
-        <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center">
-          <div className="w-16 h-16 bg-[#FFF8E6] border border-[#EFA332] rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck className="w-8 h-8 text-[#EFA332]" />
-          </div>
-
-          <h2 className="text-xl font-bold font-display text-[#1B4E43] mb-1">
-            Alternador de Acceso Administrador
-          </h2>
-          <p className="text-xs text-[#6A5949] mb-6">
-            Esta sección permite modificar precios, stock, pesos y ver pedidos de la nube.
-          </p>
-
-          {gateError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{gateError}</span>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <button
-              onClick={() => handleQuickAdminUnlock(true)}
-              className="w-full bg-[#1B4E43] hover:bg-[#256B5C] text-[#FFE194] font-extrabold text-xs py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-[#EFA332]" />
-              <span>⚡ Alternar e Ingresar como Admin (1 Clic)</span>
-            </button>
-
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-[#E8DFC9]"></div>
-              <span className="flex-shrink mx-2 text-[10px] uppercase font-bold text-[#8A7969]">
-                O ingresá tu clave
-              </span>
-              <div className="flex-grow border-t border-[#E8DFC9]"></div>
-            </div>
-
-            <div className="relative text-left">
-              <KeyRound className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
-              <input
-                type="password"
-                value={gatePin}
-                onChange={(e) => setGatePin(e.target.value)}
-                placeholder="Clave (admin123)"
-                className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
-              />
-            </div>
-
-            <button
-              onClick={() => handleQuickAdminUnlock(false)}
-              className="w-full bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-bold text-xs py-2.5 rounded-xl transition-colors cursor-pointer"
-            >
-              Validar y Entrar
-            </button>
-
-            <button
-              onClick={onExitAdmin}
-              className="w-full text-xs text-[#7A6A59] hover:text-[#1B4E43] font-bold py-2 transition-colors cursor-pointer"
-            >
-              ← Volver a la Tienda (Modo Cliente)
-            </button>
-          </div>
+      <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl p-8 max-w-md w-full shadow-xs text-center mx-auto">
+        <div className="w-14 h-14 bg-red-50 border border-red-200 rounded-full flex items-center justify-center mx-auto mb-3">
+          <ShieldCheck className="w-7 h-7 text-red-500" />
         </div>
+        <h2 className="text-base font-bold font-display text-[#1B4E43] mb-1">Acceso restringido</h2>
+        <p className="text-xs text-[#6A5949] mb-5">Esta sección requiere sesión de administradora.</p>
+        <button
+          onClick={onExitAdmin}
+          className="w-full text-xs text-[#7A6A59] hover:text-[#1B4E43] font-bold py-2 transition-colors cursor-pointer"
+        >
+          ← Volver a la Tienda
+        </button>
       </div>
     );
   }

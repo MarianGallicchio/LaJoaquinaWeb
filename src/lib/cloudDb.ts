@@ -22,21 +22,57 @@ const STORAGE_KEY_ORDERS = 'la_juaquina_orders';
 const STORAGE_KEY_USER = 'la_juaquina_user';
 const STORAGE_KEY_ALERTS = 'la_juaquina_stock_alerts';
 const STORAGE_KEY_DISTRIBUTORS = 'la_juaquina_distributors';
+const STORAGE_KEY_ADMIN_TOKEN = 'la_juaquina_admin_token';
 
+// ============ SESIÓN ADMIN (token real del backend) ============
+
+export function getAdminToken(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY_ADMIN_TOKEN);
+  } catch {
+    return null;
+  }
+}
+
+function setAdminToken(token: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY_ADMIN_TOKEN, token);
+  } catch { /* ignore */ }
+}
+
+function clearAdminToken() {
+  try {
+    localStorage.removeItem(STORAGE_KEY_ADMIN_TOKEN);
+  } catch { /* ignore */ }
+}
+
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const token = getAdminToken();
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+}
+
+function getStoredUser(): AuthUserProfile | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_USER);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
 
 // Check Cloud Database connectivity
 export async function checkCloudDbStatus(): Promise<CloudDbStatus> {
   try {
     const res = await fetch('/api/cloud/status', {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json' },
     });
     if (res.ok) {
       const data = await res.json();
       return {
         connected: true,
-        provider: data.provider || 'Google Cloud Run Database',
-        version: data.version || '2.1',
+        provider: data.provider || 'La Juaquina Cloud DB',
+        version: data.version || '3.0',
         isOnline: true,
         productsCount: data.productsCount || 0,
         ordersCount: data.ordersCount || 0,
@@ -46,30 +82,28 @@ export async function checkCloudDbStatus(): Promise<CloudDbStatus> {
     console.warn('Could not reach /api/cloud/status, falling back to local cloud cache', e);
   }
 
-  // Fallback status
   const localProducts = getStoredProducts();
   const localOrders = getStoredOrders();
   return {
     connected: true,
     provider: 'Cloud Cache Local (Respaldo offline)',
-    version: '2.1',
+    version: '3.0',
     isOnline: false,
     productsCount: localProducts.length,
     ordersCount: localOrders.length,
   };
 }
 
-// Fetch products from Cloud Database
+// Fetch products from Cloud Database (público)
 export async function fetchCloudProducts(): Promise<Product[]> {
   try {
     const res = await fetch('/api/cloud/products', {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json', ...authHeaders() },
     });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.products) && data.products.length > 0) {
-        // Update local mirror
         localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(data.products));
         return data.products;
       }
@@ -81,70 +115,51 @@ export async function fetchCloudProducts(): Promise<Product[]> {
   return getStoredProducts();
 }
 
-// Save or Update Product in Cloud Database
+// Save or Update Product (solo admin, con token)
 export async function saveCloudProduct(product: Product): Promise<Product> {
-  try {
-    const res = await fetch('/api/cloud/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.product) {
-        syncLocalProduct(data.product);
-        return data.product;
-      }
-    }
-  } catch (err) {
-    console.warn('Network issue saving product to cloud, updating local cache:', err);
+  const res = await fetch('/api/cloud/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ product }),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo guardar el producto.');
   }
-
-  // Local sync fallback
-  syncLocalProduct(product);
-  return product;
+  const data = await res.json();
+  if (data.product) syncLocalProduct(data.product);
+  return data.product || product;
 }
 
-// Delete Product from Cloud Database
+// Delete Product (solo admin)
 export async function deleteCloudProduct(productId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/cloud/products/${productId}`, {
-      method: 'DELETE',
-    });
-    if (res.ok) {
-      removeLocalProduct(productId);
-      return true;
-    }
-  } catch (err) {
-    console.warn('Network issue deleting product from cloud:', err);
+  const res = await fetch(`/api/cloud/products/${productId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo eliminar el producto.');
   }
-
   removeLocalProduct(productId);
   return true;
 }
 
-// Reset Catalog to Defaults in Cloud Database
+// Reset Catalog (solo admin)
 export async function resetCloudProducts(): Promise<Product[]> {
-  try {
-    const res = await fetch('/api/cloud/products/reset', {
-      method: 'POST',
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.products)) {
-        localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(data.products));
-        return data.products;
-      }
-    }
-  } catch (err) {
-    console.warn('Network issue resetting cloud products:', err);
+  const res = await fetch('/api/cloud/products/reset', {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo restablecer el catálogo.');
   }
-
   localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
   return DEFAULT_PRODUCTS;
 }
 
-// Save Order to Cloud Database
+// Save Order (público: lo usa el checkout de la tienda)
 export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails> {
   try {
     const res = await fetch('/api/cloud/orders', {
@@ -167,46 +182,38 @@ export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails>
   return order;
 }
 
-// Fetch Orders from Cloud Database
+// Fetch Orders (solo admin)
 export async function fetchCloudOrders(): Promise<OrderDetails[]> {
-  try {
-    const res = await fetch('/api/cloud/orders', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.orders)) {
-        localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(data.orders));
-        return data.orders;
-      }
+  const res = await fetch('/api/cloud/orders', {
+    method: 'GET',
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (Array.isArray(data.orders)) {
+      localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(data.orders));
+      return data.orders;
     }
-  } catch (err) {
-    console.warn('Fetch cloud orders network error:', err);
   }
-
+  if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
   return getStoredOrders();
 }
 
-// ============ STOCK ALERTS (Avisarme cuando haya stock) ============
+// ============ STOCK ALERTS ============
 
 export async function fetchCloudStockAlerts(): Promise<StockAlert[]> {
-  try {
-    const res = await fetch('/api/cloud/stock-alerts', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.alerts)) {
-        localStorage.setItem(STORAGE_KEY_ALERTS, JSON.stringify(data.alerts));
-        return data.alerts;
-      }
+  const res = await fetch('/api/cloud/stock-alerts', {
+    method: 'GET',
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (Array.isArray(data.alerts)) {
+      localStorage.setItem(STORAGE_KEY_ALERTS, JSON.stringify(data.alerts));
+      return data.alerts;
     }
-  } catch (err) {
-    console.warn('Fetch cloud stock alerts network error:', err);
   }
-
+  if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
   return getStoredStockAlerts();
 }
 
@@ -246,37 +253,22 @@ export async function updateCloudStockAlertStatus(
   status: 'pending' | 'notified' | 'resolved',
   notes?: string
 ): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/cloud/stock-alerts/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, notes }),
-    });
-    if (res.ok) {
-      updateLocalStockAlert(id, status, notes);
-      return true;
-    }
-  } catch (err) {
-    console.warn('Error updating cloud stock alert status:', err);
-  }
-
+  const res = await fetch(`/api/cloud/stock-alerts/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status, notes }),
+  });
+  if (!res.ok && res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
   updateLocalStockAlert(id, status, notes);
   return true;
 }
 
 export async function deleteCloudStockAlert(id: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/cloud/stock-alerts/${id}`, {
-      method: 'DELETE',
-    });
-    if (res.ok) {
-      deleteLocalStockAlert(id);
-      return true;
-    }
-  } catch (err) {
-    console.warn('Error deleting cloud stock alert:', err);
-  }
-
+  const res = await fetch(`/api/cloud/stock-alerts/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok && res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
   deleteLocalStockAlert(id);
   return true;
 }
@@ -320,53 +312,32 @@ function deleteLocalStockAlert(id: string) {
   }
 }
 
-// Cloud Login / Admin Toggle
+// ============ LOGIN ADMIN REAL (sin atajos) ============
 
-export async function cloudLogin(
-  email: string,
-  password?: string,
-  forceRole?: 'admin' | 'customer'
-): Promise<AuthUserProfile> {
-  try {
-    const res = await fetch('/api/cloud/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, forceRole }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.user) {
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
-        return data.user;
-      }
-    }
-  } catch (e) {
-    console.warn('Cloud auth login fallback:', e);
+export async function cloudLogin(email: string, password?: string): Promise<AuthUserProfile> {
+  const res = await fetch('/api/cloud/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Credenciales inválidas.');
   }
-
-  // Instant zero-failure local fallback
-  const isAdmin = forceRole === 'admin' || email.toLowerCase().includes('admin') || password === 'admin123';
-  const profile: AuthUserProfile = {
-    id: isAdmin ? 'admin-master' : `user-${Date.now()}`,
-    email: email || (isAdmin ? 'admin@lajuaquina.com' : 'cliente@lajuaquina.com'),
-    name: isAdmin ? 'Administrador La Juaquina' : (email.split('@')[0] || 'Cliente'),
-    role: isAdmin ? 'admin' : 'customer',
-  };
-  localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
-  return profile;
+  const data = await res.json();
+  if (!data.user || !data.token) throw new Error('Respuesta de acceso inválida.');
+  setAdminToken(data.token);
+  localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+  return data.user;
 }
 
-// Cloud Register
-export async function cloudRegister(
-  name: string,
-  email: string,
-  password?: string
-): Promise<AuthUserProfile> {
+// Verifica la sesión guardada contra el backend
+export async function fetchAdminMe(): Promise<AuthUserProfile | null> {
+  const token = getAdminToken();
+  if (!token) return null;
   try {
-    const res = await fetch('/api/cloud/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+    const res = await fetch('/api/cloud/auth/me', {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const data = await res.json();
@@ -375,24 +346,32 @@ export async function cloudRegister(
         return data.user;
       }
     }
-  } catch (e) {
-    console.warn('Cloud register fallback:', e);
+  } catch {
+    // Sin red: se mantiene la sesión guardada solo si existe token previo
+    return getStoredUser();
   }
+  return null;
+}
 
-  const profile: AuthUserProfile = {
-    id: `user-${Date.now()}`,
-    email,
-    name,
-    role: email.toLowerCase().includes('admin') ? 'admin' : 'customer',
-  };
-  localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
-  return profile;
+// Cloud Register (público, siempre rol cliente)
+export async function cloudRegister(name: string, email: string, password?: string): Promise<AuthUserProfile> {
+  const res = await fetch('/api/cloud/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  });
+  if (!res.ok) throw new Error('No se pudo crear la cuenta.');
+  const data = await res.json();
+  if (!data.user) throw new Error('Respuesta de registro inválida.');
+  localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+  return data.user;
 }
 
 // Cloud Logout
 export async function cloudLogout(): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEY_USER);
+    clearAdminToken();
   } catch (e) {
     console.warn('Could not clear local user:', e);
   }
@@ -447,34 +426,29 @@ export async function updateCloudOrderStatus(
   orderId: string,
   patch: Partial<Pick<OrderDetails, 'status' | 'trackingCode' | 'adminNotes'>>
 ): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.order) saveOrderLocally(data.order);
-      else patchLocalOrder(orderId, patch);
-      return true;
-    }
-  } catch (err) {
-    console.warn('Error updating order status in cloud:', err);
+  const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo actualizar el pedido.');
   }
-  patchLocalOrder(orderId, patch);
+  const data = await res.json();
+  if (data.order) saveOrderLocally(data.order);
+  else patchLocalOrder(orderId, patch);
   return true;
 }
 
 export async function deleteCloudOrder(orderId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
-    if (res.ok) {
-      removeLocalOrder(orderId);
-      return true;
-    }
-  } catch (err) {
-    console.warn('Error deleting order:', err);
+  const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo eliminar el pedido.');
   }
   removeLocalOrder(orderId);
   return true;
@@ -498,7 +472,7 @@ function removeLocalOrder(orderId: string) {
   }
 }
 
-// ============ STORE SETTINGS (comercio y envíos, compartido tienda/admin) ============
+// ============ STORE SETTINGS ============
 
 export async function fetchCloudSettings(): Promise<StoreSettings | null> {
   try {
@@ -514,24 +488,22 @@ export async function fetchCloudSettings(): Promise<StoreSettings | null> {
 }
 
 export async function saveCloudSettings(settings: StoreSettings): Promise<StoreSettings> {
-  try {
-    const res = await fetch('/api/cloud/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ settings }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.settings) return data.settings;
-    }
-  } catch (e) {
-    console.warn('Save settings network error:', e);
+  const res = await fetch('/api/cloud/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ settings }),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo guardar la configuración.');
   }
-  return settings;
+  const data = await res.json();
+  return data.settings || settings;
 }
 
 // Decrementa stock luego de una compra (tienda -> admin)
-export async function decrementStockForOrder(order: OrderDetails, products: Product[]): Promise<Product[]> {  const updated = products.map((p) => {
+export async function decrementStockForOrder(order: OrderDetails, products: Product[]): Promise<Product[]> {
+  const updated = products.map((p) => {
     const itemsForProduct = order.items.filter((i) => i.product.id === p.id);
     if (itemsForProduct.length === 0) return p;
     return {
@@ -540,17 +512,20 @@ export async function decrementStockForOrder(order: OrderDetails, products: Prod
         const match = itemsForProduct.find((i) => i.selectedVariant.weight === v.weight);
         if (!match) return v;
         const current = typeof v.stock === 'number' ? v.stock : null;
-        if (current === null) return v; // stock ilimitado
+        if (current === null) return v;
         const next = Math.max(0, current - match.quantity);
         return { ...v, stock: next, inStock: next > 0 };
       }),
     };
   });
-  // Persistir cada producto modificado
   for (const prod of updated) {
     const orig = products.find((p) => p.id === prod.id);
     if (orig && JSON.stringify(orig) !== JSON.stringify(prod)) {
-      await saveCloudProduct(prod);
+      try {
+        await saveCloudProduct(prod);
+      } catch (e) {
+        console.warn('Stock local actualizado, nube pendiente:', e);
+      }
     }
   }
   try {
@@ -559,7 +534,7 @@ export async function decrementStockForOrder(order: OrderDetails, products: Prod
   return updated;
 }
 
-// ============ DISTRIBUIDORES MAYORISTAS ============
+// ============ DISTRIBUIDORES MAYORISTAS (solo admin) ============
 
 function getStoredDistributors(): Distributor[] {
   try {
@@ -571,51 +546,43 @@ function getStoredDistributors(): Distributor[] {
 }
 
 export async function fetchCloudDistributors(): Promise<Distributor[]> {
-  try {
-    const res = await fetch('/api/cloud/distributors', { headers: { Accept: 'application/json' } });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.distributors)) {
-        localStorage.setItem(STORAGE_KEY_DISTRIBUTORS, JSON.stringify(data.distributors));
-        return data.distributors;
-      }
+  const res = await fetch('/api/cloud/distributors', {
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (Array.isArray(data.distributors)) {
+      localStorage.setItem(STORAGE_KEY_DISTRIBUTORS, JSON.stringify(data.distributors));
+      return data.distributors;
     }
-  } catch (err) {
-    console.warn('Fetch distributors network error:', err);
   }
+  if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
   return getStoredDistributors();
 }
 
 export async function saveCloudDistributor(d: Distributor): Promise<Distributor> {
-  try {
-    const res = await fetch('/api/cloud/distributors', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ distributor: d }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.distributor) {
-        syncLocalDistributor(data.distributor);
-        return data.distributor;
-      }
-    }
-  } catch (err) {
-    console.warn('Save distributor network error:', err);
+  const res = await fetch('/api/cloud/distributors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ distributor: d }),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo guardar el distribuidor.');
   }
-  syncLocalDistributor(d);
-  return d;
+  const data = await res.json();
+  if (data.distributor) syncLocalDistributor(data.distributor);
+  return data.distributor || d;
 }
 
 export async function deleteCloudDistributor(id: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/cloud/distributors/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (res.ok) {
-      removeLocalDistributor(id);
-      return true;
-    }
-  } catch (err) {
-    console.warn('Delete distributor network error:', err);
+  const res = await fetch(`/api/cloud/distributors/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    throw new Error('No se pudo eliminar el distribuidor.');
   }
   removeLocalDistributor(id);
   return true;
@@ -640,4 +607,29 @@ function removeLocalDistributor(id: string) {
   } catch (e) {
     console.warn('Error removing local distributor', e);
   }
+}
+
+// ============ PAGOS MERCADO PAGO ============
+
+export interface MpPaymentResult {
+  order: OrderDetails;
+  initPoint: string;
+  preferenceId: string;
+}
+
+export async function createMpPayment(order: OrderDetails): Promise<MpPaymentResult> {
+  let res: Response;
+  try {
+    res = await fetch('/api/payments/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order }),
+    });
+  } catch {
+    throw new Error('Sin conexión con el servidor de pagos. Elegí transferencia o coordiná por WhatsApp.');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'No se pudo generar el link de pago.');
+  saveOrderLocally(data.order);
+  return data as MpPaymentResult;
 }

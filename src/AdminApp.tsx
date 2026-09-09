@@ -15,19 +15,18 @@ import {
   KeyRound,
   Bell,
   AlertCircle,
-  Sparkles,
-  Factory,
+  AtSign,
   RefreshCw,
   CheckCircle2,
 } from 'lucide-react';
-import { Product, OrderDetails, StockAlert, StoreSettings, Distributor } from './types';
+import { Product, OrderDetails, StockAlert, StoreSettings } from './types';
 import { PRODUCTS } from './data/products';
 import {
   AuthUserProfile,
   fetchCloudProducts,
   fetchCloudOrders,
   fetchCloudStockAlerts,
-  fetchCloudDistributors,
+  fetchAdminMe,
   cloudLogin,
   cloudLogout,
 } from './lib/cloudDb';
@@ -37,15 +36,13 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminShipping } from './components/admin/AdminShipping';
 import { AdminTools } from './components/admin/AdminTools';
-import { AdminDistributors } from './components/admin/AdminDistributors';
 
-type Tab = 'resumen' | 'productos' | 'ventas' | 'mayoristas' | 'envios' | 'herramientas';
+type Tab = 'resumen' | 'productos' | 'ventas' | 'envios' | 'herramientas';
 
 const TAB_META: Record<Tab, { label: string; desc: string }> = {
   resumen: { label: 'Resumen', desc: 'Facturación, estados y alertas de un vistazo' },
   productos: { label: 'Productos y Stock', desc: 'Catálogo, precios, stock y alertas de clientes' },
   ventas: { label: 'Ventas y Pedidos', desc: 'Pedidos, envíos, seguimiento y cobranzas' },
-  mayoristas: { label: 'Mayoristas', desc: 'Distribuidores, contactos y condiciones de compra' },
   envios: { label: 'Envíos y Comercio', desc: 'Costos de envío, cupones y datos de la tienda' },
   herramientas: { label: 'Herramientas', desc: 'Aumentos masivos, respaldos e importación' },
 };
@@ -55,9 +52,9 @@ export default function AdminApp() {
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [orders, setOrders] = useState<OrderDetails[]>([]);
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
-  const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [toast, setToast] = useState<string | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   const [currentUser, setCurrentUser] = useState<AuthUserProfile | null>(() => {
     try {
@@ -68,8 +65,10 @@ export default function AdminApp() {
     }
   });
 
-  const [gatePin, setGatePin] = useState('admin123');
+  const [gateEmail, setGateEmail] = useState('admin@lajuaquina.com');
+  const [gatePassword, setGatePassword] = useState('');
   const [gateError, setGateError] = useState<string | null>(null);
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
   const notify = (msg: string) => {
@@ -80,12 +79,11 @@ export default function AdminApp() {
   const loadAll = async () => {
     setLoadingData(true);
     try {
-      const [prods, ords, als, dists, sett] = await Promise.all([
-        fetchCloudProducts(),
-        fetchCloudOrders(),
-        fetchCloudStockAlerts(),
-        fetchCloudDistributors(),
-        fetchStoreSettings(),
+      const [prods, ords, als, sett] = await Promise.all([
+        fetchCloudProducts().catch(() => null),
+        fetchCloudOrders().catch(() => null),
+        fetchCloudStockAlerts().catch(() => null),
+        fetchStoreSettings().catch(() => null),
       ]);
       if (prods && prods.length > 0) {
         setProducts(prods);
@@ -93,18 +91,33 @@ export default function AdminApp() {
           localStorage.setItem('la_juaquina_products', JSON.stringify(prods));
         } catch { /* ignore */ }
       }
-      setOrders(ords || []);
-      setAlerts(als || []);
-      setDistributors(dists || []);
+      if (ords) setOrders(ords);
+      if (als) setAlerts(als);
       if (sett) setSettings(sett);
     } finally {
       setLoadingData(false);
     }
   };
 
+  // Restaurar sesión validándola contra el backend (sin sesión válida no hay acceso)
   useEffect(() => {
-    loadAll();
+    fetchAdminMe()
+      .then((u) => {
+        if (u) setCurrentUser(u);
+        else {
+          setCurrentUser(null);
+          try {
+            localStorage.removeItem('la_juaquina_user');
+          } catch { /* ignore */ }
+        }
+      })
+      .catch(() => setCurrentUser(null))
+      .finally(() => setCheckingSession(false));
   }, []);
+
+  useEffect(() => {
+    if (currentUser?.role === 'admin') loadAll();
+  }, [currentUser]);
 
   const handleUpdateProducts = (list: Product[]) => {
     setProducts(list);
@@ -113,16 +126,28 @@ export default function AdminApp() {
     } catch { /* ignore */ }
   };
 
-  const handleQuickLogin = async (quick: boolean = true) => {
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!gateEmail.trim() || !gatePassword) {
+      setGateError('Ingresá tu email y contraseña de administrador.');
+      return;
+    }
     setGateError(null);
+    setLoginLoading(true);
     try {
-      const admin = await cloudLogin('admin@lajuaquina.com', quick ? 'admin123' : gatePin, 'admin');
+      const admin = await cloudLogin(gateEmail.trim(), gatePassword);
       setCurrentUser(admin);
-      try {
-        localStorage.setItem('la_juaquina_user', JSON.stringify(admin));
-      } catch { /* ignore */ }
-    } catch {
-      setGateError('Error al validar credenciales de administrador.');
+      setGatePassword('');
+      notify('✅ Sesión iniciada.');
+    } catch (err: any) {
+      const msg = String(err.message || '');
+      setGateError(
+        msg.includes('Failed to fetch') || msg.includes('fetch')
+          ? 'Sin conexión con el servidor. Abrí el panel donde corre el backend (local con npm run dev, o tu URL de Vercel).'
+          : msg || 'Credenciales inválidas.'
+      );
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -164,39 +189,44 @@ export default function AdminApp() {
               <span>{gateError}</span>
             </div>
           )}
-          <div className="space-y-3">
-            <button
-              onClick={() => handleQuickLogin(true)}
-              className="w-full bg-[#1B4E43] hover:bg-[#256B5C] text-[#FFE194] font-extrabold text-xs py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-[#EFA332]" />
-              <span>⚡ Ingresar como Admin (1 clic)</span>
-            </button>
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-[#E8DFC9]"></div>
-              <span className="flex-shrink mx-2 text-[10px] uppercase font-bold text-[#8A7969]">O ingresá tu clave</span>
-              <div className="flex-grow border-t border-[#E8DFC9]"></div>
+          {checkingSession ? (
+            <div className="py-6 text-xs text-[#6A5949] font-bold">Verificando sesión...</div>
+          ) : (
+          <form onSubmit={handleLogin} className="space-y-3 text-left">
+            <div className="relative">
+              <AtSign className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
+              <input
+                type="email"
+                value={gateEmail}
+                onChange={(e) => setGateEmail(e.target.value)}
+                placeholder="Email de administrador"
+                autoComplete="username"
+                className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
+              />
             </div>
-            <div className="relative text-left">
+            <div className="relative">
               <KeyRound className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
               <input
                 type="password"
-                value={gatePin}
-                onChange={(e) => setGatePin(e.target.value)}
-                placeholder="Clave (admin123)"
+                value={gatePassword}
+                onChange={(e) => setGatePassword(e.target.value)}
+                placeholder="Contraseña"
+                autoComplete="current-password"
                 className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
               />
             </div>
             <button
-              onClick={() => handleQuickLogin(false)}
-              className="w-full bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-bold text-xs py-2.5 rounded-xl transition-colors cursor-pointer"
+              type="submit"
+              disabled={loginLoading}
+              className="w-full bg-[#1B4E43] hover:bg-[#256B5C] text-[#FFE194] font-extrabold text-xs py-3 px-4 rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-60"
             >
-              Validar y entrar
+              {loginLoading ? 'Verificando...' : 'Ingresar al panel'}
             </button>
-            <button onClick={goToStore} className="w-full text-xs text-[#7A6A59] hover:text-[#1B4E43] font-bold py-2 cursor-pointer">
+            <button type="button" onClick={goToStore} className="w-full text-xs text-[#7A6A59] hover:text-[#1B4E43] font-bold py-2 cursor-pointer text-center">
               ← Ir a la tienda pública
             </button>
-          </div>
+          </form>
+          )}
         </motion.div>
       </div>
     );
@@ -204,13 +234,11 @@ export default function AdminApp() {
 
   const pendingAlerts = alerts.filter((a) => a.status === 'pending').length;
   const pendingOrders = orders.filter((o) => (o.status || 'pendiente') === 'pendiente').length;
-  const activeDistributors = distributors.filter((d) => d.active).length;
 
   const navItems: { id: Tab; icon: React.ReactNode; badge?: number }[] = [
     { id: 'resumen', icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
     { id: 'productos', icon: <Package className="w-[18px] h-[18px]" />, badge: pendingAlerts },
     { id: 'ventas', icon: <ShoppingBag className="w-[18px] h-[18px]" />, badge: pendingOrders },
-    { id: 'mayoristas', icon: <Factory className="w-[18px] h-[18px]" /> },
     { id: 'envios', icon: <Truck className="w-[18px] h-[18px]" /> },
     { id: 'herramientas', icon: <Wrench className="w-[18px] h-[18px]" /> },
   ];
@@ -296,7 +324,7 @@ export default function AdminApp() {
               <span className="text-lg">🐾</span>
               <div>
                 <p className="text-sm font-bold font-display leading-tight">Panel Admin</p>
-                <p className="text-[10px] text-[#8FC0AF]">{products.length} prod · {orders.length} pedidos · {activeDistributors} mayoristas</p>
+                <p className="text-[10px] text-[#8FC0AF]">{products.length} prod · {orders.length} pedidos</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -323,7 +351,7 @@ export default function AdminApp() {
               <p className="text-[11px] text-[#8A7969]">{TAB_META[tab].desc}</p>
             </div>
             <span className="hidden md:inline-flex text-[11px] font-bold text-[#5A4D3F] bg-[#FAF5EC] border border-[#E8DFC9] px-3 py-1.5 rounded-xl">
-              {products.length} productos · {orders.length} pedidos · {activeDistributors} mayoristas
+              {products.length} productos · {orders.length} pedidos
             </span>
             <button
               onClick={() => {
@@ -362,9 +390,6 @@ export default function AdminApp() {
               )}
               {tab === 'ventas' && (
                 <AdminOrders orders={orders} settings={settings} onReload={loadAll} onOrdersChange={setOrders} />
-              )}
-              {tab === 'mayoristas' && (
-                <AdminDistributors distributors={distributors} onChange={setDistributors} notify={notify} />
               )}
               {tab === 'envios' && (
                 <AdminShipping settings={settings} onSaved={(s) => { setSettings(s); notify('✅ Comercio y envíos guardados.'); }} />

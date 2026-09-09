@@ -1,0 +1,63 @@
+LA JUAQUINA — PONERLA ONLINE CON BACKEND REAL (Vercel + Neon + Mercado Pago)
+===============================================================================
+El código ya está listo: la carpeta api/ tiene todo el backend en funciones
+serverless y vercel.json lo publica junto a la tienda y el admin.
+Solo faltan 3 cuentas (gratis) y pegar 4 valores. Tiempo estimado: 20 minutos.
+
+IMPORTANTE: GitHub Pages sigue mostrando la versión estática (sin sincronizar).
+Cuando termines estos pasos, la URL oficial pasa a ser la de Vercel.
+
+----------------------------------------
+PASO 1 — Base de datos gratis (Neon, 5 min)
+----------------------------------------
+1. Entrá a https://neon.tech y creá una cuenta (con GitHub).
+2. Creá un proyecto (región US East va bien) con el nombre lajuaquina.
+3. En el dashboard copiá el "Connection string" (empieza con postgresql://...).
+   Guardalo: es tu DATABASE_URL. Las tablas se crean solas al primer uso.
+
+----------------------------------------
+PASO 2 — Publicar en Vercel (10 min)
+----------------------------------------
+1. Entrá a https://vercel.com y creá una cuenta (con GitHub).
+2. Add New > Project > importá MarianGallicchio/LaJoaquinaWeb > Deploy.
+3. Cuando termine, andá a Settings > Environment Variables y agregá:
+     ADMIN_EMAIL      = admin@lajuaquina.com
+     ADMIN_PASSWORD   = (una clave larga inventada por vos, mínimo 8 caracteres)
+     DATABASE_URL     = (la de Neon del paso 1)
+     MERCADOPAGO_ACCESS_TOKEN = (la del paso 3, podés agregarla después)
+     GEMINI_API_KEY   = (opcional, solo si querés el chat con IA)
+4. Redeploy: Deployments > ⋯ > Redeploy (para que tome las variables).
+5. Tu URL queda https://TU-PROYECTO.vercel.app
+     Tienda: https://TU-PROYECTO.vercel.app/
+     Admin:  https://TU-PROYECTO.vercel.app/admin.html
+
+----------------------------------------
+PASO 3 — Cobros con Mercado Pago (5 min)
+----------------------------------------
+1. Entrá a https://www.mercadopago.com.ar/developers/panel/credentials
+2. Usá las credenciales de PRUEBA primero (empiezan con TEST-).
+3. Agregá MERCADOPAGO_ACCESS_TOKEN en Vercel (paso 2.3) y hacé Redeploy.
+4. Probá una compra eligiendo "Mercado Pago online": debe abrir el pago real.
+5. El aviso automático de pagos (webhook) ya está en:
+     https://TU-PROYECTO.vercel.app/api/payments/webhook
+   Cuando Mercado Pago confirma, el pedido pasa solo a "pagado" en Ventas.
+6. Cuando ande, cambiá a las credenciales de PRODUCCIÓN (empiezan con APP_USR-).
+
+----------------------------------------
+PASO 4 — Verificación (la prueba de fuego)
+----------------------------------------
+1. En el admin de Vercel marcá un producto sin stock (- hasta 0).
+   Recargá la tienda en OTRO dispositivo/navegador: debe figurar agotado.
+2. Hacé una compra de prueba desde el celu: debe aparecer en
+   Admin > Ventas y Pedidos con todos los datos de envío.
+3. Probá entrar al admin con clave incorrecta: debe rechazarla.
+4. Revisá que no haya reseñas, fotos ni números de ejemplo visibles.
+
+----------------------------------------
+DATOS REALES PENDIENTES (pasámelos y los cargo yo)
+----------------------------------------
+- WhatsApp real del negocio (hoy hay un número de ejemplo).
+- Instagram real (hoy dice @lajuaquinapetshop sin confirmar).
+- Dirección: ¿sigue Bella Vista solo-online?
+- Fotos reales de productos (desde el admin: Productos > editar > Subir foto).
+- Las valoraciones con estrellas se quitaron hasta tener reseñas reales.

@@ -19,7 +19,7 @@ import {
   Store
 } from 'lucide-react';
 import { CartItem, OrderDetails, StoreSettings } from '../types';
-import { saveCloudOrder } from '../lib/cloudDb';
+import { saveCloudOrder, createMpPayment } from '../lib/cloudDb';
 import { DEFAULT_SETTINGS, getShippingCost, getEnabledShipping, getMethodLabel } from '../lib/storeSettings';
 
 interface CheckoutModalProps {
@@ -69,6 +69,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   
   const [loading, setLoading] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<OrderDetails | null>(null);
+  const [mpInitPoint, setMpInitPoint] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -171,6 +172,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
 
     setLoading(true);
+    setFormError(null);
 
     const newOrder: OrderDetails = {
       orderId: `JQ-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -186,7 +188,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       discount: totalDiscount,
       shippingCost,
       total,
-      status: 'pendiente',
+      status: paymentMethod === 'mercadopago' ? 'pago_pendiente' : 'pendiente',
       createdAt: new Date().toLocaleDateString('es-AR', {
         day: '2-digit',
         month: '2-digit',
@@ -196,18 +198,41 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }),
     };
 
+    // Mercado Pago: pago online real con link de Checkout Pro
+    if (paymentMethod === 'mercadopago') {
+      try {
+        const mp = await createMpPayment(newOrder);
+        setMpInitPoint(mp.initPoint);
+        setConfirmedOrder(mp.order);
+        setCurrentStep('success');
+        onOrderCompleted(mp.order);
+        window.open(mp.initPoint, '_blank', 'noopener,noreferrer');
+      } catch (err: any) {
+        setFormError(
+          err.message || 'No se pudo generar el link de pago. Probá con transferencia o escribinos por WhatsApp.'
+        );
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       // Save directly to cloud DB and backend
       await saveCloudOrder(newOrder);
-      const res = await fetch('/api/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newOrder),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setConfirmedOrder(data.order || newOrder);
-      } else {
+      try {
+        const res = await fetch('/api/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newOrder),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConfirmedOrder(data.order || newOrder);
+        } else {
+          setConfirmedOrder(newOrder);
+        }
+      } catch {
         setConfirmedOrder(newOrder);
       }
     } catch {
@@ -251,14 +276,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div>
               <h2 className="font-bold text-base sm:text-lg text-[#1B4E43] font-display leading-tight">
                 {currentStep === 'success'
-                  ? '¡Pedido Confirmado! 🎉'
+                  ? confirmedOrder?.paymentMethod === 'mercadopago'
+                    ? '¡Pedido creado! 💳'
+                    : '¡Pedido Confirmado! 🎉'
                   : currentStep === 'payment'
                   ? 'Finalizar Compra • Paso 3: Pago'
                   : 'Finalizar Compra • Paso 2: Envío'}
               </h2>
               <p className="text-[11px] text-[#7A6A59]">
                 {currentStep === 'success'
-                  ? 'Tu compra fue recibida con éxito'
+                  ? confirmedOrder?.paymentMethod === 'mercadopago'
+                    ? 'Completá el pago online para confirmarlo'
+                    : 'Tu compra fue recibida con éxito'
                   : currentStep === 'payment'
                   ? 'Elegí cómo abonar y revisá el resumen'
                   : 'Ingresá tus datos de contacto y entrega'}
@@ -661,12 +690,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       className="mt-1 accent-[#1B4E43] cursor-pointer"
                     />
                     <div className="flex-1 text-xs">
-                      <span className="font-bold text-[#2B231D] flex items-center gap-1.5 text-sm">
-                        <Wallet className="w-4 h-4 text-[#009EE3]" />
-                        Mercado Pago / Tarjetas
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#2B231D] flex items-center gap-1.5 text-sm">
+                          <Wallet className="w-4 h-4 text-[#009EE3]" />
+                          Mercado Pago online
+                        </span>
+                        <span className="bg-[#009EE3] text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow-2xs">
+                          PAGO REAL
+                        </span>
+                      </div>
                       <p className="text-[#6A5949] mt-0.5 text-[11px]">
-                        Dinero en cuenta o cuotas con todas las tarjetas a través de link de pago seguro.
+                        Tarjetas de crédito, débito y dinero en cuenta. Al confirmar se abre el pago seguro de Mercado Pago en una pestaña nueva.
                       </p>
                     </div>
                   </label>
@@ -781,6 +815,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   Tu pedido fue registrado exitosamente. Te mostramos el resumen y ya estamos preparando todo con mucho cariño para tu mascota.
                 </p>
               </div>
+
+              {/* Mercado Pago: completar el pago online */}
+              {confirmedOrder?.paymentMethod === 'mercadopago' && (
+                <div className="bg-[#E8F4FD] border border-[#7CC4EA] p-4 rounded-2xl text-left text-xs space-y-2 text-[#0C4A6E]">
+                  <p className="font-bold text-sm flex items-center gap-1.5">
+                    <Wallet className="w-4 h-4 text-[#009EE3]" />
+                    Completá tu pago online:
+                  </p>
+                  <p>
+                    Tu pedido quedó reservado como <strong>pago pendiente</strong>. Abrilo con el botón y pagá con tarjeta, débito o dinero en cuenta.
+                  </p>
+                  {mpInitPoint && (
+                    <a
+                      href={mpInitPoint}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0083C0] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all"
+                    >
+                      <Wallet className="w-5 h-5" />
+                      <span>Pagar {formatARS(confirmedOrder.total)} con Mercado Pago</span>
+                    </a>
+                  )}
+                  <p className="text-[11px]">
+                    Cuando se acredite el pago preparamos tu envío. Si ya pagaste, avisanos por WhatsApp con tu código {confirmedOrder.orderId}.
+                  </p>
+                </div>
+              )}
 
               {/* Bank details if transfer */}
               {confirmedOrder?.paymentMethod === 'transferencia' && (

@@ -23,7 +23,7 @@ interface HeaderProps {
   onSearchChange: (query: string) => void;
   cartCount: number;
   onOpenCart: () => void;
-  onOpenChat: () => void;
+  onOpenHelp: () => void;
   currentUser: AuthUserProfile | null;
   onOpenAuth: () => void;
   onOpenAdmin: () => void;
@@ -37,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   cartCount,
   onOpenCart,
-  onOpenChat,
+  onOpenHelp,
   currentUser,
   onOpenAuth,
   onOpenAdmin,
@@ -130,14 +130,14 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Ask AI Assistant Button */}
+            {/* Help Button */}
             <button
-              onClick={onOpenChat}
+              onClick={onOpenHelp}
               className="hidden lg:flex items-center gap-2 text-xs font-bold text-[#1B4E43] bg-[#E8F3EF] hover:bg-[#D7EBE4] border border-[#BCE0D4] px-3.5 py-2 rounded-full transition-colors cursor-pointer"
-              title="Preguntale a JuaquiBot"
+              title="Ayuda y contacto"
             >
               <Sparkles className="w-4 h-4 text-[#256B5C]" />
-              <span>Asesor Veterinario</span>
+              <span>Ayuda</span>
             </button>
 
             {/* Auth / Profile Button */}
@@ -306,16 +306,16 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
 
-            <button
-              onClick={() => {
-                onOpenChat();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#E8F3EF] text-[#1B4E43] text-xs font-bold"
-            >
-              <Sparkles className="w-4 h-4 text-[#256B5C]" />
-              Hablar con Asesor JuaquiBot
-            </button>
+              <button
+                onClick={() => {
+                  onOpenHelp();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#E8F3EF] text-[#1B4E43] text-xs font-bold"
+              >
+                <Sparkles className="w-4 h-4 text-[#256B5C]" />
+                Ayuda y contacto
+              </button>
 
             <div className="flex justify-around pt-2 text-xs font-semibold text-[#5A4C3D]">
               <a 

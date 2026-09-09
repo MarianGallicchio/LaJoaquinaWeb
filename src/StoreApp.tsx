@@ -7,7 +7,7 @@ import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
-import { ChatAssistant } from './components/ChatAssistant';
+import { HelpAssistant } from './components/HelpAssistant';
 import { FoodCalculator } from './components/FoodCalculator';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { ContactSection } from './components/ContactSection';
@@ -51,6 +51,21 @@ export default function StoreApp() {
       }
     });
     fetchStoreSettings().then((s) => setSettings(s));
+    // Vuelta desde Mercado Pago: avisar el resultado del pago
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pago = params.get('pago');
+      const pedido = params.get('pedido');
+      if (pago && pedido) {
+        if (pago === 'exito') showToast(`¡Pago acreditado! Pedido ${pedido} confirmado. 🎉`);
+        else if (pago === 'pendiente') showToast(`Pedido ${pedido}: el pago está pendiente de acreditación.`);
+        else showToast(`Pedido ${pedido}: el pago no se completó. Podés reintentarlo por WhatsApp.`);
+        params.delete('pago');
+        params.delete('pedido');
+        const clean = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+        window.history.replaceState(null, '', clean);
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const [currentUser, setCurrentUser] = useState<AuthUserProfile | null>(() => {
@@ -100,7 +115,7 @@ export default function StoreApp() {
   const [checkoutDiscountCode, setCheckoutDiscountCode] = useState('');
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [stockAlertTarget, setStockAlertTarget] = useState<{ product: Product; variant: ProductVariant } | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const handleOpenStockAlert = (product: Product, variant: ProductVariant) => {
@@ -191,7 +206,11 @@ export default function StoreApp() {
     } catch (e) {
       console.warn('No se pudo descontar stock', e);
     }
-    showToast(`¡Pedido ${order.orderId} confirmado!`);
+    if (order.status === 'pago_pendiente') {
+      showToast(`¡Pedido ${order.orderId} creado! Completá el pago en Mercado Pago.`);
+    } else {
+      showToast(`¡Pedido ${order.orderId} confirmado!`);
+    }
   };
 
   const brands = useMemo(() => {
@@ -257,7 +276,7 @@ export default function StoreApp() {
         onSearchChange={setSearchQuery}
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
-        onOpenChat={() => setIsChatOpen(true)}
+        onOpenHelp={() => setIsHelpOpen(true)}
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenAdmin={() => {
@@ -396,10 +415,11 @@ export default function StoreApp() {
         )}
       </main>
 
-      <TestimonialsSection />
+      <TestimonialsSection settings={settings} />
       <FoodCalculator products={products} onSelectProduct={(product) => setModalProduct(product)} />
-      <ContactSection />
+      <ContactSection settings={settings} />
       <Footer
+        settings={settings}
         onSelectCategory={(cat) => {
           setActiveCategory(cat);
           scrollToCatalog();
@@ -414,6 +434,7 @@ export default function StoreApp() {
         onClose={() => setModalProduct(null)}
         onAddToCart={handleAddToCart}
         onOpenStockAlert={handleOpenStockAlert}
+        settings={settings}
       />
 
       <StockAlertModal
@@ -449,7 +470,12 @@ export default function StoreApp() {
         }}
       />
 
-      <ChatAssistant isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onClose={() => setIsChatOpen(false)} />
+      <HelpAssistant
+        isOpen={isHelpOpen}
+        onToggle={() => setIsHelpOpen(!isHelpOpen)}
+        onClose={() => setIsHelpOpen(false)}
+        settings={settings}
+      />
 
       <AuthModal
         isOpen={isAuthOpen}

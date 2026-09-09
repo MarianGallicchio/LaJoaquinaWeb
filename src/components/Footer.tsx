@@ -1,13 +1,16 @@
 import React from 'react';
 import { Heart, ShieldCheck, Truck, Instagram, Phone } from 'lucide-react';
-import { ProductCategory } from '../types';
+import { ProductCategory, StoreSettings } from '../types';
+import { DEFAULT_SETTINGS, waLink, instagramUrl } from '../lib/storeSettings';
 
 interface FooterProps {
   onSelectCategory: (cat: ProductCategory) => void;
   onOpenAdmin?: () => void;
+  settings?: StoreSettings;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin, settings }) => {
+  const store = settings || DEFAULT_SETTINGS;
   return (
     <footer className="bg-[#1B4E43] text-[#FAF7F2] pt-14 pb-8 border-t border-[#153D34]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,7 +32,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
             </p>
             <div className="flex items-center gap-3 pt-1">
               <a
-                href="https://wa.me/5491123456789"
+                href={waLink(store.whatsapp, '¡Hola La Juaquina!')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#25D366] text-white flex items-center justify-center transition-colors"
@@ -38,7 +41,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
                 <Phone className="w-4 h-4" />
               </a>
               <a
-                href="https://instagram.com/lajuaquinapetshop"
+                href={instagramUrl(store)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#C13584] text-white flex items-center justify-center transition-colors"

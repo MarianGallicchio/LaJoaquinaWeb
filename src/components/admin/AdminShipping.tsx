@@ -21,9 +21,13 @@ export const AdminShipping: React.FC<Props> = ({ settings, onSaved }) => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const saved = await saveStoreSettings(form);
-    onSaved(saved);
-    setMsg('✅ Configuración de comercio y envíos guardada. La tienda ya la está usando.');
+    try {
+      const saved = await saveStoreSettings(form);
+      onSaved(saved);
+      setMsg('✅ Configuración de comercio y envíos guardada. La tienda ya la está usando.');
+    } catch (e: any) {
+      setMsg(`⚠️ ${e.message || 'No se pudo guardar en la nube.'}`);
+    }
     setTimeout(() => setMsg(null), 3500);
     setSaving(false);
   };
@@ -44,6 +48,10 @@ export const AdminShipping: React.FC<Props> = ({ settings, onSaved }) => {
           <div>
             <label className="block font-bold text-[#5B4E41] mb-1">WhatsApp (solo números, con código país)</label>
             <input value={form.whatsapp} onChange={(e) => set({ whatsapp: e.target.value })} placeholder="5491123456789" className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none" />
+          </div>
+          <div>
+            <label className="block font-bold text-[#5B4E41] mb-1">Instagram (con @)</label>
+            <input value={form.instagram} onChange={(e) => set({ instagram: e.target.value })} placeholder="@lajuaquinapetshop" className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none" />
           </div>
           <div>
             <label className="block font-bold text-[#5B4E41] mb-1">Dirección del local</label>

@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
   ShoppingBag, 
-  Star, 
   ShieldCheck, 
   Truck, 
   Check, 
@@ -12,13 +11,15 @@ import {
   Bell,
   PackageX
 } from 'lucide-react';
-import { Product, ProductVariant } from '../types';
+import { Product, ProductVariant, StoreSettings } from '../types';
+import { DEFAULT_SETTINGS, waLink } from '../lib/storeSettings';
 
 interface ProductModalProps {
   product: Product | null;
   onClose: () => void;
   onAddToCart: (product: Product, variant: ProductVariant, quantity: number) => void;
   onOpenStockAlert?: (product: Product, variant: ProductVariant) => void;
+  settings?: StoreSettings;
 }
 
 export const ProductModal: React.FC<ProductModalProps> = ({
@@ -26,6 +27,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   onClose,
   onAddToCart,
   onOpenStockAlert,
+  settings,
 }) => {
   if (!product) return null;
 
@@ -60,9 +62,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     maximumFractionDigits: 0,
   }).format((activeVariant.price || 0) * quantity);
 
-  const whatsappMessage = encodeURIComponent(
-    `¡Hola La Juaquina! Quiero consultar sobre el producto: ${product.name} (${activeVariant.weight}). ¿Tienen stock disponible para entrega inmediata?`
-  );
+  const store = settings || DEFAULT_SETTINGS;
+
+  const whatsappText = `¡Hola La Juaquina! Quiero consultar sobre el producto: ${product.name} (${activeVariant.weight}). ¿Tienen stock disponible para entrega inmediata?`;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
@@ -111,22 +113,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             <h2 className="text-xl sm:text-2xl font-extrabold text-[#2B231D] font-display mt-1">
               {product.name}
             </h2>
-
-            {/* Rating */}
-            <div className="flex items-center gap-1.5 mt-2 text-xs text-[#8A7969]">
-              <div className="flex text-[#EFA332]">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-4 h-4 ${
-                      i < Math.floor(product.rating) ? 'fill-[#EFA332]' : 'text-[#D5C6B0]'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="font-bold text-[#2B231D]">{product.rating}</span>
-              <span>({product.reviewsCount} opiniones verificadas)</span>
-            </div>
 
             {/* Description */}
             <p className="text-xs sm:text-sm text-[#5B4E41] mt-3 leading-relaxed">
@@ -291,7 +277,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
 
               <a
-                href={`https://wa.me/5491123456789?text=${whatsappMessage}`}
+                href={waLink(store.whatsapp, whatsappText)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs text-[#25D366] hover:bg-[#E8F8EE] rounded-xl font-bold transition-colors"

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShoppingBag, 
-  Star, 
   Info, 
   Check, 
   ShieldCheck,
@@ -153,22 +152,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         >
           {product.name}
         </h3>
-
-        {/* Rating */}
-        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-[#8C7B6A]">
-          <div className="flex text-[#EFA332]">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`w-3.5 h-3.5 ${
-                  i < Math.floor(product.rating) ? 'fill-[#EFA332]' : 'text-[#D5C6B0]'
-                }`}
-              />
-            ))}
-          </div>
-          <span className="font-bold text-[#2B231D]">{product.rating}</span>
-          <span>({product.reviewsCount})</span>
-        </div>
 
         {/* Description snippet */}
         <p className="text-xs text-[#6B5B4C] mt-2 line-clamp-2 leading-relaxed">

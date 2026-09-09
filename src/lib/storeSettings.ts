@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   city: 'Bella Vista, Buenos Aires',
   hours: 'Atención online: Lun a Sáb de 9 a 19:30 hs',
   whatsapp: '5491123456789',
+  instagram: '@lajuaquinapetshop',
   aliasTransferencia: 'LA.JUAQUINA.PET',
   couponCode: 'JUAQUINA10',
   couponPercent: 10,
@@ -94,4 +95,14 @@ export function getMethodLabel(s: StoreSettings, method: string): string {
 
 export function formatARS(val: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+}
+
+export function instagramUrl(s: StoreSettings): string {
+  const handle = (s.instagram || '').replace(/^@/, '').trim();
+  return handle ? `https://instagram.com/${handle}` : 'https://instagram.com/';
+}
+
+export function waLink(phone: string, text: string): string {
+  const clean = (phone || '').replace(/\D/g, '');
+  return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
 }

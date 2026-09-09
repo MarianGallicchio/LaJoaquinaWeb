@@ -20,7 +20,15 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
 
   const persistAll = async (list: Product[]) => {
     onUpdateProducts(list);
-    for (const p of list) await saveCloudProduct(p);
+    let failed = 0;
+    for (const p of list) {
+      try {
+        await saveCloudProduct(p);
+      } catch {
+        failed++;
+      }
+    }
+    if (failed > 0) feedback(`⚠️ Cambios locales listos, pero ${failed} no se guardaron en la nube (revisá tu sesión).`);
   };
 
   // Aumento / descuento masivo de precios

@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { 
-  MapPin, 
-  Phone, 
-  Clock, 
-  MessageCircle, 
-  Mail, 
-  Send, 
-  CheckCircle2, 
-  Instagram, 
+import {
+  MapPin,
+  Phone,
+  Clock,
+  MessageCircle,
+  Mail,
+  Send,
+  CheckCircle2,
+  Instagram,
   HelpCircle,
   ChevronDown
 } from 'lucide-react';
+import { StoreSettings } from '../types';
+import { DEFAULT_SETTINGS, waLink } from '../lib/storeSettings';
 
-export const ContactSection: React.FC = () => {
+export const ContactSection: React.FC<{ settings?: StoreSettings }> = ({ settings }) => {
+  const store = settings || DEFAULT_SETTINGS;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [petInfo, setPetInfo] = useState('');
@@ -147,7 +150,7 @@ export const ContactSection: React.FC = () => {
 
                   <div className="flex items-center justify-between pt-2">
                     <a
-                      href="https://wa.me/5491123456789"
+                      href={waLink(store.whatsapp, '¡Hola La Juaquina! Tengo una consulta sobre un producto.')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-[#25D366] hover:underline"
@@ -190,7 +193,7 @@ export const ContactSection: React.FC = () => {
                 <Instagram className="w-5 h-5 text-[#C13584] shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <strong className="block text-[#1B4E43] font-bold">Instagram</strong>
-                  <span className="text-[#6A5949]">@lajuaquinapetshop</span>
+                  <span className="text-[#6A5949]">{store.instagram}</span>
                 </div>
               </div>
             </div>
@@ -252,7 +255,7 @@ export const ContactSection: React.FC = () => {
                 </span>
               </div>
               <a
-                href="https://wa.me/5491123456789"
+                href={waLink(store.whatsapp, '¡Hola La Juaquina! Quiero comprar con el descuento por transferencia.')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-[#1B4E43] text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-[#256B5C] transition-colors shrink-0"
