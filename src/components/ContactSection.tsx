@@ -150,7 +150,7 @@ export const ContactSection: React.FC<{ settings?: StoreSettings }> = ({ setting
 
                   <div className="flex items-center justify-between pt-2">
                     <a
-                      href={waLink(store.whatsapp, '¡Hola La Juaquina! Tengo una consulta sobre un producto.')}
+                      href={waLink(store.whatsapp, '¡Hola La Joaquina! Tengo una consulta sobre un producto.')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-[#25D366] hover:underline"
@@ -255,7 +255,7 @@ export const ContactSection: React.FC<{ settings?: StoreSettings }> = ({ setting
                 </span>
               </div>
               <a
-                href={waLink(store.whatsapp, '¡Hola La Juaquina! Quiero comprar con el descuento por transferencia.')}
+                href={waLink(store.whatsapp, '¡Hola La Joaquina! Quiero comprar con el descuento por transferencia.')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-[#1B4E43] text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-[#256B5C] transition-colors shrink-0"

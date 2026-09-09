@@ -101,7 +101,7 @@ export const HelpAssistant: React.FC<HelpAssistantProps> = ({
 
             <div className="p-4 pt-2">
               <a
-                href={waLink(store.whatsapp, '¡Hola La Juaquina! Estoy en la tienda online y tengo una consulta.')}
+                href={waLink(store.whatsapp, '¡Hola La Joaquina! Estoy en la tienda online y tengo una consulta.')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors"

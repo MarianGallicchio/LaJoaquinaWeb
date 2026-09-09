@@ -8,7 +8,7 @@ export default async function handler(req: Request): Promise<Response> {
   const orders = await readDoc<any[]>('orders', []);
   return json({
     status: 'ok',
-    store: 'La Juaquina Pet Shop',
+    store: 'La Joaquina Pet Shop',
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     paymentsConfigured: mpConfigured(),
     productsCount: products.length,

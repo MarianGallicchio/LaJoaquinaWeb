@@ -450,7 +450,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   </span>
                 </h1>
                 <p className="text-[11px] text-[#D3E5DE]">
-                  La Juaquina Pet Shop · Base de datos en la nube activa
+                  La Joaquina Pet Shop · Base de datos en la nube activa
                 </p>
               </div>
             </div>
@@ -955,7 +955,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 stockAlerts.map((alert) => {
                   const cleanPhone = (alert.customerPhone || '').replace(/\D/g, '');
                   const waText = encodeURIComponent(
-                    `¡Hola ${alert.customerName || 'Cliente'}! Te escribimos de La Juaquina Pet Shop para avisarte que ya tenemos stock disponible de "${alert.productName}" (Presentación ${alert.variantWeight}). ¿Te gustaría que te lo reservemos para entrega o retiro?`
+                    `¡Hola ${alert.customerName || 'Cliente'}! Te escribimos de La Joaquina Pet Shop para avisarte que ya tenemos stock disponible de "${alert.productName}" (Presentación ${alert.variantWeight}). ¿Te gustaría que te lo reservemos para entrega o retiro?`
                   );
                   const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('54') ? cleanPhone : '54' + cleanPhone}?text=${waText}` : null;
 
@@ -1157,7 +1157,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
               ¿Restablecer Catálogo de Fábrica?
             </h3>
             <p className="text-xs text-[#7A6A59] mb-5">
-              Esta acción reiniciará los productos a la lista original de La Juaquina.
+              Esta acción reiniciará los productos a la lista original de La Joaquina.
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button

@@ -13,7 +13,7 @@ const TOKEN_TTL_MS = 30 * 24 * 3600 * 1000; // 30 días
 
 // Lectura perezosa: dotenv/config del host puede cargarse después de los imports
 function adminEmail(): string {
-  return (process.env.ADMIN_EMAIL || 'admin@lajuaquina.com').toLowerCase().trim();
+  return (process.env.ADMIN_EMAIL || 'admin@lajoaquina.com').toLowerCase().trim();
 }
 
 function adminPassword(): string {
@@ -47,7 +47,7 @@ export function verifyAdminCredentials(email: string, password: string): AdminPr
   const emailOk = safeEqual((email || '').toLowerCase().trim(), adminEmail());
   const passOk = safeEqual(password || '', adminPassword());
   if (!emailOk || !passOk) return null;
-  return { id: 'admin-master', email: adminEmail(), name: 'Administrador La Juaquina', role: 'admin' };
+  return { id: 'admin-master', email: adminEmail(), name: 'Administrador La Joaquina', role: 'admin' };
 }
 
 function b64url(obj: any): string {

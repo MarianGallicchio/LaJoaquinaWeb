@@ -1,7 +1,7 @@
-LA JUAQUINA PET SHOP - TIENDA ONLINE · BELLA VISTA
+LA JOAQUINA PET SHOP - TIENDA ONLINE · BELLA VISTA
 ==================================================
 Tienda 100% online con base en Bella Vista, Buenos Aires.
-Copyright: La Juaquina Pet Shop · Bella Vista, Buenos Aires, Argentina.
+Copyright: La Joaquina Pet Shop · Bella Vista, Buenos Aires, Argentina.
 
 2 INICIOS SEPARADOS
 -------------------
@@ -54,7 +54,7 @@ OPCIÓN A (automática, recomendada):
   1. Creá un repositorio en GitHub y subí esta carpeta:
        git init
        git add .
-       git commit -m "La Juaquina online"
+       git commit -m "La Joaquina online"
        git branch -M main
        git remote add origin https://github.com/TU-USUARIO/TU-REPO.git
        git push -u origin main

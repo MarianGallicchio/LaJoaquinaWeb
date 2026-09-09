@@ -1,5 +1,5 @@
 {
-  "name": "La Juaquina Pet Shop",
+  "name": "La Joaquina Pet Shop",
   "description": "Tienda online de mascotas, alimentos balanceados, accesorios y piedras sanitarias con compra directa, envíos a todo el país y asesor IA.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

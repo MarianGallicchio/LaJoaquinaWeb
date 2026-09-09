@@ -24,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin, s
                 🐾
               </div>
               <span className="text-2xl font-bold font-display text-white">
-                La Juaquina
+                La Joaquina
               </span>
             </div>
             <p className="text-xs text-[#D3E5DE] leading-relaxed">
@@ -32,7 +32,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin, s
             </p>
             <div className="flex items-center gap-3 pt-1">
               <a
-                href={waLink(store.whatsapp, '¡Hola La Juaquina!')}
+                href={waLink(store.whatsapp, '¡Hola La Joaquina!')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#25D366] text-white flex items-center justify-center transition-colors"
@@ -159,7 +159,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin, s
         {/* Bottom bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#A8C7BD]">
           <p>
-            © {new Date().getFullYear()} La Juaquina Pet Shop. Bella Vista, Buenos Aires, Argentina. Todos los derechos reservados.
+            © {new Date().getFullYear()} La Joaquina Pet Shop. Bella Vista, Buenos Aires, Argentina. Todos los derechos reservados.
           </p>
           <p className="flex items-center gap-1">
             Hecho con <Heart className="w-3.5 h-3.5 text-[#DE5D4E] fill-[#DE5D4E]" /> para las mascotas argentinas.

@@ -1,4 +1,4 @@
-LA JUAQUINA — PONERLA ONLINE CON BACKEND REAL (Vercel + Neon + Mercado Pago)
+LA JOAQUINA — PONERLA ONLINE CON BACKEND REAL (Vercel + Neon + Mercado Pago)
 ===============================================================================
 El código ya está listo: la carpeta api/ tiene todo el backend en funciones
 serverless y vercel.json lo publica junto a la tienda y el admin.
@@ -11,7 +11,7 @@ Cuando termines estos pasos, la URL oficial pasa a ser la de Vercel.
 PASO 1 — Base de datos gratis (Neon, 5 min)
 ----------------------------------------
 1. Entrá a https://neon.tech y creá una cuenta (con GitHub).
-2. Creá un proyecto (región US East va bien) con el nombre lajuaquina.
+2. Creá un proyecto (región US East va bien) con el nombre lajoaquina.
 3. En el dashboard copiá el "Connection string" (empieza con postgresql://...).
    Guardalo: es tu DATABASE_URL. Las tablas se crean solas al primer uso.
 
@@ -21,7 +21,7 @@ PASO 2 — Publicar en Vercel (10 min)
 1. Entrá a https://vercel.com y creá una cuenta (con GitHub).
 2. Add New > Project > importá MarianGallicchio/LaJoaquinaWeb > Deploy.
 3. Cuando termine, andá a Settings > Environment Variables y agregá:
-     ADMIN_EMAIL      = admin@lajuaquina.com
+     ADMIN_EMAIL      = admin@lajoaquina.com
      ADMIN_PASSWORD   = (una clave larga inventada por vos, mínimo 8 caracteres)
      DATABASE_URL     = (la de Neon del paso 1)
      MERCADOPAGO_ACCESS_TOKEN = (la del paso 3, podés agregarla después)
@@ -57,7 +57,7 @@ PASO 4 — Verificación (la prueba de fuego)
 DATOS REALES PENDIENTES (pasámelos y los cargo yo)
 ----------------------------------------
 - WhatsApp real del negocio (hoy hay un número de ejemplo).
-- Instagram real (hoy dice @lajuaquinapetshop sin confirmar).
+- Instagram real (hoy dice @lajoaquinapetshop sin confirmar).
 - Dirección: ¿sigue Bella Vista solo-online?
 - Fotos reales de productos (desde el admin: Productos > editar > Subir foto).
 - Las valoraciones con estrellas se quitaron hasta tener reseñas reales.

@@ -1,5 +1,5 @@
 // ENTRADA 1 — TIENDA (index.html -> src/main.tsx -> StoreApp)
-// Tienda pública de La Juaquina. El panel admin vive en otra entrada: admin.html -> AdminApp.
+// Tienda pública de La Joaquina. El panel admin vive en otra entrada: admin.html -> AdminApp.
 import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -26,6 +26,7 @@ export default function StoreApp() {
   const [selectedBrand, setSelectedBrand] = useState<string>('todas');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
   const [onlyInStock, setOnlyInStock] = useState(false);
+  const [onlyOffers, setOnlyOffers] = useState(false);
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
@@ -229,6 +230,9 @@ export default function StoreApp() {
     if (onlyInStock) {
       list = list.filter((p) => p.variants.some((v) => v.inStock !== false));
     }
+    if (onlyOffers) {
+      list = list.filter((p) => p.variants.some((v) => v.originalPrice && v.originalPrice > v.price));
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter(
@@ -247,7 +251,7 @@ export default function StoreApp() {
       list.sort((a, b) => b.rating - a.rating);
     }
     return list;
-  }, [products, activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock]);
+  }, [products, activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock, onlyOffers]);
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cartItems.reduce((s, i) => s + i.selectedVariant.price * i.quantity, 0);
@@ -287,13 +291,17 @@ export default function StoreApp() {
       {/* Barra promo configurable desde el admin */}
       <div className="bg-[#1B4E43] text-[#FFE9B8] text-[11px] sm:text-xs font-semibold text-center px-4 py-2 flex items-center justify-center gap-2">
         <Truck className="w-3.5 h-3.5 text-[#EFA332] shrink-0" />
-        <span>
-          Cupón <strong className="text-white">{settings.couponCode}</strong> = {settings.couponPercent}% OFF
-          <span className="mx-1.5 opacity-40">·</span>
-          Transferencia = {settings.transferPercent}% OFF extra
-          <span className="mx-1.5 opacity-40 hidden sm:inline">·</span>
-          <span className="hidden sm:inline">Tienda online · Envíos desde Bella Vista a todo el país</span>
-        </span>
+        {settings.announcement ? (
+          <span>{settings.announcement}</span>
+        ) : (
+          <span>
+            Cupón <strong className="text-white">{settings.couponCode}</strong> = {settings.couponPercent}% OFF
+            <span className="mx-1.5 opacity-40">·</span>
+            Transferencia = {settings.transferPercent}% OFF extra
+            <span className="mx-1.5 opacity-40 hidden sm:inline">·</span>
+            <span className="hidden sm:inline">Tienda online · Envíos desde Bella Vista a todo el país</span>
+          </span>
+        )}
       </div>
 
       <Hero
@@ -350,6 +358,16 @@ export default function StoreApp() {
             Solo con stock
           </label>
 
+          <label className="flex items-center gap-1.5 text-xs font-bold text-[#5A4D3F] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={onlyOffers}
+              onChange={(e) => setOnlyOffers(e.target.checked)}
+              className="rounded accent-[#DE5D4E] w-3.5 h-3.5 cursor-pointer"
+            />
+            🏷️ Solo ofertas
+          </label>
+
           {searchQuery && (
             <div className="text-xs text-[#1B4E43] font-semibold bg-[#E8F3EF] px-3 py-1 rounded-full flex items-center gap-2">
               <span>Buscando: "{searchQuery}"</span>
@@ -375,9 +393,34 @@ export default function StoreApp() {
           </div>
         </div>
 
+        {/* Pills de categoría (móvil): acceso rápido sin abrir el menú */}
+        <div className="md:hidden flex gap-2 overflow-x-auto no-scrollbar pb-1 mb-5 -mx-4 px-4">
+          {(
+            [
+              { id: 'todos', label: 'Todo 📦' },
+              { id: 'perros', label: 'Perros 🐶' },
+              { id: 'gatos', label: 'Gatos 🐱' },
+              { id: 'piedras', label: 'Piedras 🧼' },
+              { id: 'accesorios', label: 'Accesorios 🎾' },
+            ] as { id: ProductCategory; label: string }[]
+          ).map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setActiveCategory(c.id)}
+              className={`shrink-0 text-xs font-bold px-3.5 py-2 rounded-full border cursor-pointer transition-colors ${
+                activeCategory === c.id
+                  ? 'bg-[#1B4E43] text-white border-[#1B4E43]'
+                  : 'bg-[#FFFDF9] text-[#5A4D3F] border-[#E3D6BE]'
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
         {filteredProducts.length > 0 ? (
           <div
-            key={`${activeCategory}-${selectedBrand}-${searchQuery}-${sortBy}-${onlyInStock}`}
+            key={`${activeCategory}-${selectedBrand}-${searchQuery}-${sortBy}-${onlyInStock}-${onlyOffers}`}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
             {filteredProducts.map((product, index) => (
@@ -406,6 +449,7 @@ export default function StoreApp() {
                 setSelectedBrand('todas');
                 setActiveCategory('todos');
                 setOnlyInStock(false);
+                setOnlyOffers(false);
               }}
               className="mt-5 bg-[#EFA332] text-[#1E170E] font-bold text-xs px-5 py-2.5 rounded-full font-display cursor-pointer"
             >

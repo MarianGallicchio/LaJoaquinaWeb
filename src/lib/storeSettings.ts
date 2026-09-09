@@ -1,16 +1,17 @@
 import { StoreSettings } from '../types';
 
 export const DEFAULT_SETTINGS: StoreSettings = {
-  storeName: 'La Juaquina Pet Shop',
+  storeName: 'La Joaquina Pet Shop',
   address: 'Bella Vista, Buenos Aires',
   city: 'Bella Vista, Buenos Aires',
   hours: 'Atención online: Lun a Sáb de 9 a 19:30 hs',
   whatsapp: '5491123456789',
-  instagram: '@lajuaquinapetshop',
-  aliasTransferencia: 'LA.JUAQUINA.PET',
-  couponCode: 'JUAQUINA10',
+  instagram: '@lajoaquinapetshop',
+  aliasTransferencia: 'LA.JOAQUINA.PET',
+  couponCode: 'JOAQUINA10',
   couponPercent: 10,
   transferPercent: 10,
+  announcement: '',
   shipping: [
     { id: 'pickup', label: 'Punto de entrega a coordinar', cost: 0, enabled: false, detail: 'Se coordina por WhatsApp' },
     { id: 'express_amba', label: 'Envío AMBA', cost: 3500, enabled: true, detail: 'Bella Vista y alrededores en 24/48 hs' },
@@ -34,6 +35,12 @@ export function getLocalSettings(): StoreSettings {
       if (needsMigration(parsed)) {
         localStorage.removeItem(KEY);
         return DEFAULT_SETTINGS;
+      }
+      // Actualización de marca: cupón, alias y nombre viejos -> nuevos
+      if (parsed.couponCode === 'JUAQUINA10') parsed.couponCode = 'JOAQUINA10';
+      if (parsed.aliasTransferencia === 'LA.JUAQUINA.PET') parsed.aliasTransferencia = 'LA.JOAQUINA.PET';
+      if (typeof parsed.storeName === 'string') {
+        parsed.storeName = parsed.storeName.replace(/La Juaquina/g, 'La Joaquina');
       }
       return { ...DEFAULT_SETTINGS, ...parsed, shipping: parsed.shipping || DEFAULT_SETTINGS.shipping };
     }

@@ -71,7 +71,7 @@ export async function checkCloudDbStatus(): Promise<CloudDbStatus> {
       const data = await res.json();
       return {
         connected: true,
-        provider: data.provider || 'La Juaquina Cloud DB',
+        provider: data.provider || 'La Joaquina Cloud DB',
         version: data.version || '3.0',
         isOnline: true,
         productsCount: data.productsCount || 0,
@@ -424,7 +424,7 @@ function saveOrderLocally(order: OrderDetails) {
 
 export async function updateCloudOrderStatus(
   orderId: string,
-  patch: Partial<Pick<OrderDetails, 'status' | 'trackingCode' | 'adminNotes'>>
+  patch: Partial<Pick<OrderDetails, 'status' | 'trackingCode' | 'adminNotes' | 'history'>>
 ): Promise<boolean> {
   const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, {
     method: 'PATCH',
@@ -526,6 +526,33 @@ export async function decrementStockForOrder(order: OrderDetails, products: Prod
       } catch (e) {
         console.warn('Stock local actualizado, nube pendiente:', e);
       }
+    }
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
+  } catch { /* ignore */ }
+  return updated;
+}
+
+// Devuelve stock al cancelar un pedido (inverso del descuento por compra)
+export async function restockForOrder(order: OrderDetails, products: Product[]): Promise<Product[]> {
+  const updated = products.map((p) => {
+    const itemsForProduct = order.items.filter((i) => i.product.id === p.id);
+    if (itemsForProduct.length === 0) return p;
+    return {
+      ...p,
+      variants: p.variants.map((v) => {
+        const match = itemsForProduct.find((i) => i.selectedVariant.weight === v.weight);
+        if (!match || typeof v.stock !== 'number') return v;
+        const next = v.stock + match.quantity;
+        return { ...v, stock: next, inStock: true };
+      }),
+    };
+  });
+  for (const prod of updated) {
+    const orig = products.find((p) => p.id === prod.id);
+    if (orig && JSON.stringify(orig) !== JSON.stringify(prod)) {
+      await saveCloudProduct(prod);
     }
   }
   try {

@@ -258,7 +258,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       .map(i => `• ${i.product.name} (${i.selectedVariant.weight}) x${i.quantity}`)
       .join('\n');
     
-    const message = `¡Hola La Juaquina Pet Shop! Acabo de realizar el pedido *${confirmedOrder.orderId}* en la tienda online.\n\n*Detalles del pedido:*\n${itemsList}\n\n*Total:* ${formatARS(confirmedOrder.total)}\n*Pago:* ${confirmedOrder.paymentMethod.toUpperCase()}\n*Entrega:* ${confirmedOrder.deliveryMethod}\n*Dirección:* ${confirmedOrder.address}\n\n¡Aguardo su confirmación! Muchas gracias.`;
+    const message = `¡Hola La Joaquina Pet Shop! Acabo de realizar el pedido *${confirmedOrder.orderId}* en la tienda online.\n\n*Detalles del pedido:*\n${itemsList}\n\n*Total:* ${formatARS(confirmedOrder.total)}\n*Pago:* ${confirmedOrder.paymentMethod.toUpperCase()}\n*Entrega:* ${confirmedOrder.deliveryMethod}\n*Dirección:* ${confirmedOrder.address}\n\n¡Aguardo su confirmación! Muchas gracias.`;
 
     return `https://wa.me/${store.whatsapp}?text=${encodeURIComponent(message)}`;
   };
@@ -739,7 +739,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-[#256B5C] font-bold">
-                    <span>Cupón (JUAQUINA10):</span>
+                    <span>Cupón (JOAQUINA10):</span>
                     <span>-{formatARS(couponDiscount)}</span>
                   </div>
                 )}
@@ -851,7 +851,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     Datos para Transferencia Bancaria ({store.transferPercent}% OFF aplicado):
                   </p>
                   <p>• <strong>Banco:</strong> Banco Galicia / Mercado Pago</p>
-                  <p>• <strong>Titular:</strong> La Juaquina Pet Shop</p>
+                  <p>• <strong>Titular:</strong> La Joaquina Pet Shop</p>
                    <p>• <strong>Alias:</strong> <span className="bg-[#E8F3EF] px-2 py-0.5 rounded font-mono font-bold text-[#1B4E43]">{store.aliasTransferencia}</span></p>
                   <p>• <strong>Importe a transferir:</strong> <span className="font-bold text-[#1B4E43] text-sm">{formatARS(confirmedOrder.total)}</span></p>
                 </div>

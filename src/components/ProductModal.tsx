@@ -64,7 +64,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   const store = settings || DEFAULT_SETTINGS;
 
-  const whatsappText = `¡Hola La Juaquina! Quiero consultar sobre el producto: ${product.name} (${activeVariant.weight}). ¿Tienen stock disponible para entrega inmediata?`;
+  const whatsappText = `¡Hola La Joaquina! Quiero consultar sobre el producto: ${product.name} (${activeVariant.weight}). ¿Tienen stock disponible para entrega inmediata?`;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
@@ -295,7 +295,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </span>
               <span className="flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#256B5C]" />
-                Garantía oficial La Juaquina
+                Garantía oficial La Joaquina
               </span>
             </div>
 

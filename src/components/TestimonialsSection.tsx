@@ -43,7 +43,7 @@ export const TestimonialsSection: React.FC<{ settings?: StoreSettings }> = ({ se
             ¿Ya compraste? Contanos cómo le fue a tu mascota y la publicamos acá.
           </p>
           <a
-            href={waLink(store.whatsapp, '¡Hola La Juaquina! Quiero dejar una reseña de mi compra.')}
+            href={waLink(store.whatsapp, '¡Hola La Joaquina! Quiero dejar una reseña de mi compra.')}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-6 inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm px-6 py-3 rounded-full transition-colors"

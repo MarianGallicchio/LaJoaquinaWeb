@@ -53,7 +53,7 @@ export async function createOrder(order: any) {
 }
 
 export async function patchOrder(id: string, patch: Record<string, any>) {
-  const allowed = ['status', 'trackingCode', 'adminNotes'];
+  const allowed = ['status', 'trackingCode', 'adminNotes', 'history'];
   const list = await listOrders();
   const idx = list.findIndex((o: any) => o.orderId === id);
   if (idx === -1) throw new Error('Pedido no encontrado.');
@@ -81,7 +81,7 @@ export async function createStockAlert(alert: any) {
     productId: alert.productId,
     productName: alert.productName || 'Producto',
     productImage: alert.productImage || '',
-    productBrand: alert.productBrand || 'La Juaquina',
+    productBrand: alert.productBrand || 'La Joaquina',
     variantWeight: alert.variantWeight || '',
     customerEmail: String(alert.customerEmail).trim(),
     customerPhone: String(alert.customerPhone || '').trim(),
@@ -194,7 +194,7 @@ function fallbackReply(message: string): string {
   if (lower.includes('precio') || lower.includes('cuanto') || lower.includes('cuánto') || lower.includes('costo')) {
     return 'Podés ver todos los precios actualizados en el catálogo de la tienda, con presentaciones por kilo y promociones marcadas. Sumá al carrito y el total se calcula solo.';
   }
-  return '¡Hola! 🐾 En La Juaquina tenemos alimentos balanceados, piedras sanitarias y accesorios con envío a todo el país. Preguntame por nutrición, envíos, pagos o contame qué mascota tenés.';
+  return '¡Hola! 🐾 En La Joaquina tenemos alimentos balanceados, piedras sanitarias y accesorios con envío a todo el país. Preguntame por nutrición, envíos, pagos o contame qué mascota tenés.';
 }
 
 export async function chatReply(message: string, history: Array<{ sender: string; text: string }>) {
@@ -203,7 +203,7 @@ export async function chatReply(message: string, history: Array<{ sender: string
   if (!ai) return { reply: fallbackReply(message), source: 'local' as const };
 
   const systemPrompt = [
-    'Sos JuaquiBot, asistente de "La Juaquina Pet Shop", tienda online argentina de mascotas con base en Bella Vista, Buenos Aires (solo online, sin local).',
+    'Sos JoaquiBot, asistente de "La Joaquina Pet Shop", tienda online argentina de mascotas con base en Bella Vista, Buenos Aires (solo online, sin local).',
     'Vendés SOLO por esta web con carrito: Mercado Pago online, transferencia con 10% OFF o efectivo. Envíos desde Bella Vista a todo AMBA en 24/48 hs y al país por Correo Argentino.',
     'NO menciones Mercado Libre: no vendemos por ahí.',
     'Tono argentino cordial, respuestas cortas con negritas. Ante síntomas graves, derivá a un veterinario.',
@@ -211,10 +211,10 @@ export async function chatReply(message: string, history: Array<{ sender: string
 
   try {
     const convo = (Array.isArray(history) ? history.slice(-6) : [])
-      .map((h) => `${h.sender === 'user' ? 'Cliente' : 'JuaquiBot'}: ${h.text}`)
+      .map((h) => `${h.sender === 'user' ? 'Cliente' : 'JoaquiBot'}: ${h.text}`)
       .join('\n');
     const response = (await Promise.race([
-      ai.models.generateContent({ model: 'gemini-2.0-flash', contents: `${systemPrompt}\n\n${convo}\nCliente: ${message}\nJuaquiBot:` }),
+      ai.models.generateContent({ model: 'gemini-2.0-flash', contents: `${systemPrompt}\n\n${convo}\nCliente: ${message}\nJoaquiBot:` }),
       new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout')), 8000)),
     ])) as any;
     const text = response.text || '';
@@ -265,7 +265,7 @@ export async function createMpPreference(order: any, baseUrl: string) {
       auto_return: 'approved',
       notification_url: `${baseUrl}/api/payments/webhook`,
       external_reference: order.orderId,
-      statement_descriptor: 'LA JUAQUINA',
+      statement_descriptor: 'LA JOAQUINA',
     },
   });
   return { preferenceId: res.id, initPoint: res.init_point };

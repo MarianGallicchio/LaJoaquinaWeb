@@ -51,7 +51,11 @@ export const AdminShipping: React.FC<Props> = ({ settings, onSaved }) => {
           </div>
           <div>
             <label className="block font-bold text-[#5B4E41] mb-1">Instagram (con @)</label>
-            <input value={form.instagram} onChange={(e) => set({ instagram: e.target.value })} placeholder="@lajuaquinapetshop" className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none" />
+            <input value={form.instagram} onChange={(e) => set({ instagram: e.target.value })} placeholder="@lajoaquinapetshop" className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block font-bold text-[#5B4E41] mb-1">Anuncio bajo el encabezado (opcional)</label>
+            <input value={form.announcement || ''} onChange={(e) => set({ announcement: e.target.value })} placeholder="Ej: ¡Envío gratis en AMBA esta semana!" className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none" />
           </div>
           <div>
             <label className="block font-bold text-[#5B4E41] mb-1">Dirección del local</label>

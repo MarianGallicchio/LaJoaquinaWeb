@@ -108,7 +108,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
               <div className="relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#EFE8D8]">
                 <img 
                   src="https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800&auto=format&fit=crop&q=80" 
-                  alt="Perro y gato felices con La Juaquina" 
+                  alt="Perro y gato felices con La Joaquina" 
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />

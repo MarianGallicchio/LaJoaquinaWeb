@@ -51,7 +51,7 @@ function defaultDb(): DbShape {
     products: [],
     orders: [],
     users: [
-      { id: 'admin-1', email: 'admin@lajuaquina.com', name: 'Administrador La Juaquina', role: 'admin' },
+      { id: 'admin-1', email: 'admin@lajoaquina.com', name: 'Administrador La Joaquina', role: 'admin' },
     ],
     adminPin: 'admin123',
     stockAlerts: [],

@@ -8,7 +8,7 @@ export default async function handler(req: Request): Promise<Response> {
   const orders = await readDoc<any[]>('orders', []);
   return json({
     connected: true,
-    provider: 'La Juaquina Cloud DB',
+    provider: 'La Joaquina Cloud DB',
     version: '3.0',
     productsCount: products.length,
     ordersCount: orders.length,

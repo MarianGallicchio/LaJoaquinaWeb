@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../../types';
-import { saveCloudProduct } from '../../lib/cloudDb';
+import { saveCloudProduct, deleteCloudProduct } from '../../lib/cloudDb';
 
 interface Props {
   products: Product[];
@@ -12,6 +12,8 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
   const [scope, setScope] = useState<string>('todas');
   const [msg, setMsg] = useState<string | null>(null);
   const [importText, setImportText] = useState('');
+  const [badgeText, setBadgeText] = useState('Oferta');
+  const [badgeScope, setBadgeScope] = useState<string>('todas');
 
   const feedback = (m: string) => {
     setMsg(m);
@@ -57,12 +59,68 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
     feedback(`✅ Todo el catálogo repuesto a ${qty} unidades por variante.`);
   };
 
+  // Redondear todos los precios a la centena (ej: 24.950 -> 25.000)
+  const roundPrices = async () => {
+    const updated = products.map((p) => ({
+      ...p,
+      variants: p.variants.map((v) => ({
+        ...v,
+        price: Math.round(v.price / 100) * 100,
+        originalPrice: v.originalPrice ? Math.round(v.originalPrice / 100) * 100 : v.originalPrice,
+      })),
+    }));
+    await persistAll(updated);
+    feedback('✅ Precios redondeados a la centena en todo el catálogo.');
+  };
+
+  // Eliminar productos inválidos (sin presentaciones o todo en $0)
+  const invalidCount = products.filter(
+    (p) => !p.variants || p.variants.length === 0 || p.variants.every((v) => !v.price || v.price <= 0)
+  ).length;
+
+  const cleanupInvalid = async () => {
+    if (invalidCount === 0) {
+      feedback('✅ No hay productos inválidos para limpiar.');
+      return;
+    }
+    if (!confirm(`¿Eliminar ${invalidCount} producto(s) sin precio ni presentaciones?`)) return;
+    const updated = products.filter(
+      (p) => p.variants && p.variants.length > 0 && p.variants.some((v) => v.price > 0)
+    );
+    onUpdateProducts(updated);
+    try {
+      localStorage.setItem('la_juaquina_products', JSON.stringify(updated));
+    } catch { /* ignore */ }
+    for (const p of products.filter((x) => !updated.includes(x))) {
+      try {
+        await deleteCloudProduct(p.id);
+      } catch { /* sigue */ }
+    }
+    feedback(`🧹 Limpieza lista: ${invalidCount} producto(s) inválidos eliminados.`);
+  };
+
+  // Insignia masiva por categoría o marca (vacío = quitar)
+  const applyBadge = async () => {
+    const updated = products.map((p) => {
+      const match = badgeScope === 'todas' || p.category === badgeScope || p.brand === badgeScope;
+      if (!match) return p;
+      const { badge, ...rest } = p as any;
+      return badgeText.trim() ? { ...rest, badge: badgeText.trim() } : rest;
+    });
+    await persistAll(updated);
+    feedback(
+      badgeText.trim()
+        ? `✅ Insignia "${badgeText.trim()}" aplicada en "${badgeScope}".`
+        : `✅ Insignias quitadas en "${badgeScope}".`
+    );
+  };
+
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(products, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `catalogo-la-juaquina-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `catalogo-la-joaquina-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -80,7 +138,7 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `catalogo-la-juaquina-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `catalogo-la-joaquina-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -157,6 +215,65 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-2xl p-4 shadow-xs">
+          <h3 className="font-bold text-sm text-[#1B4E43] mb-1">🔢 Redondear precios</h3>
+          <p className="text-[11px] text-[#8A7969] mb-3">Deja todos los precios en centenas (ej: 24.950 → 25.000).</p>
+          <button
+            onClick={roundPrices}
+            className="text-xs font-bold bg-[#1B4E43] hover:bg-[#256B5C] text-white px-4 py-2 rounded-xl cursor-pointer"
+          >
+            Redondear todo
+          </button>
+        </div>
+
+        <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-2xl p-4 shadow-xs">
+          <h3 className="font-bold text-sm text-[#1B4E43] mb-1">🏷️ Insignia masiva</h3>
+          <p className="text-[11px] text-[#8A7969] mb-3">Marca (o quita) insignias por categoría o marca.</p>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <input
+              value={badgeText}
+              onChange={(e) => setBadgeText(e.target.value)}
+              placeholder="Oferta (vacío = quitar)"
+              className="flex-1 min-w-[110px] p-2 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none font-semibold"
+            />
+            <select
+              value={badgeScope}
+              onChange={(e) => setBadgeScope(e.target.value)}
+              className="p-2 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl font-semibold outline-none cursor-pointer"
+            >
+              <option value="todas">Todo</option>
+              <option value="perros">Perros</option>
+              <option value="gatos">Gatos</option>
+              <option value="piedras">Piedras</option>
+              <option value="accesorios">Accesorios</option>
+              {brands.map((b) => (
+                <option key={b} value={b}>Marca: {b}</option>
+              ))}
+            </select>
+            <button onClick={applyBadge} className="bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-black px-4 py-2 rounded-xl cursor-pointer">
+              Aplicar
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-2xl p-4 shadow-xs">
+          <h3 className="font-bold text-sm text-[#1B4E43] mb-1">🧹 Limpieza</h3>
+          <p className="text-[11px] text-[#8A7969] mb-3">
+            {invalidCount === 0
+              ? 'No hay productos sin precio ni presentaciones. Todo limpio.'
+              : `${invalidCount} producto(s) sin precio ni presentaciones.`}
+          </p>
+          <button
+            onClick={cleanupInvalid}
+            disabled={invalidCount === 0}
+            className="text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-xl cursor-pointer disabled:opacity-40"
+          >
+            Eliminar inválidos
+          </button>
         </div>
       </div>
 

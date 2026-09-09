@@ -62,6 +62,7 @@ export interface OrderDetails {
   status?: OrderStatus | string;
   trackingCode?: string;
   adminNotes?: string;
+  history?: Array<{ at: string; from: string; to: string; by?: string }>;
 }
 
 export interface Testimonial {
@@ -124,6 +125,7 @@ export interface StoreSettings {
   couponCode: string;
   couponPercent: number;
   transferPercent: number;
+  announcement?: string;
   shipping: ShippingMethodConfig[];
   updatedAt?: string;
 }

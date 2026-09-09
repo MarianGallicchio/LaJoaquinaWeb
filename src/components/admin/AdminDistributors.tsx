@@ -131,7 +131,7 @@ export const AdminDistributors: React.FC<Props> = ({ distributors, onChange, not
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mayoristas-la-juaquina-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `mayoristas-la-joaquina-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -140,7 +140,7 @@ export const AdminDistributors: React.FC<Props> = ({ distributors, onChange, not
     const clean = (d.phone || '').replace(/\D/g, '');
     if (!clean) return null;
     const phone = clean.startsWith('54') ? clean : '54' + clean;
-    return `https://wa.me/${phone}?text=${encodeURIComponent(`¡Hola ${d.contactName || d.name}! Te escribimos de La Juaquina Pet Shop (Bella Vista) para consultar precios mayoristas de ${d.brands || 'sus productos'}.`)}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(`¡Hola ${d.contactName || d.name}! Te escribimos de La Joaquina Pet Shop (Bella Vista) para consultar precios mayoristas de ${d.brands || 'sus productos'}.`)}`;
   };
 
   return (

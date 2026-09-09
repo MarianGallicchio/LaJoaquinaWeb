@@ -65,7 +65,7 @@ export default function AdminApp() {
     }
   });
 
-  const [gateEmail, setGateEmail] = useState('admin@lajuaquina.com');
+  const [gateEmail, setGateEmail] = useState('admin@lajoaquina.com');
   const [gatePassword, setGatePassword] = useState('');
   const [gateError, setGateError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -179,7 +179,7 @@ export default function AdminApp() {
             <ShieldCheck className="w-8 h-8 text-[#1E170E]" />
           </div>
           <h2 className="text-xl font-bold font-display text-[#1B4E43] mb-1">Panel Administrador</h2>
-          <p className="text-xs text-[#6A5949] mb-1">La Juaquina Pet Shop · Bella Vista · Solo online</p>
+          <p className="text-xs text-[#6A5949] mb-1">La Joaquina Pet Shop · Bella Vista · Solo online</p>
           <p className="text-[11px] text-[#8A7969] mb-6">
             Entrada privada <strong>admin.html</strong>. La tienda pública está en <strong>index.html</strong>.
           </p>
@@ -274,7 +274,7 @@ export default function AdminApp() {
             🐾
           </div>
           <div>
-            <p className="font-bold font-display leading-tight">La Juaquina</p>
+            <p className="font-bold font-display leading-tight">La Joaquina</p>
             <p className="text-[10px] uppercase tracking-widest text-[#8FC0AF] font-bold">Admin · Bella Vista</p>
           </div>
         </div>
@@ -389,7 +389,15 @@ export default function AdminApp() {
                 />
               )}
               {tab === 'ventas' && (
-                <AdminOrders orders={orders} settings={settings} onReload={loadAll} onOrdersChange={setOrders} />
+                <AdminOrders
+                  orders={orders}
+                  products={products}
+                  settings={settings}
+                  onReload={loadAll}
+                  onOrdersChange={setOrders}
+                  onProductsChange={handleUpdateProducts}
+                  notify={notify}
+                />
               )}
               {tab === 'envios' && (
                 <AdminShipping settings={settings} onSaved={(s) => { setSettings(s); notify('✅ Comercio y envíos guardados.'); }} />

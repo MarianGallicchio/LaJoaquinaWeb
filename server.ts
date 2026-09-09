@@ -38,7 +38,7 @@ app.get('/api/health', async (req, res) => {
   const [products, orders] = await Promise.all([core.listProducts(), core.listOrders()]);
   ok(res, {
     status: 'ok',
-    store: 'La Juaquina Pet Shop',
+    store: 'La Joaquina Pet Shop',
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     paymentsConfigured: core.mpConfigured(),
     productsCount: products.length,
@@ -73,7 +73,7 @@ app.get('/api/cloud/status', async (req, res) => {
   const [products, orders] = await Promise.all([core.listProducts(), core.listOrders()]);
   ok(res, {
     connected: true,
-    provider: 'La Juaquina Cloud DB',
+    provider: 'La Joaquina Cloud DB',
     version: '3.0',
     productsCount: products.length,
     ordersCount: orders.length,
@@ -303,7 +303,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🐾 La Juaquina Server corriendo en http://localhost:${PORT}`);
+    console.log(`🐾 La Joaquina Server corriendo en http://localhost:${PORT}`);
   });
 }
 

@@ -97,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="min-w-0">
               <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#1B4E43] font-display flex items-center gap-1 truncate">
-                La Juaquina
+                La Joaquina
                 <span className="text-[#EFA332] text-lg sm:text-xl">🐾</span>
               </span>
               <span className="text-[11px] hidden min-[420px]:block uppercase font-bold tracking-wider text-[#7A6B5B] -mt-1">
