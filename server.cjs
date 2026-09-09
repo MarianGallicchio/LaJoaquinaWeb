@@ -142,13 +142,13 @@ app.post("/api/chat", async (req, res) => {
       const lower = message.toLowerCase();
       let reply2 = "\xA1Hola! \u{1F43E} Soy JuaquiBot de La Juaquina Pet Shop. \xBFEn qu\xE9 puedo asesorarte hoy con tu mascota?";
       if (lower.includes("cachorro") || lower.includes("perrito")) {
-        reply2 = "Para cachorros te recomendamos f\xF3rmulas ricas en calcio, prote\xEDnas de alta digestibilidad y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y \xF3seo. Pod\xE9s comprarlo ac\xE1 mismo en la tienda o pedirlo por Mercado Libre con env\xEDo r\xE1pido.";
+        reply2 = "Para cachorros te recomendamos f\xF3rmulas ricas en calcio, prote\xEDnas de alta digestibilidad y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y \xF3seo. Pod\xE9s comprarlo ac\xE1 mismo en la tienda con env\xEDo a todo el pa\xEDs.";
       } else if (lower.includes("gato") || lower.includes("felino") || lower.includes("gatito")) {
         reply2 = "Para felinos contamos con marcas de gran palatabilidad como **Cat Chow Defense Plus**, **Raza Castrados** (vital para proteger el tracto urinario) y **Sabrosito Gatos Delicias del Mar**. Adem\xE1s pod\xE9s sumar nuestras piedras aglomerantes sin polvo.";
       } else if (lower.includes("piedra") || lower.includes("arena") || lower.includes("olor")) {
         reply2 = "Para control de olores te sugerimos las **Piedras de S\xEDlice en Cristales** (duran hasta 30 d\xEDas) o las **Piedras Aglomerantes Ultra Clumping** de bentonita volc\xE1nica que hacen bloques s\xF3lidos instant\xE1neos.";
       } else if (lower.includes("envio") || lower.includes("zona") || lower.includes("donde") || lower.includes("bella vista")) {
-        reply2 = "Somos una tienda 100% online con base en Bella Vista: enviamos en 24/48 hs a todo el AMBA, por Correo Argentino a todo el pa\xEDs, y adem\xE1s pod\xE9s comprar nuestros combos directo en **Mercado Libre** con Mercado Env\xEDos Full.";
+        reply2 = "Somos una tienda 100% online con base en Bella Vista: enviamos en 24/48 hs a todo el AMBA y por Correo Argentino a todo el pa\xEDs. Compr\xE1s directo en la web con 10% OFF por transferencia.";
       }
       res.json({ reply: reply2, source: "fallback" });
       return;
@@ -156,7 +156,7 @@ app.post("/api/chat", async (req, res) => {
     const systemPrompt = `
 Sos JuaquiBot, el asistente experto y emp\xE1tico de "La Juaquina Pet Shop", una tienda online argentina de mascotas, alimentos balanceados y accesorios con base en Bella Vista, Buenos Aires (solo online, sin local a la calle).
 Tu misi\xF3n es brindar atenci\xF3n c\xE1lida, entusiasta y muy \xFAtil a los amantes de las mascotas.
-Env\xEDos: despachamos desde Bella Vista a todo el AMBA en 24/48 hs y a todo el pa\xEDs por Correo Argentino y Mercado Env\xEDos.
+Env\xEDos: despachamos desde Bella Vista a todo el AMBA en 24/48 hs y a todo el pa\xEDs por Correo Argentino.
 
 Cat\xE1logo de La Juaquina:
 - Perros: Sabrosito Mix Carne y Pollo, Raza Mordida Chica, Dogui Cachorros con leche y DHA, Criadores Mantenimiento Adultos, Purina Dog Chow ExtraLife.
@@ -164,7 +164,7 @@ Cat\xE1logo de La Juaquina:
 - Piedras sanitarias: Aglomerantes Ultra Clumping (bentonita volc\xE1nica sin polvo), Cristales de S\xEDlice Perfumados (duran 30 d\xEDas), Cl\xE1sicas Absorbentes Super Ahorro.
 - Accesorios: Cama Nube Antiestr\xE9s, Arn\xE9s Antitir\xF3n reflectivo, Comedero Antivoracidad Slow Feeder, Rascador Castillo con Cucha.
 - Mascotas en Adopci\xF3n: Promovemos la adopci\xF3n responsable de perritos y gatitos rescatados con vacunas al d\xEDa.
-- Modalidad de compra: Los clientes pueden comprar directo en la tienda web con carrito (Mercado Pago, transferencia con 10% OFF o efectivo contra entrega) O comprar a trav\xE9s de Mercado Libre con Mercado Env\xEDos a todo el pa\xEDs.
+- Modalidad de compra: venta directa en la tienda web con carrito (Mercado Pago, transferencia con 10% OFF o efectivo contra entrega) y env\xEDos a todo el pa\xEDs. No ofrecemos compra por Mercado Libre: todo se vende ac\xE1.
 
 Tono de comunicaci\xF3n:
 - Amable, argentino natural (us\xE1 modismos suaves y cordiales como "\xA1Hola!", "\xA1Claro!", "mir\xE1", "fijate"), afectuoso con perros y gatos.
@@ -194,13 +194,13 @@ ${conversationPrompt}`
     } catch {
       const lower = message.toLowerCase();
       if (lower.includes("cachorro") || lower.includes("perrito")) {
-        reply = "Para cachorros te recomendamos f\xF3rmulas ricas en calcio, prote\xEDnas digestibles y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y \xF3seo. Pod\xE9s comprarlo ac\xE1 mismo con carrito o pedirlo por Mercado Libre.";
+        reply = "Para cachorros te recomendamos f\xF3rmulas ricas en calcio, prote\xEDnas digestibles y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y \xF3seo. Pod\xE9s comprarlo ac\xE1 mismo con carrito y env\xEDo a todo el pa\xEDs.";
       } else if (lower.includes("gato") || lower.includes("felino") || lower.includes("gatito")) {
         reply = "Para felinos contamos con marcas de gran palatabilidad como **Cat Chow Defense Plus**, **Raza Castrados** (vital para proteger el tracto urinario) y **Sabrosito Gatos Delicias del Mar**.";
       } else if (lower.includes("piedra") || lower.includes("arena") || lower.includes("olor")) {
         reply = "Para control de olores te sugerimos las **Piedras de S\xEDlice en Cristales** (duran hasta 30 d\xEDas) o las **Piedras Aglomerantes Ultra Clumping** de bentonita volc\xE1nica que hacen bloques s\xF3lidos instant\xE1neos.";
       } else {
-        reply = "\xA1Hola! \u{1F43E} En La Juaquina tenemos alimentos balanceados (Sabrosito, Raza, Dogui, Criadores), piedras sanitarias y accesorios. Pod\xE9s comprar directo en la web con 10% de descuento por transferencia o en nuestra tienda oficial de Mercado Libre.";
+        reply = "\xA1Hola! \u{1F43E} En La Juaquina tenemos alimentos balanceados (Sabrosito, Raza, Dogui, Criadores), piedras sanitarias y accesorios. Compr\xE1s directo en la web con 10% de descuento por transferencia y env\xEDo a todo el pa\xEDs.";
       }
     }
     res.json({ reply, source: reply ? "gemini" : "fallback" });
