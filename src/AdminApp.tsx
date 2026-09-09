@@ -36,7 +36,6 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminShipping } from './components/admin/AdminShipping';
 import { AdminTools } from './components/admin/AdminTools';
-import { ScrollFadeBackground } from './components/CuteBackground';
 
 type Tab = 'resumen' | 'productos' | 'ventas' | 'envios' | 'herramientas';
 
@@ -284,8 +283,7 @@ export default function AdminApp() {
   );
 
   return (
-    <div className="min-h-screen bg-decor-admin text-[#2B231D] flex">
-      <ScrollFadeBackground />
+    <div className="min-h-screen bg-[#F4EFE5] text-[#2B231D] flex">
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-gradient-to-b from-[#0C1F1B] via-[#143D34] to-[#0C1F1B] text-white sticky top-0 h-screen p-4">
         <div className="flex items-center gap-2.5 px-2 py-3">

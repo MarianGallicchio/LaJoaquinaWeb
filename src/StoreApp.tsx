@@ -8,7 +8,6 @@ import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { HelpAssistant } from './components/HelpAssistant';
-import { CuteBackground, PetMarquee, ScrollFadeBackground } from './components/CuteBackground';
 import { FoodCalculator } from './components/FoodCalculator';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { ContactSection } from './components/ContactSection';
@@ -263,9 +262,7 @@ export default function StoreApp() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-decor text-[#2B231D] selection:bg-[#EFA332]/30 selection:text-[#1B4E43] relative">
-      <ScrollFadeBackground />
-      <CuteBackground />
+    <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#2B231D] selection:bg-[#EFA332]/30 selection:text-[#1B4E43]">
       {toastMessage && (
         <div className="fixed top-20 right-4 z-50 bg-[#1B4E43] text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-xl border border-[#256B5C] flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
           <CheckCircle className="w-4 h-4 text-[#EFA332]" />
@@ -462,7 +459,6 @@ export default function StoreApp() {
         )}
       </main>
 
-      <PetMarquee />
       <TestimonialsSection settings={settings} />
       <FoodCalculator products={products} onSelectProduct={(product) => setModalProduct(product)} />
       <ContactSection settings={settings} />
