@@ -48,7 +48,15 @@ const TAB_META: Record<Tab, { label: string; desc: string }> = {
 };
 
 export default function AdminApp() {
-  const [tab, setTab] = useState<Tab>('resumen');
+  // La pestaña persiste: si el navegador recarga, volvés donde estabas (no a Resumen)
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const saved = localStorage.getItem('la_joaquina_admin_tab') as Tab | null;
+      return saved && TAB_META[saved] ? saved : 'resumen';
+    } catch {
+      return 'resumen';
+    }
+  });
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [orders, setOrders] = useState<OrderDetails[]>([]);
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
@@ -163,6 +171,9 @@ export default function AdminApp() {
 
   const goTab = (t: Tab) => {
     setTab(t);
+    try {
+      localStorage.setItem('la_joaquina_admin_tab', t);
+    } catch { /* ignore */ }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -272,7 +283,7 @@ export default function AdminApp() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F4EFE5] text-[#2B231D] flex">
+    <div className="min-h-screen bg-decor-admin text-[#2B231D] flex">
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-gradient-to-b from-[#0C1F1B] via-[#143D34] to-[#0C1F1B] text-white sticky top-0 h-screen p-4">
         <div className="flex items-center gap-2.5 px-2 py-3">

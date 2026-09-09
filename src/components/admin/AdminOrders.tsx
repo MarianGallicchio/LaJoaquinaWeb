@@ -27,8 +27,7 @@ const STATUS_STYLE: Record<string, string> = {
   cancelado: 'bg-[#F3F4F6] text-[#6B7280] border-[#E5E7EB]',
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  pendiente: 'Pendiente',
+const STATUS_LABEL: Record<string, string> = {  pendiente: 'Pendiente',
   pago_pendiente: 'Pago pendiente',
   pagado: 'Pagado',
   confirmado: 'Confirmado',
@@ -36,6 +35,17 @@ const STATUS_LABEL: Record<string, string> = {
   enviado: 'Enviado',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  pendiente: '#B45309',
+  pago_pendiente: '#A16207',
+  pagado: '#15803D',
+  confirmado: '#0284C7',
+  preparando: '#7C3AED',
+  enviado: '#EA580C',
+  entregado: '#15803D',
+  cancelado: '#9CA3AF',
 };
 
 const QUICK_FILTERS: { id: string; label: string }[] = [
@@ -57,6 +67,22 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
   const [actionError, setActionError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<string>('preparando');
+  const [savingId, setSavingId] = useState<string | null>(null);
+  // Aviso automático: al confirmar un cambio de estado se abre WhatsApp con el mensaje listo
+  const [autoWa, setAutoWa] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('la_joaquina_auto_wa') !== 'off';
+    } catch {
+      return true;
+    }
+  });
+
+  const setAutoWaPersist = (v: boolean) => {
+    setAutoWa(v);
+    try {
+      localStorage.setItem('la_joaquina_auto_wa', v ? 'on' : 'off');
+    } catch { /* ignore */ }
+  };
 
   const filtered = useMemo(() => {
     const query = q.toLowerCase().trim();
@@ -92,6 +118,7 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
     setActionError(null);
     const old = order.status || 'pendiente';
     if (old === newStatus) return;
+    setSavingId(order.orderId);
     try {
       // Al cancelar se devuelve el stock automáticamente
       if (newStatus === 'cancelado' && old !== 'cancelado') {
@@ -99,11 +126,35 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
         onProductsChange(updatedProducts);
         notify(`↩️ Stock devuelto por cancelación del pedido ${order.orderId}.`);
       }
-      await updateCloudOrderStatus(order.orderId, { status: newStatus as any, history: stampHistory(order, newStatus) });
-      onOrdersChange(orders.map((o) => (o.orderId === order.orderId ? { ...o, status: newStatus, history: stampHistory(o, newStatus) } : o)));
-      notify(`✅ Pedido ${order.orderId}: ${STATUS_LABEL[old] || old} → ${STATUS_LABEL[newStatus] || newStatus}.`);
+      const history = stampHistory(order, newStatus);
+      await updateCloudOrderStatus(order.orderId, { status: newStatus as any, history });
+      const saved = { ...order, status: newStatus, history };
+      onOrdersChange(orders.map((o) => (o.orderId === order.orderId ? saved : o)));
+      notify(`✅ Pedido ${order.orderId}: ${STATUS_LABEL[old] || old} → ${STATUS_LABEL[newStatus] || newStatus}. Guardado.`);
+
+      // Si se marca enviado sin seguimiento: abrir detalle y pedir el código
+      if (newStatus === 'enviado' && !((editingTracking[order.orderId] ?? order.trackingCode) || '').trim()) {
+        setExpanded(order.orderId);
+        notify('⚠️ Agregá el código de seguimiento antes de avisar al cliente.');
+        setTimeout(() => {
+          document.getElementById(`tracking-${order.orderId}`)?.focus();
+        }, 350);
+      }
+
+      // Aviso automático por WhatsApp con el mensaje del nuevo estado
+      if (autoWa) {
+        const link = waLinkFor(saved);
+        if (link) {
+          const w = window.open(link, '_blank', 'noopener');
+          if (!w) {
+            notify('⚠️ El navegador bloqueó la ventana de WhatsApp: usá el botón verde "Avisar estado".');
+          }
+        }
+      }
     } catch (e: any) {
       setActionError(e.message || 'No se pudo actualizar el pedido.');
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -290,6 +341,18 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
           <button onClick={onReload} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1B4E43] hover:underline cursor-pointer">
             <RefreshCw className="w-3.5 h-3.5" /> Actualizar
           </button>
+          <label
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#14532D] cursor-pointer select-none bg-[#E8F8EE] border border-[#BBF7D0] px-3 py-2 rounded-xl"
+            title="Al confirmar un cambio de estado se abre WhatsApp con el aviso listo para enviar"
+          >
+            <input
+              type="checkbox"
+              checked={autoWa}
+              onChange={(e) => setAutoWaPersist(e.target.checked)}
+              className="w-3.5 h-3.5 accent-[#16A34A] cursor-pointer"
+            />
+            📲 Aviso auto WhatsApp
+          </label>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {QUICK_FILTERS.map((f) => (
@@ -384,16 +447,23 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
                       {o.deliveryMethod === 'pickup' ? 'Entrega coordinada' : o.address} · {o.paymentMethod} · <strong className="text-[#1B4E43]">{formatARS(o.total)}</strong>
                     </p>
                   </div>
-                  <select
-                    value={st}
-                    onChange={(e) => handleStatus(o, e.target.value)}
-                    className="text-xs bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl px-2.5 py-2 font-bold cursor-pointer outline-none"
-                    title="Cambiar estado: avisa, registra historial y devuelve stock si se cancela"
-                  >
-                    {STATUS.filter((s) => s !== 'todas').map((s) => (
-                      <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={st}
+                      disabled={savingId === o.orderId}
+                      onChange={(e) => handleStatus(o, e.target.value)}
+                      className="text-xs bg-[#FAF5EC] border-2 border-[#E3D6BE] rounded-xl pl-2.5 pr-2 py-2 font-black cursor-pointer outline-none disabled:opacity-60"
+                      style={{ borderLeftColor: STATUS_COLOR[st] || '#1B4E43', borderLeftWidth: 6 }}
+                      title="Cambiar estado: guarda, registra historial, devuelve stock si se cancela y avisa por WhatsApp"
+                    >
+                      {STATUS.filter((s) => s !== 'todas').map((s) => (
+                        <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>
+                      ))}
+                    </select>
+                    {savingId === o.orderId && (
+                      <span className="text-[11px] font-black text-[#1B4E43] animate-pulse">Guardando…</span>
+                    )}
+                  </div>
                   <button onClick={() => setExpanded(isOpen ? null : o.orderId)} className="text-xs font-bold text-[#1B4E43] bg-[#E8F3EF] px-3 py-2 rounded-xl cursor-pointer hover:bg-[#D8EAE3]">
                     {isOpen ? 'Ocultar detalle' : 'Ver detalle / envío'}
                   </button>
@@ -452,6 +522,7 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
                       </div>
                       <label className="block font-bold text-[#5B4E41]">Código de seguimiento</label>
                       <input
+                        id={`tracking-${o.orderId}`}
                         value={editingTracking[o.orderId] ?? o.trackingCode ?? ''}
                         onChange={(e) => setEditingTracking({ ...editingTracking, [o.orderId]: e.target.value })}
                         placeholder="Ej: CA123456789AR"

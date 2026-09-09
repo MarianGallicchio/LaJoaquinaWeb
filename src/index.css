@@ -119,6 +119,35 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* ============ Fondo decorado + marquesina cute ============ */
+.bg-decor {
+  background-color: #FAF7F2;
+  background-image: radial-gradient(rgba(27, 78, 67, 0.07) 1.5px, transparent 1.6px);
+  background-size: 22px 22px;
+}
+
+.bg-decor-admin {
+  background-color: #F4EFE5;
+  background-image: radial-gradient(rgba(27, 78, 67, 0.08) 1.5px, transparent 1.6px);
+  background-size: 22px 22px;
+}
+
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee-x 32s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+}
+
 /* Custom scrollbar for better visual polish */
 ::-webkit-scrollbar {
   width: 8px;

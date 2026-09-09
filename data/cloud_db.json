@@ -392,7 +392,7 @@
           "price": 4200,
           "originalPrice": 4800,
           "inStock": true,
-          "stock": 50
+          "stock": 51
         },
         {
           "weight": "3 kg",
@@ -430,7 +430,7 @@
           "price": 34500,
           "originalPrice": 38000,
           "inStock": true,
-          "stock": 50
+          "stock": 51
         },
         {
           "weight": "15 kg",
@@ -468,7 +468,7 @@
           "price": 44200,
           "originalPrice": 48900,
           "inStock": true,
-          "stock": 50
+          "stock": 52
         },
         {
           "weight": "20 kg",
@@ -500,7 +500,7 @@
           "price": 12500,
           "originalPrice": 14000,
           "inStock": true,
-          "stock": 50
+          "stock": 52
         },
         {
           "weight": "8 kg",
@@ -578,7 +578,7 @@
           "price": 9200,
           "originalPrice": 10500,
           "inStock": true,
-          "stock": 50
+          "stock": 51
         },
         {
           "weight": "8 kg",
@@ -1237,7 +1237,7 @@
   "orders": [
     {
       "orderId": "JQ-718097",
-      "status": "cancelado",
+      "status": "confirmado",
       "createdAt": "09/09/2026, 12:50 p. m.",
       "customerName": "mariano gonzales",
       "customerPhone": "1126730077",
@@ -1473,7 +1473,33 @@
       "subtotal": 161300,
       "discount": 0,
       "shippingCost": 0,
-      "total": 161300
+      "total": 161300,
+      "history": [
+        {
+          "at": "2026-09-09T21:49:34.945Z",
+          "from": "cancelado",
+          "to": "pagado",
+          "by": "admin"
+        },
+        {
+          "at": "2026-09-09T21:49:41.843Z",
+          "from": "pagado",
+          "to": "preparando",
+          "by": "admin"
+        },
+        {
+          "at": "2026-09-09T21:49:47.379Z",
+          "from": "preparando",
+          "to": "cancelado",
+          "by": "admin"
+        },
+        {
+          "at": "2026-09-09T21:49:54.519Z",
+          "from": "cancelado",
+          "to": "confirmado",
+          "by": "admin"
+        }
+      ]
     }
   ],
   "users": [
