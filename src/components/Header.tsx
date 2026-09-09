@@ -60,11 +60,12 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Top micro-announcement banner */}
       <div className="bg-[#1B4E43] text-[#FAF7F2] py-2 px-4 text-xs sm:text-sm font-medium">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="bg-[#EFA332] text-[#1B4E43] text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="bg-[#EFA332] text-[#1B4E43] text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0">
               <Percent className="w-3 h-3" /> 10% OFF
             </span>
-            <span>Pagando con transferencia bancaria directa · Envíos en el día AMBA</span>
+            <span className="hidden sm:inline">Pagando con transferencia bancaria directa · Tienda online con envíos a todo el país</span>
+            <span className="sm:hidden truncate">Transferencia · Bella Vista · Todo el país</span>
           </div>
 
           <div className="flex items-center gap-4 hidden sm:flex text-xs">
@@ -86,17 +87,17 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-4">
           
           {/* Brand Logo */}
           <a 
             href="#top" 
             onClick={() => onSelectCategory('todos')}
-            className="flex items-center gap-2.5 text-decoration-none group shrink-0"
+            className="flex items-center gap-2 text-decoration-none group shrink-0 min-w-0"
           >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#1B4E43] to-[#2B6D5E] flex items-center justify-center text-white shadow-sm shadow-[#1B4E43]/20 group-hover:scale-105 transition-transform">
-              <svg className="w-6 h-6 text-[#EFA332]" viewBox="0 0 64 64" fill="currentColor">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-[#1B4E43] to-[#2B6D5E] flex items-center justify-center text-white shadow-md shadow-[#1B4E43]/30 group-hover:scale-105 transition-transform shrink-0">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-[#EFA332]" viewBox="0 0 64 64" fill="currentColor">
                 <ellipse cx="32" cy="40" rx="15" ry="13"/>
                 <ellipse cx="14" cy="24" rx="7" ry="9"/>
                 <ellipse cx="50" cy="24" rx="7" ry="9"/>
@@ -104,12 +105,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <ellipse cx="40" cy="12" rx="6" ry="8"/>
               </svg>
             </div>
-            <div>
-              <span className="text-2xl font-bold tracking-tight text-[#1B4E43] font-display flex items-center gap-1">
+            <div className="min-w-0">
+              <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#1B4E43] font-display flex items-center gap-1 truncate">
                 La Juaquina
-                <span className="text-[#EFA332] text-xl">🐾</span>
+                <span className="text-[#EFA332] text-lg sm:text-xl">🐾</span>
               </span>
-              <span className="text-[11px] block uppercase font-bold tracking-wider text-[#7A6B5B] -mt-1">
+              <span className="text-[11px] hidden min-[420px]:block uppercase font-bold tracking-wider text-[#7A6B5B] -mt-1">
                 Pet Shop & Alimentos
               </span>
             </div>
@@ -138,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Right Action Icons */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Ask AI Assistant Button */}
             <button
               onClick={onOpenChat}
@@ -193,7 +194,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Alternar entre vista de Tienda y Panel Administrador"
             >
               <ShieldCheck className={`w-4 h-4 ${isAdminView ? 'text-[#FFE194]' : 'text-[#EFA332]'}`} />
-              <span>{isAdminView ? '🛍️ Modo Tienda' : '👑 Alternar Admin'}</span>
+              <span className="hidden sm:inline">{isAdminView ? '🛍️ Modo Tienda' : '👑 Alternar Admin'}</span>
             </motion.button>
 
 
@@ -204,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.93 }}
               transition={{ type: 'spring', stiffness: 500, damping: 18 }}
-              className="relative flex items-center gap-2 bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-bold text-sm px-4 py-2.5 rounded-full shadow-xs cursor-pointer"
+              className="relative flex items-center gap-2 bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-bold text-sm px-3 py-2 sm:px-4 sm:py-2.5 rounded-full shadow-xs cursor-pointer btn-gloss"
               aria-label="Abrir carrito de compras"
             >
               <ShoppingBag className="w-5 h-5" />
@@ -277,7 +278,7 @@ export const Header: React.FC<HeaderProps> = ({
               🧮 Calculadora de Ración
             </a>
             <a href="#contacto" className="hover:text-[#1B4E43] hover:underline">
-              📍 Local & Contacto
+              📍 Contacto
             </a>
           </div>
         </nav>

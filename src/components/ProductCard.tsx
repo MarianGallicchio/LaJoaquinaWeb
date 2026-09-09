@@ -76,7 +76,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         animationDelay: `${delayMs}ms`,
         animationFillMode: 'both' 
       }}
-      className="animate-fade-slide-up bg-[#FFFDF9] rounded-2xl border border-[#E8DFC9] hover:border-[#D5C2A5] shadow-xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden group"
+      className="animate-fade-slide-up lift-3d bg-gradient-to-b from-[#FFFDF9] to-[#FDF8EE] rounded-2xl border border-[#E8DFC9] shadow-xs flex flex-col overflow-hidden group"
     >
       
       {/* Image container */}
@@ -259,10 +259,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               whileTap={{ scale: 0.93 }}
               animate={justAdded ? { scale: [1, 1.06, 0.98, 1] } : {}}
               transition={{ type: 'spring', stiffness: 450, damping: 17 }}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm font-display transition-colors cursor-pointer shadow-xs ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm font-display transition-colors cursor-pointer ${
                 justAdded
                   ? 'bg-[#256B5C] text-white'
-                  : 'bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E]'
+                  : 'bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] btn-gloss'
               }`}
             >
               <AnimatePresence mode="wait">

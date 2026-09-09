@@ -261,7 +261,7 @@ export default function StoreApp() {
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenAdmin={() => {
-          window.location.href = '/admin.html';
+          window.location.href = './admin.html';
         }}
       />
 
@@ -421,7 +421,7 @@ export default function StoreApp() {
           scrollToCatalog();
         }}
         onOpenAdmin={() => {
-          window.location.href = '/admin.html';
+          window.location.href = './admin.html';
         }}
       />
 
@@ -474,7 +474,7 @@ export default function StoreApp() {
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
         onOpenAdminPanel={() => {
-          window.location.href = '/admin.html';
+          window.location.href = './admin.html';
         }}
       />
     </div>

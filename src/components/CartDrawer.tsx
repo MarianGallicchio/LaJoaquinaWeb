@@ -338,7 +338,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   whileTap={{ scale: 0.95 }}
                   transition={{ type: 'spring', stiffness: 450, damping: 18 }}
                   onClick={() => onProceedToCheckout(shippingMethod, appliedCoupon || '')}
-                  className="w-full flex items-center justify-center gap-2 bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-extrabold py-3 px-4 rounded-xl text-sm font-display shadow-md transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] font-extrabold py-3 px-4 rounded-xl text-sm font-display transition-colors cursor-pointer btn-gloss"
                 >
                   <span>Iniciar Compra Integrada</span>
                   <ArrowRight className="w-4 h-4" />

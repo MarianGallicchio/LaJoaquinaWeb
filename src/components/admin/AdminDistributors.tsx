@@ -176,7 +176,7 @@ export const AdminDistributors: React.FC<Props> = ({ distributors, onChange, not
         <button onClick={exportCSV} className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#FAF5EC] border border-[#E3D6BE] px-3 py-2 rounded-xl cursor-pointer hover:bg-[#F2ECE0]">
           <Download className="w-3.5 h-3.5" /> CSV
         </button>
-        <button onClick={startCreate} className="inline-flex items-center gap-1.5 text-xs font-black bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] px-4 py-2 rounded-xl cursor-pointer">
+        <button onClick={startCreate} className="inline-flex items-center gap-1.5 text-xs font-black bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] px-4 py-2 rounded-xl cursor-pointer btn-gloss">
           <Plus className="w-4 h-4" /> Nuevo mayorista
         </button>
       </div>

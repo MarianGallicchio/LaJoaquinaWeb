@@ -25,7 +25,11 @@ import {
   Bell,
   MessageSquare,
   Check,
-  Mail
+  Mail,
+  Upload,
+  ImagePlus,
+  LayoutGrid,
+  Link2
 } from 'lucide-react';
 import { Product, ProductVariant, ProductCategory, OrderDetails, StockAlert } from '../types';
 import { PRODUCTS as DEFAULT_PRODUCTS } from '../data/products';
@@ -52,6 +56,20 @@ interface AdminCatalogProps {
   onLoginSuccess?: (user: AuthUserProfile) => void;
 }
 
+// Galería rápida de imágenes para productos (tocá para usar)
+const IMAGE_PRESETS = [
+  'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1591769225440-811ad7d6eab2?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&auto=format&fit=crop&q=80',
+];
+
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80';
+
 export const AdminCatalog: React.FC<AdminCatalogProps> = ({
   products,
   onUpdateProducts,
@@ -62,6 +80,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('todos');
+  const [adminSort, setAdminSort] = useState<'recientes' | 'nombre' | 'precio-min' | 'precio-max' | 'stock-bajo'>('recientes');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
@@ -104,6 +123,43 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
   const showFeedback = (msg: string) => {
     setFeedbackMsg(msg);
     setTimeout(() => setFeedbackMsg(null), 3500);
+  };
+
+  // Pestaña del selector de imagen + subida con redimensionado
+  const [imageTab, setImageTab] = useState<'url' | 'upload' | 'gallery'>('url');
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showFeedback('❌ El archivo debe ser una imagen (JPG, PNG, WebP).');
+      return;
+    }
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // Redimensionar a máx 900px para no saturar la base de datos
+        const maxSide = 900;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        setFormData((prev) => ({ ...prev, image: dataUrl }));
+        setUploadingImage(false);
+        showFeedback(`✅ Imagen cargada (${w}x${h}). Se guarda junto al producto.`);
+      };
+      img.onerror = () => {
+        setUploadingImage(false);
+        showFeedback('❌ No se pudo leer la imagen.');
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const loadOrders = async () => {
@@ -177,12 +233,14 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
     });
     setIsCreating(true);
     setEditingProduct(null);
+    setImageTab('url');
   };
 
   const handleStartEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData(JSON.parse(JSON.stringify(product)));
     setIsCreating(false);
+    setImageTab(product.image?.startsWith('data:') ? 'upload' : 'url');
   };
 
   const handleDuplicateProduct = async (product: Product) => {
@@ -296,13 +354,48 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
     setFormData({ ...formData, variants: currentVariants });
   };
 
-  // Filter products for admin search
-  const filtered = products.filter((p) => {
-    const matchesCat = selectedCategory === 'todos' || p.category === selectedCategory;
-    const q = searchQuery.toLowerCase().trim();
-    const matchesQuery = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
-    return matchesCat && matchesQuery;
-  });
+  // Stock rápido inline (lista): suma/resta unidades y guarda en la nube
+  const handleQuickStock = async (productId: string, variantWeight: string, delta: number) => {
+    const updated = products.map((p) => {
+      if (p.id !== productId) return p;
+      return {
+        ...p,
+        variants: p.variants.map((v) => {
+          if (v.weight !== variantWeight) return v;
+          const current = typeof v.stock === 'number' ? v.stock : 0;
+          const next = Math.max(0, current + delta);
+          return { ...v, stock: next, inStock: next > 0 };
+        }),
+      };
+    });
+    onUpdateProducts(updated);
+    const changed = updated.find((p) => p.id === productId);
+    if (changed) {
+      saveCloudProduct(changed);
+      const v = changed.variants.find((x) => x.weight === variantWeight);
+      showFeedback(`📦 Stock de "${changed.name}" (${variantWeight}): ${v?.stock ?? 0} u.`);
+    }
+  };
+
+  // Filter + sort products for admin search
+  const minPrice = (p: Product) => Math.min(...p.variants.map((v) => v.price));
+  const totalStock = (p: Product) =>
+    p.variants.reduce((s, v) => s + (typeof v.stock === 'number' ? v.stock : 999), 0);
+
+  const filtered = products
+    .filter((p) => {
+      const matchesCat = selectedCategory === 'todos' || p.category === selectedCategory;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesQuery = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+      return matchesCat && matchesQuery;
+    })
+    .sort((a, b) => {
+      if (adminSort === 'nombre') return a.name.localeCompare(b.name, 'es');
+      if (adminSort === 'precio-min') return minPrice(a) - minPrice(b);
+      if (adminSort === 'precio-max') return minPrice(b) - minPrice(a);
+      if (adminSort === 'stock-bajo') return totalStock(a) - totalStock(b);
+      return 0; // recientes: orden actual del catálogo
+    });
 
   // ================= ADMIN ACCESS GATE (ALTERNADOR) =================
   // If currentUser is not admin, show clear switcher so they can enter in 1 click
@@ -443,7 +536,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
 
             <button
               onClick={handleStartCreate}
-              className="inline-flex items-center gap-1.5 bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] font-extrabold text-xs px-3.5 py-1.5 rounded-xl transition-colors cursor-pointer btn-gloss"
             >
               <Plus className="w-4 h-4" />
               <span>Nuevo Producto</span>
@@ -519,6 +612,25 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
             </select>
           </div>
 
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[#7A6A59]">Orden:</span>
+            <select
+              value={adminSort}
+              onChange={(e) => setAdminSort(e.target.value as any)}
+              className="text-xs bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl px-3 py-2 font-semibold text-[#2B231D] focus:outline-none focus:ring-1 focus:ring-[#1B4E43] cursor-pointer"
+            >
+              <option value="recientes">Recientes</option>
+              <option value="nombre">Nombre A-Z</option>
+              <option value="precio-min">Menor precio</option>
+              <option value="precio-max">Mayor precio</option>
+              <option value="stock-bajo">⚠️ Stock bajo primero</option>
+            </select>
+          </div>
+
+          <span className="text-[11px] font-bold text-[#1B4E43] bg-[#E8F3EF] px-2.5 py-1.5 rounded-xl">
+            {filtered.length}/{products.length}
+          </span>
+
           <button
             onClick={() => setShowResetConfirm(true)}
             className="inline-flex items-center gap-1.5 text-xs text-[#8A7969] hover:text-[#DE5D4E] font-bold px-3 py-2 rounded-xl hover:bg-[#FAF5EC] transition-colors cursor-pointer"
@@ -530,8 +642,8 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
 
         </div>
 
-        {/* Product List Table */}
-        <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl overflow-hidden shadow-xs">
+        {/* Product List Table (desktop) + Cards (móvil) */}
+        <div className="hidden md:block bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
@@ -579,22 +691,48 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                       </span>
                     </td>
 
-                    {/* Variants */}
+                    {/* Variants con stock rápido */}
                     <td className="p-3.5">
-                      <div className="flex flex-wrap gap-1.5 max-w-xs">
+                      <div className="space-y-1.5 min-w-[230px]">
                         {product.variants.map((v, i) => (
-                          <span
+                          <div
                             key={i}
-                            className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${
-                              v.inStock
-                                ? 'bg-[#E8F3EF] text-[#1B4E43] border-[#CDE5DC]'
-                                : 'bg-red-50 text-red-600 border-red-200 line-through'
+                            className={`flex items-center gap-1.5 border rounded-lg px-2 py-1 ${
+                              v.inStock === false ? 'bg-red-50/60 border-red-200' : 'bg-[#FAF5EC] border-[#EFE8D8]'
                             }`}
-                            title={typeof v.stock === 'number' ? `${v.stock} unidades disponibles` : 'Sin control de unidades'}
                           >
-                            {v.weight}: ${v.price.toLocaleString('es-AR')}
-                            {typeof v.stock === 'number' ? ` (${v.stock}u)` : ''}
-                          </span>
+                            <span className="text-[11px] font-bold text-[#3D3025] flex-1 truncate" title={`${v.weight} · $${v.price.toLocaleString('es-AR')}`}>
+                              {v.weight} · ${v.price.toLocaleString('es-AR')}
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => handleQuickStock(product.id, v.weight, -1)}
+                                className="w-5 h-5 rounded-md bg-white border border-[#E3D6BE] text-xs font-black text-[#8C5800] hover:bg-[#FFECC2] cursor-pointer leading-none"
+                                title="Quitar 1 unidad"
+                              >
+                                −
+                              </button>
+                              <span
+                                className={`text-[11px] font-black min-w-[32px] text-center ${
+                                  v.inStock === false
+                                    ? 'text-red-600'
+                                    : typeof v.stock === 'number' && v.stock <= 5
+                                    ? 'text-[#8C5800]'
+                                    : 'text-[#1B4E43]'
+                                }`}
+                                title={typeof v.stock === 'number' ? `${v.stock} unidades en stock` : 'Sin control de unidades'}
+                              >
+                                {typeof v.stock === 'number' ? `${v.stock}u` : '∞'}
+                              </span>
+                              <button
+                                onClick={() => handleQuickStock(product.id, v.weight, 1)}
+                                className="w-5 h-5 rounded-md bg-[#1B4E43] text-white text-xs font-black hover:bg-[#256B5C] cursor-pointer leading-none"
+                                title="Agregar 1 unidad"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </td>
@@ -644,6 +782,88 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Product Cards (móvil): misma gestión sin tabla */}
+        <div className="md:hidden space-y-3">
+          {filtered.map((product) => (
+            <div key={product.id} className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-2xl p-3.5 shadow-xs">
+              <div className="flex items-center gap-3">
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="w-14 h-14 rounded-xl object-cover bg-[#F0EAE0] shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80';
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  <strong className="font-bold text-[#1B4E43] block text-xs truncate">{product.name}</strong>
+                  <span className="text-[11px] text-[#7A6A59]">{product.brand} · {product.category}</span>
+                  {product.badge && (
+                    <span className="block text-[10px] font-bold text-[#EFA332] mt-0.5">{product.badge}</span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleStartEdit(product)}
+                    className="p-2 rounded-xl bg-[#FAF5EC] text-[#1B4E43] cursor-pointer"
+                    title="Editar producto"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDuplicateProduct(product)}
+                    className="p-2 rounded-xl bg-[#E8F3EF] text-[#1B4E43] cursor-pointer"
+                    title="Duplicar"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setItemToDelete({ id: product.id, name: product.name })}
+                    className="p-2 rounded-xl bg-red-50 text-red-600 cursor-pointer"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2.5 space-y-1.5">
+                {product.variants.map((v, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 border text-xs ${
+                      v.inStock === false ? 'bg-red-50/60 border-red-200' : 'bg-[#FAF5EC] border-[#EFE8D8]'
+                    }`}
+                  >
+                    <span className="font-bold text-[#3D3025] flex-1 truncate">
+                      {v.weight} · ${v.price.toLocaleString('es-AR')}
+                    </span>
+                    <button
+                      onClick={() => handleQuickStock(product.id, v.weight, -1)}
+                      className="w-7 h-7 rounded-lg bg-white border border-[#E3D6BE] font-black text-[#8C5800] cursor-pointer"
+                    >
+                      −
+                    </button>
+                    <span className={`font-black min-w-[40px] text-center ${v.inStock === false ? 'text-red-600' : 'text-[#1B4E43]'}`}>
+                      {typeof v.stock === 'number' ? `${v.stock}u` : '∞'}
+                    </span>
+                    <button
+                      onClick={() => handleQuickStock(product.id, v.weight, 1)}
+                      className="w-7 h-7 rounded-lg bg-[#1B4E43] text-white font-black cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div className="text-center py-10 text-xs text-[#8A7969] bg-[#FFFDF9] border border-[#E5D7BF] rounded-2xl">
+              Sin productos con ese filtro.
+            </div>
+          )}
         </div>
 
       </main>
@@ -1107,15 +1327,98 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-[#5B4E41] mb-1">URL de Imagen del Producto</label>
-                <input
-                  type="url"
-                  value={formData.image || ''}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none"
-                />
+              {/* Imagen del producto: vista previa + URL / Subir / Galería */}
+              <div className="bg-[#FAF5EC] border border-[#E3D6BE] rounded-2xl p-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={formData.image || FALLBACK_IMG}
+                    alt="Vista previa"
+                    className="w-20 h-20 rounded-xl object-cover bg-white border border-[#E3D6BE] shrink-0 shadow-xs"
+                    onError={(e) => {
+                      e.currentTarget.src = FALLBACK_IMG;
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <label className="block font-bold text-[#5B4E41] mb-1.5">Imagen del Producto</label>
+                    <div className="flex gap-1.5">
+                      {(
+                        [
+                          { id: 'url', label: 'Enlace', icon: <Link2 className="w-3.5 h-3.5" /> },
+                          { id: 'upload', label: 'Subir foto', icon: <Upload className="w-3.5 h-3.5" /> },
+                          { id: 'gallery', label: 'Galería', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
+                        ] as const
+                      ).map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setImageTab(t.id)}
+                          className={`flex-1 inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-xl cursor-pointer transition-colors ${
+                            imageTab === t.id
+                              ? 'bg-[#1B4E43] text-white'
+                              : 'bg-white border border-[#E3D6BE] text-[#5B4E41] hover:bg-[#F2ECE0]'
+                          }`}
+                        >
+                          {t.icon}
+                          <span>{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {imageTab === 'url' && (
+                  <input
+                    type="url"
+                    value={formData.image?.startsWith('data:') ? '' : formData.image || ''}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    placeholder="https://... pegá el enlace de la foto"
+                    className="mt-2.5 w-full p-2.5 bg-white border border-[#E3D6BE] rounded-xl outline-none"
+                  />
+                )}
+
+                {imageTab === 'upload' && (
+                  <label className="mt-2.5 flex flex-col items-center justify-center gap-1.5 w-full p-4 rounded-xl border-2 border-dashed border-[#CBB99C] bg-white cursor-pointer hover:border-[#1B4E43] hover:bg-[#E8F3EF]/50 transition-colors text-center">
+                    <ImagePlus className="w-6 h-6 text-[#1B4E43]" />
+                    {uploadingImage ? (
+                      <span className="font-bold text-[#1B4E43]">Procesando imagen...</span>
+                    ) : (
+                      <>
+                        <span className="font-bold text-[#1B4E43]">Tocá para subir una foto</span>
+                        <span className="text-[11px] text-[#8A7969]">JPG, PNG o WebP · se achica sola a 900px y queda guardada en el producto</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImageUpload(f);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                )}
+
+                {imageTab === 'gallery' && (
+                  <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+                    {IMAGE_PRESETS.map((src) => (
+                      <button
+                        key={src}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, image: src });
+                          showFeedback('✅ Imagen de galería seleccionada.');
+                        }}
+                        className={`rounded-xl overflow-hidden border-2 cursor-pointer transition-all hover:scale-105 ${
+                          formData.image === src ? 'border-[#1B4E43] ring-2 ring-[#1B4E43]/30' : 'border-transparent'
+                        }`}
+                      >
+                        <img src={src} alt="Opción de galería" className="w-full h-14 object-cover" loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>

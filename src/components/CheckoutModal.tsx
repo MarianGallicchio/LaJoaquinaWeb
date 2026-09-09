@@ -731,7 +731,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="submit"
                   id="btn-confirm-order"
                   disabled={loading}
-                  className="w-full py-3.5 bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-black rounded-xl text-sm font-display shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3.5 bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] font-black rounded-xl text-sm font-display transition-all flex items-center justify-center gap-2 cursor-pointer btn-gloss"
                 >
                   {loading ? (
                     <span>Procesando pedido...</span>

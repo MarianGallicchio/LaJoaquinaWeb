@@ -50,11 +50,11 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
             </p>
 
             {/* CTA Buttons */}
-            <div className="pt-2 flex flex-wrap items-center gap-3.5">
+            <div className="pt-2 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
               <a
                 href="#catalogo"
                 onClick={() => onSelectCategory('todos')}
-                className="inline-flex items-center gap-2 bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-bold px-6 py-3.5 rounded-full shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base font-display"
+                className="inline-flex items-center justify-center gap-2 bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] font-bold px-6 py-3.5 rounded-full transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base font-display btn-gloss"
               >
                 <ShoppingBag className="w-5 h-5" />
                 <span>Ver Catálogo Completo</span>
@@ -65,7 +65,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
                 href="https://listado.mercadolibre.com.ar/la-juaquina"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#FFF159] hover:bg-[#FFE926] text-[#2D3277] font-bold px-5 py-3.5 rounded-full shadow-xs hover:shadow-md transition-all text-sm sm:text-base border border-[#E8DE43]"
+                className="inline-flex items-center justify-center gap-2 bg-[#FFF159] hover:bg-[#FFE926] text-[#2D3277] font-bold px-5 py-3.5 rounded-full shadow-xs hover:shadow-md transition-all text-sm sm:text-base border border-[#E8DE43]"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="7" width="18" height="13" rx="2" />
@@ -77,7 +77,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
 
               <button
                 onClick={onOpenCalculator}
-                className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#1B4E43] hover:text-[#256B5C] bg-[#FFFDF9] border border-[#D9CBBA] px-4 py-3.5 rounded-full hover:bg-[#F2ECE0] transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 text-xs sm:text-sm font-bold text-[#1B4E43] hover:text-[#256B5C] bg-[#FFFDF9] border border-[#D9CBBA] px-4 py-3.5 rounded-full hover:bg-[#F2ECE0] transition-colors cursor-pointer"
               >
                 <span>🧮 Calcular Ración Diaria</span>
               </button>
@@ -110,7 +110,14 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
 
           {/* Right Visual Card with Pet Highlights */}
           <div className="lg:col-span-5 relative">
-            <div className="bg-[#FFFDF9] p-4 sm:p-5 rounded-3xl border border-[#E5D7BF] shadow-lg relative overflow-hidden">
+            {/* Sellos flotantes 3D */}
+            <div className="absolute -top-3 -left-1 sm:-left-3 z-10 glass border border-white/60 shadow-3d rounded-2xl px-3 py-1.5 text-[11px] sm:text-xs font-black text-[#1B4E43] animate-floaty" style={{ ['--float-rot' as any]: '-4deg' }}>
+              🚚 Envíos 24/48 hs
+            </div>
+            <div className="absolute -top-3 right-2 sm:right-4 z-10 bg-gradient-to-b from-[#1B4E43] to-[#0F2E27] text-[#FFE194] rounded-2xl px-3 py-1.5 text-[11px] sm:text-xs font-black shadow-3d animate-floaty" style={{ ['--float-rot' as any]: '3deg', animationDelay: '1.2s' }}>
+              10% OFF transferencia
+            </div>
+            <div className="bg-[#FFFDF9] p-4 sm:p-5 rounded-3xl border border-[#E5D7BF] shadow-3d relative overflow-hidden mt-3">
               
               {/* Pet Banner Collage */}
               <div className="relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#EFE8D8]">
@@ -137,7 +144,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
               <div className="grid grid-cols-3 gap-2.5 mt-4 text-center">
                 <button
                   onClick={() => onSelectCategory('perros')}
-                  className="bg-[#FAF5EC] hover:bg-[#F2ECE0] p-2.5 rounded-2xl border border-[#E8DFC9] transition-all group cursor-pointer"
+                  className="bg-gradient-to-b from-[#FFFEFB] to-[#FAF3E4] hover:from-white hover:to-[#F5EAD3] p-2.5 rounded-2xl border border-[#E8DFC9] transition-all group cursor-pointer lift-3d"
                 >
                   <span className="text-2xl block mb-1 group-hover:scale-110 transition-transform">🐶</span>
                   <span className="text-xs font-bold text-[#1B4E43] block">Perros</span>
@@ -146,7 +153,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
 
                 <button
                   onClick={() => onSelectCategory('gatos')}
-                  className="bg-[#FAF5EC] hover:bg-[#F2ECE0] p-2.5 rounded-2xl border border-[#E8DFC9] transition-all group cursor-pointer"
+                  className="bg-gradient-to-b from-[#FFFEFB] to-[#FAF3E4] hover:from-white hover:to-[#F5EAD3] p-2.5 rounded-2xl border border-[#E8DFC9] transition-all group cursor-pointer lift-3d"
                 >
                   <span className="text-2xl block mb-1 group-hover:scale-110 transition-transform">🐱</span>
                   <span className="text-xs font-bold text-[#1B4E43] block">Gatos</span>
@@ -155,7 +162,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
 
                 <button
                   onClick={() => onSelectCategory('piedras')}
-                  className="bg-[#FAF5EC] hover:bg-[#F2ECE0] p-2.5 rounded-2xl border border-[#E8DFC9] transition-all group cursor-pointer"
+                  className="bg-gradient-to-b from-[#FFFEFB] to-[#FAF3E4] hover:from-white hover:to-[#F5EAD3] p-2.5 rounded-2xl border border-[#E8DFC9] transition-all group cursor-pointer lift-3d"
                 >
                   <span className="text-2xl block mb-1 group-hover:scale-110 transition-transform">🧼</span>
                   <span className="text-xs font-bold text-[#1B4E43] block">Piedras</span>

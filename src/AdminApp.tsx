@@ -132,7 +132,8 @@ export default function AdminApp() {
   };
 
   const goToStore = () => {
-    window.location.href = '/';
+    // Ruta relativa: funciona en localhost (/) y en GitHub Pages (/LaJoaquinaWeb/)
+    window.location.href = './';
   };
 
   const goTab = (t: Tab) => {
