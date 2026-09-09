@@ -1,0 +1,80 @@
+LA JUAQUINA PET SHOP - TIENDA ONLINE · BELLA VISTA
+==================================================
+Tienda 100% online con base en Bella Vista, Buenos Aires.
+Copyright: La Juaquina Pet Shop · Bella Vista, Buenos Aires, Argentina.
+
+2 INICIOS SEPARADOS
+-------------------
+ENTRADA 1 - TIENDA (clientes)
+  Archivo: index.html
+  Código:  src/main.tsx -> src/StoreApp.tsx
+  URL dev: http://localhost:3000/
+  Doble clic: ABRIR-TIENDA.bat
+
+ENTRADA 2 - ADMIN (solo dueño)
+  Archivo: admin.html
+  Código:  src/admin-main.tsx -> src/AdminApp.tsx
+  URL dev: http://localhost:3000/admin.html
+  Doble clic: ABRIR-ADMIN.bat
+  Clave inicial: admin123
+
+AMBOS COMPARTEN LO MISMO (con servidor corriendo):
+  - Mismo catálogo, stock, ventas, mayoristas y configuración
+    (nube en data/cloud_db.json + respaldo en el navegador).
+  - Lo que se vende en la TIENDA descuenta stock solo y aparece en ADMIN > Ventas.
+  - Lo que se edita en ADMIN (precios, stock, envíos, cupones) se ve en la TIENDA.
+
+PANEL ADMIN (pestañas)
+---------------------
+  1. Resumen: facturación, ticket promedio, gráfico de ventas 7 días,
+     catálogo por categoría, pedidos por estado, stock bajo, lo más vendido.
+  2. Productos y Stock: crear/editar/duplicar/eliminar, stock en unidades
+     por variante, alertas de stock de clientes.
+  3. Ventas y Pedidos: buscador, filtro por estado
+     (pendiente/confirmado/preparando/enviado/entregado/cancelado),
+     detalle de envío y pago, código de seguimiento, notas internas,
+     WhatsApp al cliente, exportar CSV.
+  4. Mayoristas: distribuidores con contacto, marcas, condiciones de pago,
+     rubro, activado/desactivado, WhatsApp directo, exportar CSV.
+  5. Envíos y Comercio: WhatsApp, alias, cupón y % OFF, costos de envío
+     (Envío AMBA / Correo Argentino). La tienda los usa automáticamente.
+  6. Herramientas: aumento/descuento masivo por categoría o marca,
+     reposición rápida, exportar/importar catálogo JSON/CSV.
+
+COMO CORRER EN TU PC
+--------------------
+  npm install
+  npm run dev
+  - Tienda: http://localhost:3000/
+  - Admin:  http://localhost:3000/admin.html
+
+PUBLICAR EN GITHUB PAGES
+------------------------
+OPCIÓN A (automática, recomendada):
+  1. Creá un repositorio en GitHub y subí esta carpeta:
+       git init
+       git add .
+       git commit -m "La Juaquina online"
+       git branch -M main
+       git remote add origin https://github.com/TU-USUARIO/TU-REPO.git
+       git push -u origin main
+  2. En GitHub: Settings > Pages > Source: "GitHub Actions".
+  3. Cada push a main publica solo con el workflow .github/workflows/deploy.yml.
+  4. URLs:
+       https://TU-USUARIO.github.io/TU-REPO/         (tienda)
+       https://TU-USUARIO.github.io/TU-REPO/admin.html (admin)
+
+OPCIÓN B (manual, una línea):
+  1. npm install
+  2. npm run deploy
+     (compila y sube dist/ a la rama gh-pages)
+  3. En GitHub: Settings > Pages > Source: "Deploy from a branch",
+     rama gh-pages, carpeta / (root).
+
+IMPORTANTE SOBRE GITHUB PAGES:
+  - Pages es solo archivos estáticos: NO hay nube compartida.
+  - Catálogo, pedidos y mayoristas se guardan en el navegador
+    (localStorage) de cada dispositivo.
+  - El chat IA usa respuestas automáticas (sin clave Gemini).
+  - Para nube compartida real usá el servidor (npm start) en
+    Railway, Render o un VPS.

@@ -1,0 +1,863 @@
+{
+  "products": [
+    {
+      "id": "prod-1788971247439",
+      "name": "Rascador Castillo con Cucha y Juguetes Colgantes (copia)",
+      "brand": "CatTower",
+      "category": "accesorios",
+      "subCategory": "Rascadores",
+      "description": "Postes forrados en sisal natural resistente a uñas afiladas. Plataforma acolchada de felpa y cucha escondida para siestas inolvidables.",
+      "image": "https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=600&auto=format&fit=crop&q=80",
+      "badge": "Para Gatos",
+      "rating": 4.9,
+      "reviewsCount": 77,
+      "variants": [
+        {
+          "weight": "Torre 75 cm",
+          "price": 34900,
+          "originalPrice": 39900,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "rascador gato torre con cucha",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/rascador-gato-torre"
+    },
+    {
+      "id": "acc-rascador-torre",
+      "name": "Rascador Castillo con Cucha y Juguetes Colgantes",
+      "brand": "CatTower",
+      "category": "accesorios",
+      "subCategory": "Rascadores",
+      "description": "Postes forrados en sisal natural resistente a uñas afiladas. Plataforma acolchada de felpa y cucha escondida para siestas inolvidables.",
+      "image": "https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=600&auto=format&fit=crop&q=80",
+      "badge": "Para Gatos",
+      "rating": 4.9,
+      "reviewsCount": 77,
+      "variants": [
+        {
+          "weight": "Torre 75 cm",
+          "price": 34900,
+          "originalPrice": 39900,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "Castillo 120 cm",
+          "price": 54900,
+          "originalPrice": 62000,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "rascador gato torre con cucha",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/rascador-gato-torre"
+    },
+    {
+      "id": "acc-comedero-antivoracidad",
+      "name": "Comedero Antivoracidad Interactivo Slow Feeder",
+      "brand": "SmartPet",
+      "category": "accesorios",
+      "subCategory": "Comederos",
+      "description": "Laberinto interno que reduce la velocidad al comer hasta 10 veces, previniendo atracones, gases, regurgitación y dilatación gástrica.",
+      "image": "https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=600&auto=format&fit=crop&q=80",
+      "badge": "Digestión Sana",
+      "rating": 4.7,
+      "reviewsCount": 65,
+      "variants": [
+        {
+          "weight": "Mediano (500ml)",
+          "price": 8900,
+          "originalPrice": 10500,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "Grande (1 Litro)",
+          "price": 11500,
+          "originalPrice": 13200,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "comedero antivoracidad perro",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/comedero-antivoracidad-perro"
+    },
+    {
+      "id": "acc-pechera-antitirones",
+      "name": "Arnés Antitirón Ergonómico Reflectivo Reforzado",
+      "brand": "PetSafe Pro",
+      "category": "accesorios",
+      "subCategory": "Paseo",
+      "description": "Distribuye la tracción uniformemente sobre el pecho sin ahogar la tráquea. Costuras con hilos reflectivos 3M para máxima visibilidad en paseos nocturnos.",
+      "image": "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&auto=format&fit=crop&q=80",
+      "badge": "Seguridad",
+      "rating": 4.8,
+      "reviewsCount": 86,
+      "variants": [
+        {
+          "weight": "Talle S",
+          "price": 16500,
+          "originalPrice": 19000,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "Talle M",
+          "price": 18900,
+          "originalPrice": 21500,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "Talle L / XL",
+          "price": 22400,
+          "originalPrice": 25000,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "arnes antitiron perro reflectivo",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/arnes-pechera-perro-antitiron"
+    },
+    {
+      "id": "acc-cama-antistress",
+      "name": "Cama Nube Antiestrés Acolchada Pelo Suave",
+      "brand": "FluffyPet",
+      "category": "accesorios",
+      "subCategory": "Camas",
+      "description": "Bordes elevados que brindan sensación de seguridad y apoyo ortopédico para cuello y cabeza. Relleno hipoalergénico con base antideslizante lavable a máquina.",
+      "image": "https://images.unsplash.com/photo-1599148400620-8e1ff0bf28d8?w=600&auto=format&fit=crop&q=80",
+      "badge": "Confort Total",
+      "rating": 4.9,
+      "reviewsCount": 114,
+      "isPromo": true,
+      "variants": [
+        {
+          "weight": "Talle S (50 cm)",
+          "price": 24500,
+          "originalPrice": 28900,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "Talle M (70 cm)",
+          "price": 32900,
+          "originalPrice": 38000,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "Talle L (90 cm)",
+          "price": 41800,
+          "originalPrice": 47900,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "cama antiestres perro gato dona",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/cama-antiestres-perro-gato"
+    },
+    {
+      "id": "piedras-clasicas-absorbentes",
+      "name": "Piedras Sanitarias Tradicionales Absorbentes",
+      "brand": "La Juaquina Selección",
+      "category": "piedras",
+      "subCategory": "Tradicional",
+      "description": "Minerales naturales seleccionados de excelente absorción y secado rápido. La alternativa económica más rendidora para hogares con varios gatos.",
+      "nutritionalInfo": "Diatomita y minerales absorbentes naturales sin fragancias artificiales",
+      "image": "https://images.unsplash.com/photo-1513360309081-38f076278f9c?w=600&auto=format&fit=crop&q=80",
+      "badge": "Super Ahorro",
+      "rating": 4.5,
+      "reviewsCount": 130,
+      "variants": [
+        {
+          "weight": "4 kg",
+          "price": 2900,
+          "originalPrice": 3400,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "10 kg (Pack x2)",
+          "price": 6800,
+          "originalPrice": 7800,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "20 kg Bolsa",
+          "price": 12500,
+          "originalPrice": 14500,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "piedras sanitarias absorbentes bolsa 10kg",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/piedras-sanitarias-gato-bolsa"
+    },
+    {
+      "id": "piedras-silice-cristales",
+      "name": "Cristales de Sílice Perfumados Antibacterial",
+      "brand": "SilicaGel Pet",
+      "category": "piedras",
+      "subCategory": "Sílice",
+      "description": "Microcristales de gel de sílice altamente porosos que atrapan líquidos y neutralizan los olores a nivel molecular en segundos. Una bolsa dura hasta 30 días por gato.",
+      "nutritionalInfo": "Silicato anhidro no tóxico | Neutralización inmediata del amoníaco",
+      "image": "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=600&auto=format&fit=crop&q=80",
+      "badge": "Dura 30 días",
+      "rating": 4.8,
+      "reviewsCount": 92,
+      "variants": [
+        {
+          "weight": "1.8 kg (3.8 L)",
+          "price": 8900,
+          "originalPrice": 10200,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "3.8 kg (7.6 L)",
+          "price": 16800,
+          "originalPrice": 19000,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "cristales silice piedras sanitarias gato",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/cristales-silice-gato"
+    },
+    {
+      "id": "piedras-aglomerantes-premium",
+      "name": "Piedras Sanitarias Aglomerantes Ultra Clumping",
+      "brand": "Absor-Cat",
+      "category": "piedras",
+      "subCategory": "Aglomerante",
+      "description": "Bentonita sódica natural de máxima pureza. Forma cápsulas sólidas al instante fáciles de retirar con pala sanitaria, dejando el resto de la bandeja 100% limpia.",
+      "nutritionalInfo": "Composición: 100% bentonita volcánica purificada | 99% libre de polvo",
+      "image": "https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=600&auto=format&fit=crop&q=80",
+      "badge": "Cero Polvo",
+      "rating": 4.9,
+      "reviewsCount": 178,
+      "isBestSeller": true,
+      "variants": [
+        {
+          "weight": "4 kg",
+          "price": 5400,
+          "originalPrice": 6200,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "10 kg",
+          "price": 11900,
+          "originalPrice": 13500,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "20 kg",
+          "price": 21500,
+          "originalPrice": 24500,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "piedras sanitarias aglomerantes gato",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/piedras-sanitarias-aglomerantes-gato"
+    },
+    {
+      "id": "gato-cat-chow-esterilizados",
+      "name": "Purina Cat Chow Defense Plus Castrados",
+      "brand": "Cat Chow",
+      "category": "gatos",
+      "subCategory": "Castrados",
+      "description": "Fórmula Defense Plus con prebióticos naturales para reforzar el sistema inmunológico. Protege el tracto urinario y controla el peso.",
+      "nutritionalInfo": "Proteína: 31% | Grasa: 8% | Control pH urinario | Fibras saciantes",
+      "image": "https://images.unsplash.com/photo-1548802673-380ab8ebc7b7?w=600&auto=format&fit=crop&q=80",
+      "badge": "Premium",
+      "rating": 4.9,
+      "reviewsCount": 204,
+      "isBestSeller": true,
+      "variants": [
+        {
+          "weight": "1 kg",
+          "price": 8900,
+          "originalPrice": 9800,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "3 kg",
+          "price": 23500,
+          "originalPrice": 26000,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "8 kg",
+          "price": 48900,
+          "originalPrice": 53500,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "purina cat chow esterilizados",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/purina-cat-chow-esterilizados"
+    },
+    {
+      "id": "gato-dogui-mix-aves",
+      "name": "Gati (Purina) Carne y Arroz",
+      "brand": "Gati",
+      "category": "gatos",
+      "subCategory": "Adulto",
+      "description": "El clásico preferido de los gatos argentinos con crocantes rellenos y sabor irresistible. Nutrición 100% balanceada.",
+      "nutritionalInfo": "Proteína: 28% | Grasas: 9% | Con omega 6 y taurina",
+      "image": "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=600&auto=format&fit=crop&q=80",
+      "badge": "Popular",
+      "rating": 4.7,
+      "reviewsCount": 145,
+      "variants": [
+        {
+          "weight": "3 kg",
+          "price": 13900,
+          "originalPrice": 15200,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "8 kg",
+          "price": 32500,
+          "originalPrice": 36000,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "alimento gati gato carne arroz",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-gati-gato"
+    },
+    {
+      "id": "gato-raza-castrados",
+      "name": "Raza Gatos Castrados Control de Peso",
+      "brand": "Raza",
+      "category": "gatos",
+      "subCategory": "Castrados",
+      "description": "Fórmula con calorías moderadas y niveles equilibrados de minerales (fósforo y magnesio) para proteger el tracto urinario de gatos esterilizados.",
+      "nutritionalInfo": "Proteína: 28% mín | Grasa: 7% reducida | Fibras naturales para expulsión de bolas de pelo",
+      "image": "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=600&auto=format&fit=crop&q=80",
+      "badge": "Tracto Urinario",
+      "rating": 4.8,
+      "reviewsCount": 88,
+      "variants": [
+        {
+          "weight": "1.5 kg",
+          "price": 7900,
+          "originalPrice": 8900,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "3 kg",
+          "price": 14200,
+          "originalPrice": 15900,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "8 kg",
+          "price": 33800,
+          "originalPrice": 37500,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "alimento raza gato castrados",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-raza-gato-castrado"
+    },
+    {
+      "id": "gato-sabrosito-pescado",
+      "name": "Sabrosito Gatos Delicias del Mar",
+      "brand": "Sabrosito",
+      "category": "gatos",
+      "subCategory": "Adulto",
+      "description": "Sabor pescado y mariscos altamente apetecible para los felinos más exigentes. Contiene taurina esencial para la salud cardíaca y la visión nocturna.",
+      "nutritionalInfo": "Proteína: 26% mín | Grasa: 8% mín | Con Taurina y control de pH urinario",
+      "image": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80",
+      "badge": "Económico",
+      "rating": 4.6,
+      "reviewsCount": 110,
+      "variants": [
+        {
+          "weight": "1 kg",
+          "price": 4200,
+          "originalPrice": 4800,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "3 kg",
+          "price": 11500,
+          "originalPrice": 12900,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "10 kg",
+          "price": 31900,
+          "originalPrice": 35000,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "alimento sabrosito gato pescado",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-sabrosito-gato"
+    },
+    {
+      "id": "perro-dog-chow-extra-life",
+      "name": "Purina Dog Chow Adultos Medianos y Grandes",
+      "brand": "Dog Chow",
+      "category": "perros",
+      "subCategory": "Adulto",
+      "description": "Con tecnología ExtraLife que ayuda a retrasar los signos de la edad, promoviendo salud oral, digestiva y muscular.",
+      "nutritionalInfo": "Proteína: 23% | Calcio: 1.1% | Con prebióticos naturales y antioxidantes",
+      "image": "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&auto=format&fit=crop&q=80",
+      "badge": "ExtraLife",
+      "rating": 4.8,
+      "reviewsCount": 160,
+      "variants": [
+        {
+          "weight": "8 kg",
+          "price": 34500,
+          "originalPrice": 38000,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "15 kg",
+          "price": 56900,
+          "originalPrice": 62000,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "21 kg",
+          "price": 69900,
+          "originalPrice": 77000,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "purina dog chow adultos",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/purina-dog-chow-adultos"
+    },
+    {
+      "id": "perro-criadores-mantenimiento",
+      "name": "Criadores Mantenimiento Adultos",
+      "brand": "Criadores",
+      "category": "perros",
+      "subCategory": "Adulto",
+      "description": "Línea profesional elegida por criaderos y adiestradores. Fuerte concentración proteica de origen animal, pulpa de remolacha para heces firmes y balance de ácidos grasos Omega 3 y 6.",
+      "nutritionalInfo": "Proteína: 22% mín | Materia grasa: 9% mín | Omega 3 & 6 | Calcio y fósforo balanceados",
+      "image": "https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=600&auto=format&fit=crop&q=80",
+      "badge": "Recomendado",
+      "rating": 4.6,
+      "reviewsCount": 84,
+      "variants": [
+        {
+          "weight": "15 kg",
+          "price": 44200,
+          "originalPrice": 48900,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "20 kg",
+          "price": 54900,
+          "originalPrice": 60500,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "alimento criadores perro adulto 20kg",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-criadores-perro"
+    },
+    {
+      "id": "perro-dogui-cachorros",
+      "name": "Dogui Cachorros Todos los Tamaños",
+      "brand": "Dogui",
+      "category": "perros",
+      "subCategory": "Cachorro",
+      "description": "Un clásico indispensable en los primeros meses. Incluye leche y cereales seleccionados, con DHA para el desarrollo cognitivo y antioxidantes para fortalecer el sistema inmunológico.",
+      "nutritionalInfo": "Proteína: 24% mín | Grasa: 10% mín | DHA + EPA | Alta digestibilidad",
+      "image": "https://images.unsplash.com/photo-1591769225440-811ad7d6eab2?w=600&auto=format&fit=crop&q=80",
+      "badge": "Cachorros",
+      "rating": 4.9,
+      "reviewsCount": 215,
+      "isBestSeller": true,
+      "variants": [
+        {
+          "weight": "3 kg",
+          "price": 12500,
+          "originalPrice": 14000,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "8 kg",
+          "price": 27900,
+          "originalPrice": 31000,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "15 kg",
+          "price": 46500,
+          "originalPrice": 51900,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "alimento dogui cachorro",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-dogui-cachorro"
+    },
+    {
+      "id": "perro-raza-mordida-chica",
+      "name": "Raza Perros Adultos Mordida Chica",
+      "brand": "Raza",
+      "category": "perros",
+      "subCategory": "Mordida Pequeña",
+      "description": "Croquetas de tamaño reducido diseñadas especialmente para mandíbulas pequeñas. Enriquecido con vitaminas A, D3, E y zinc para un pelaje brillante y salud bucal óptima.",
+      "nutritionalInfo": "Proteína: 21% mín | Grasa: 8% mín | Calcio: 1.2% | Fósforo: 0.9%",
+      "image": "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&auto=format&fit=crop&q=80",
+      "badge": "15% OFF",
+      "rating": 4.8,
+      "reviewsCount": 98,
+      "isPromo": true,
+      "variants": [
+        {
+          "weight": "3 kg",
+          "price": 11400,
+          "originalPrice": 13400,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "8 kg",
+          "price": 25800,
+          "originalPrice": 29500,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "15 kg",
+          "price": 41900,
+          "originalPrice": 46900,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "alimento raza perro mordida chica",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-raza-perro-mordida-chica"
+    },
+    {
+      "id": "perro-sabrosito-mix",
+      "name": "Sabrosito Mix Carne, Pollo y Cereales",
+      "brand": "Sabrosito",
+      "category": "perros",
+      "subCategory": "Adulto",
+      "description": "Balanceado completo y accesible formulado para cubrir los requerimientos energéticos diarios de perros adultos de todas las razas. Con proteínas digestibles y calcio para huesos fuertes.",
+      "nutritionalInfo": "Proteína bruta: 19% mín | Grasa: 7% mín | Fibra: 4.5% máx | Minerales totales: 8.5% máx",
+      "image": "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80",
+      "badge": "Más Vendido",
+      "rating": 4.7,
+      "reviewsCount": 142,
+      "isBestSeller": true,
+      "variants": [
+        {
+          "weight": "3 kg",
+          "price": 9200,
+          "originalPrice": 10500,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "8 kg",
+          "price": 21500,
+          "originalPrice": 23900,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "15 kg",
+          "price": 34900,
+          "originalPrice": 38500,
+          "inStock": true,
+          "stock": 50
+        },
+        {
+          "weight": "20 kg",
+          "price": 42800,
+          "originalPrice": 47900,
+          "inStock": true,
+          "stock": 50
+        }
+      ],
+      "mercadolibreQuery": "alimento sabrosito perro adulto",
+      "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-sabrosito-perro"
+    }
+  ],
+  "orders": [
+    {
+      "orderId": "JQ-718097",
+      "status": "preparando",
+      "createdAt": "09/09/2026, 12:50 p. m.",
+      "customerName": "mariano gonzales",
+      "customerPhone": "1126730077",
+      "customerEmail": "marianoagustin2@gmail.com",
+      "deliveryMethod": "pickup",
+      "address": "Retiro en Local (Av. Victorica 1240, Moreno)",
+      "notes": "",
+      "paymentMethod": "mercadopago",
+      "items": [
+        {
+          "product": {
+            "id": "perro-dogui-cachorros",
+            "name": "Dogui Cachorros Todos los Tamaños",
+            "brand": "Dogui",
+            "category": "perros",
+            "subCategory": "Cachorro",
+            "description": "Un clásico indispensable en los primeros meses. Incluye leche y cereales seleccionados, con DHA para el desarrollo cognitivo y antioxidantes para fortalecer el sistema inmunológico.",
+            "nutritionalInfo": "Proteína: 24% mín | Grasa: 10% mín | DHA + EPA | Alta digestibilidad",
+            "image": "https://images.unsplash.com/photo-1591769225440-811ad7d6eab2?w=600&auto=format&fit=crop&q=80",
+            "badge": "Cachorros",
+            "rating": 4.9,
+            "reviewsCount": 215,
+            "isBestSeller": true,
+            "variants": [
+              {
+                "weight": "3 kg",
+                "price": 12500,
+                "originalPrice": 14000,
+                "inStock": true
+              },
+              {
+                "weight": "8 kg",
+                "price": 27900,
+                "originalPrice": 31000,
+                "inStock": true
+              },
+              {
+                "weight": "15 kg",
+                "price": 46500,
+                "originalPrice": 51900,
+                "inStock": true
+              }
+            ],
+            "mercadolibreQuery": "alimento dogui cachorro",
+            "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-dogui-cachorro"
+          },
+          "selectedVariant": {
+            "weight": "3 kg",
+            "price": 12500,
+            "originalPrice": 14000,
+            "inStock": true
+          },
+          "quantity": 2
+        },
+        {
+          "product": {
+            "id": "perro-criadores-mantenimiento",
+            "name": "Criadores Mantenimiento Adultos",
+            "brand": "Criadores",
+            "category": "perros",
+            "subCategory": "Adulto",
+            "description": "Línea profesional elegida por criaderos y adiestradores. Fuerte concentración proteica de origen animal, pulpa de remolacha para heces firmes y balance de ácidos grasos Omega 3 y 6.",
+            "nutritionalInfo": "Proteína: 22% mín | Materia grasa: 9% mín | Omega 3 & 6 | Calcio y fósforo balanceados",
+            "image": "https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=600&auto=format&fit=crop&q=80",
+            "badge": "Recomendado",
+            "rating": 4.6,
+            "reviewsCount": 84,
+            "variants": [
+              {
+                "weight": "15 kg",
+                "price": 44200,
+                "originalPrice": 48900,
+                "inStock": true
+              },
+              {
+                "weight": "20 kg",
+                "price": 54900,
+                "originalPrice": 60500,
+                "inStock": true
+              }
+            ],
+            "mercadolibreQuery": "alimento criadores perro adulto 20kg",
+            "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-criadores-perro"
+          },
+          "selectedVariant": {
+            "weight": "15 kg",
+            "price": 44200,
+            "originalPrice": 48900,
+            "inStock": true
+          },
+          "quantity": 2
+        },
+        {
+          "product": {
+            "id": "perro-sabrosito-mix",
+            "name": "Sabrosito Mix Carne, Pollo y Cereales",
+            "brand": "Sabrosito",
+            "category": "perros",
+            "subCategory": "Adulto",
+            "description": "Balanceado completo y accesible formulado para cubrir los requerimientos energéticos diarios de perros adultos de todas las razas. Con proteínas digestibles y calcio para huesos fuertes.",
+            "nutritionalInfo": "Proteína bruta: 19% mín | Grasa: 7% mín | Fibra: 4.5% máx | Minerales totales: 8.5% máx",
+            "image": "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80",
+            "badge": "Más Vendido",
+            "rating": 4.7,
+            "reviewsCount": 142,
+            "isBestSeller": true,
+            "variants": [
+              {
+                "weight": "3 kg",
+                "price": 9200,
+                "originalPrice": 10500,
+                "inStock": true
+              },
+              {
+                "weight": "8 kg",
+                "price": 21500,
+                "originalPrice": 23900,
+                "inStock": true
+              },
+              {
+                "weight": "15 kg",
+                "price": 34900,
+                "originalPrice": 38500,
+                "inStock": true
+              },
+              {
+                "weight": "20 kg",
+                "price": 42800,
+                "originalPrice": 47900,
+                "inStock": true
+              }
+            ],
+            "mercadolibreQuery": "alimento sabrosito perro adulto",
+            "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-sabrosito-perro"
+          },
+          "selectedVariant": {
+            "weight": "3 kg",
+            "price": 9200,
+            "originalPrice": 10500,
+            "inStock": true
+          },
+          "quantity": 1
+        },
+        {
+          "product": {
+            "id": "perro-dog-chow-extra-life",
+            "name": "Purina Dog Chow Adultos Medianos y Grandes",
+            "brand": "Dog Chow",
+            "category": "perros",
+            "subCategory": "Adulto",
+            "description": "Con tecnología ExtraLife que ayuda a retrasar los signos de la edad, promoviendo salud oral, digestiva y muscular.",
+            "nutritionalInfo": "Proteína: 23% | Calcio: 1.1% | Con prebióticos naturales y antioxidantes",
+            "image": "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&auto=format&fit=crop&q=80",
+            "badge": "ExtraLife",
+            "rating": 4.8,
+            "reviewsCount": 160,
+            "variants": [
+              {
+                "weight": "8 kg",
+                "price": 34500,
+                "originalPrice": 38000,
+                "inStock": true
+              },
+              {
+                "weight": "15 kg",
+                "price": 56900,
+                "originalPrice": 62000,
+                "inStock": true
+              },
+              {
+                "weight": "21 kg",
+                "price": 69900,
+                "originalPrice": 77000,
+                "inStock": true
+              }
+            ],
+            "mercadolibreQuery": "purina dog chow adultos",
+            "mercadolibreUrl": "https://listado.mercadolibre.com.ar/purina-dog-chow-adultos"
+          },
+          "selectedVariant": {
+            "weight": "8 kg",
+            "price": 34500,
+            "originalPrice": 38000,
+            "inStock": true
+          },
+          "quantity": 1
+        },
+        {
+          "product": {
+            "id": "gato-sabrosito-pescado",
+            "name": "Sabrosito Gatos Delicias del Mar",
+            "brand": "Sabrosito",
+            "category": "gatos",
+            "subCategory": "Adulto",
+            "description": "Sabor pescado y mariscos altamente apetecible para los felinos más exigentes. Contiene taurina esencial para la salud cardíaca y la visión nocturna.",
+            "nutritionalInfo": "Proteína: 26% mín | Grasa: 8% mín | Con Taurina y control de pH urinario",
+            "image": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80",
+            "badge": "Económico",
+            "rating": 4.6,
+            "reviewsCount": 110,
+            "variants": [
+              {
+                "weight": "1 kg",
+                "price": 4200,
+                "originalPrice": 4800,
+                "inStock": true
+              },
+              {
+                "weight": "3 kg",
+                "price": 11500,
+                "originalPrice": 12900,
+                "inStock": true
+              },
+              {
+                "weight": "10 kg",
+                "price": 31900,
+                "originalPrice": 35000,
+                "inStock": true
+              }
+            ],
+            "mercadolibreQuery": "alimento sabrosito gato pescado",
+            "mercadolibreUrl": "https://listado.mercadolibre.com.ar/alimento-sabrosito-gato"
+          },
+          "selectedVariant": {
+            "weight": "1 kg",
+            "price": 4200,
+            "originalPrice": 4800,
+            "inStock": true
+          },
+          "quantity": 1
+        }
+      ],
+      "subtotal": 161300,
+      "discount": 0,
+      "shippingCost": 0,
+      "total": 161300
+    }
+  ],
+  "users": [
+    {
+      "id": "admin-1",
+      "email": "admin@lajuaquina.com",
+      "name": "Administrador La Juaquina",
+      "role": "admin"
+    }
+  ],
+  "adminPin": "admin123",
+  "settings": null,
+  "distributors": [],
+  "stockAlerts": []
+}

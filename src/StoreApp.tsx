@@ -1,0 +1,482 @@
+// ENTRADA 1 — TIENDA (index.html -> src/main.tsx -> StoreApp)
+// Tienda pública de La Juaquina. El panel admin vive en otra entrada: admin.html -> AdminApp.
+import React, { useState, useEffect, useMemo } from 'react';
+import { Header } from './components/Header';
+import { Hero } from './components/Hero';
+import { ProductCard } from './components/ProductCard';
+import { ProductModal } from './components/ProductModal';
+import { CartDrawer } from './components/CartDrawer';
+import { CheckoutModal } from './components/CheckoutModal';
+import { ChatAssistant } from './components/ChatAssistant';
+import { FoodCalculator } from './components/FoodCalculator';
+import { TestimonialsSection } from './components/TestimonialsSection';
+import { ContactSection } from './components/ContactSection';
+import { Footer } from './components/Footer';
+import { AuthModal } from './components/AuthModal';
+import { StockAlertModal } from './components/StockAlertModal';
+import { PRODUCTS } from './data/products';
+import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings } from './types';
+import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder } from './lib/cloudDb';
+import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
+import { Filter, ArrowUpDown, ExternalLink, CheckCircle, Truck } from 'lucide-react';
+
+export default function StoreApp() {
+  const [activeCategory, setActiveCategory] = useState<ProductCategory>('todos');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState<string>('todas');
+  const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
+  const [onlyInStock, setOnlyInStock] = useState(false);
+
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('la_juaquina_products');
+      return saved ? JSON.parse(saved) : PRODUCTS;
+    } catch {
+      return PRODUCTS;
+    }
+  });
+
+  // Config del comercio (costos de envío, cupones, WhatsApp): la edita el admin, la usa la tienda
+  const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    fetchCloudProducts().then((cloudProds) => {
+      if (cloudProds && cloudProds.length > 0) {
+        setProducts(cloudProds);
+        try {
+          localStorage.setItem('la_juaquina_products', JSON.stringify(cloudProds));
+        } catch (e) {
+          console.warn('Could not save to localStorage', e);
+        }
+      }
+    });
+    fetchStoreSettings().then((s) => setSettings(s));
+  }, []);
+
+  const [currentUser, setCurrentUser] = useState<AuthUserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('la_juaquina_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  const handleLoginSuccess = (user: AuthUserProfile) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('la_juaquina_user', JSON.stringify(user));
+    } catch (e) {
+      console.warn(e);
+    }
+    showToast(`¡Bienvenido, ${user.name || user.email}!`);
+  };
+
+  const handleLogout = async () => {
+    await cloudLogout();
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('la_juaquina_user');
+    } catch (e) {
+      console.warn(e);
+    }
+    showToast('Sesión cerrada.');
+  };
+
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('la_juaquina_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutShippingMethod, setCheckoutShippingMethod] = useState<'pickup' | 'express_amba' | 'correo_argentino'>('express_amba');
+  const [checkoutDiscountCode, setCheckoutDiscountCode] = useState('');
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [stockAlertTarget, setStockAlertTarget] = useState<{ product: Product; variant: ProductVariant } | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleOpenStockAlert = (product: Product, variant: ProductVariant) => {
+    setStockAlertTarget({ product, variant });
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('la_juaquina_cart', JSON.stringify(cartItems));
+    } catch (e) {
+      console.warn('Could not save cart to localStorage', e);
+    }
+  }, [cartItems]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2800);
+  };
+
+  const handleAddToCart = (product: Product, variant: ProductVariant, quantity: number = 1) => {
+    // Validar stock disponible (si la variante tiene control de unidades)
+    if (typeof variant.stock === 'number') {
+      const inCart = cartItems
+        .filter((i) => i.product.id === product.id && i.selectedVariant.weight === variant.weight)
+        .reduce((s, i) => s + i.quantity, 0);
+      if (inCart + quantity > variant.stock) {
+        showToast(`Solo quedan ${variant.stock} u. de ${product.name} (${variant.weight})`);
+        return;
+      }
+    }
+    setCartItems((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => item.product.id === product.id && item.selectedVariant.weight === variant.weight
+      );
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        updated[existingIndex].quantity += quantity;
+        return updated;
+      } else {
+        return [...prev, { product, selectedVariant: variant, quantity }];
+      }
+    });
+    showToast(`¡Agregaste ${product.name} (${variant.weight})!`);
+  };
+
+  const handleUpdateQuantity = (productId: string, variantWeight: string, delta: number) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) => {
+          if (item.product.id === productId && item.selectedVariant.weight === variantWeight) {
+            const newQty = item.quantity + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[]
+    );
+  };
+
+  const handleRemoveItem = (productId: string, variantWeight: string) => {
+    setCartItems((prev) =>
+      prev.filter((item) => !(item.product.id === productId && item.selectedVariant.weight === variantWeight))
+    );
+  };
+
+  const handleClearCart = () => {
+    setCartItems([]);
+  };
+
+  const handleProceedToCheckout = (
+    shippingMethod: 'pickup' | 'express_amba' | 'correo_argentino',
+    discountCode: string
+  ) => {
+    setCheckoutShippingMethod(shippingMethod);
+    setCheckoutDiscountCode(discountCode);
+    setIsCartOpen(false);
+    setIsCheckoutOpen(true);
+  };
+
+  // Al confirmar la compra: vaciar carrito + descontar stock (se refleja en el admin)
+  const handleOrderCompleted = async (order: OrderDetails) => {
+    handleClearCart();
+    try {
+      const updated = await decrementStockForOrder(order, products);
+      setProducts(updated);
+    } catch (e) {
+      console.warn('No se pudo descontar stock', e);
+    }
+    showToast(`¡Pedido ${order.orderId} confirmado!`);
+  };
+
+  const brands = useMemo(() => {
+    const list = Array.from(new Set(products.map((p) => p.brand)));
+    return ['todas', ...list];
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    let list = [...products];
+    if (activeCategory !== 'todos') {
+      list = list.filter((p) => p.category === activeCategory);
+    }
+    if (selectedBrand !== 'todas') {
+      list = list.filter((p) => p.brand === selectedBrand);
+    }
+    if (onlyInStock) {
+      list = list.filter((p) => p.variants.some((v) => v.inStock !== false));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.brand.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          (p.subCategory && p.subCategory.toLowerCase().includes(q))
+      );
+    }
+    if (sortBy === 'price-asc') {
+      list.sort((a, b) => a.variants[0].price - b.variants[0].price);
+    } else if (sortBy === 'price-desc') {
+      list.sort((a, b) => b.variants[0].price - a.variants[0].price);
+    } else if (sortBy === 'rating') {
+      list.sort((a, b) => b.rating - a.rating);
+    }
+    return list;
+  }, [products, activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock]);
+
+  const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartSubtotal = cartItems.reduce((s, i) => s + i.selectedVariant.price * i.quantity, 0);
+
+  const scrollToCatalog = () => {
+    const element = document.getElementById('catalogo');
+    element?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#2B231D] selection:bg-[#EFA332]/30 selection:text-[#1B4E43]">
+      {toastMessage && (
+        <div className="fixed top-20 right-4 z-50 bg-[#1B4E43] text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-xl border border-[#256B5C] flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
+          <CheckCircle className="w-4 h-4 text-[#EFA332]" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      <Header
+        activeCategory={activeCategory}
+        onSelectCategory={(cat) => {
+          setActiveCategory(cat);
+          scrollToCatalog();
+        }}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        cartCount={totalCartCount}
+        onOpenCart={() => setIsCartOpen(true)}
+        onOpenChat={() => setIsChatOpen(true)}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAdmin={() => {
+          window.location.href = '/admin.html';
+        }}
+      />
+
+      {/* Barra promo configurable desde el admin */}
+      <div className="bg-[#1B4E43] text-[#FFE9B8] text-[11px] sm:text-xs font-semibold text-center px-4 py-2 flex items-center justify-center gap-2">
+        <Truck className="w-3.5 h-3.5 text-[#EFA332] shrink-0" />
+        <span>
+          Cupón <strong className="text-white">{settings.couponCode}</strong> = {settings.couponPercent}% OFF
+          <span className="mx-1.5 opacity-40">·</span>
+          Transferencia = {settings.transferPercent}% OFF extra
+          <span className="mx-1.5 opacity-40 hidden sm:inline">·</span>
+          <span className="hidden sm:inline">Tienda online · Envíos desde Bella Vista a todo el país</span>
+        </span>
+      </div>
+
+      <Hero
+        onSelectCategory={(cat) => {
+          setActiveCategory(cat);
+          scrollToCatalog();
+        }}
+      />
+
+      <main id="catalogo" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-[#E8DFC9] gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#1B4E43] mb-1">
+              <span className="w-2 h-2 rounded-full bg-[#EFA332]" />
+              <span>Nuestras Variedades Disponibles</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1B4E43] font-display">
+              {activeCategory === 'todos' && 'Catálogo Completo de Alimentos & Piedras'}
+              {activeCategory === 'perros' && 'Alimentos y Cuidados para Perros 🐶'}
+              {activeCategory === 'gatos' && 'Alimentos y Nutrición para Gatos 🐱'}
+              {activeCategory === 'piedras' && 'Piedras Sanitarias y Control de Olor 🧼'}
+              {activeCategory === 'accesorios' && 'Camas, Arnés y Accesorios 🎾'}
+            </h2>
+            <p className="text-xs text-[#7A6A59] mt-1">
+              {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} · Precios en ARS · Stock actualizado
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <a
+              href="https://listado.mercadolibre.com.ar/la-juaquina"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs font-bold text-[#2D3277] bg-[#FFF159]/80 hover:bg-[#FFF159] border border-[#E5DA4F] px-3.5 py-2 rounded-2xl transition-all shadow-2xs self-start md:self-auto"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="7" width="18" height="13" rx="2" />
+                <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+              <span>Tienda oficial en Mercado Libre</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        </div>
+
+        <div className="bg-[#FFFDF9] p-3.5 sm:p-4 rounded-2xl border border-[#E5D7BF] shadow-xs mb-8 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-[#7A6A59]" />
+            <span className="text-xs font-bold text-[#7A6A59]">Marca:</span>
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="text-xs bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl px-2.5 py-1.5 font-semibold text-[#2B231D] focus:outline-none focus:ring-1 focus:ring-[#1B4E43] cursor-pointer"
+            >
+              {brands.map((b) => (
+                <option key={b} value={b}>
+                  {b === 'todas' ? 'Todas las marcas' : b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <label className="flex items-center gap-1.5 text-xs font-bold text-[#5A4D3F] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={onlyInStock}
+              onChange={(e) => setOnlyInStock(e.target.checked)}
+              className="rounded accent-[#1B4E43] w-3.5 h-3.5 cursor-pointer"
+            />
+            Solo con stock
+          </label>
+
+          {searchQuery && (
+            <div className="text-xs text-[#1B4E43] font-semibold bg-[#E8F3EF] px-3 py-1 rounded-full flex items-center gap-2">
+              <span>Buscando: "{searchQuery}"</span>
+              <button onClick={() => setSearchQuery('')} className="text-[#DE5D4E] hover:underline font-bold cursor-pointer">
+                ✕ Limpiar
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 ml-auto">
+            <ArrowUpDown className="w-4 h-4 text-[#7A6A59]" />
+            <span className="text-xs font-bold text-[#7A6A59]">Ordenar por:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="text-xs bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl px-2.5 py-1.5 font-semibold text-[#2B231D] focus:outline-none focus:ring-1 focus:ring-[#1B4E43] cursor-pointer"
+            >
+              <option value="featured">Destacados</option>
+              <option value="price-asc">Menor precio</option>
+              <option value="price-desc">Mayor precio</option>
+              <option value="rating">Mejor valorados</option>
+            </select>
+          </div>
+        </div>
+
+        {filteredProducts.length > 0 ? (
+          <div
+            key={`${activeCategory}-${selectedBrand}-${searchQuery}-${sortBy}-${onlyInStock}`}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            {filteredProducts.map((product, index) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                index={index}
+                onAddToCart={handleAddToCart}
+                onOpenDetails={(p) => setModalProduct(p)}
+                onOpenStockAlert={handleOpenStockAlert}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 bg-[#FFFDF9] rounded-3xl border border-[#E5D7BF] p-8 max-w-lg mx-auto">
+            <div className="w-16 h-16 rounded-full bg-[#FAF5EC] text-3xl flex items-center justify-center mx-auto mb-3">
+              🔍
+            </div>
+            <h3 className="font-bold text-lg text-[#1B4E43]">No encontramos productos con ese criterio</h3>
+            <p className="text-xs text-[#7A6A59] mt-1.5">
+              Intentá buscando otra palabra clave o limpiá los filtros activos para ver todo el catálogo.
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedBrand('todas');
+                setActiveCategory('todos');
+                setOnlyInStock(false);
+              }}
+              className="mt-5 bg-[#EFA332] text-[#1E170E] font-bold text-xs px-5 py-2.5 rounded-full font-display cursor-pointer"
+            >
+              Restablecer Filtros
+            </button>
+          </div>
+        )}
+      </main>
+
+      <TestimonialsSection />
+      <FoodCalculator products={products} onSelectProduct={(product) => setModalProduct(product)} />
+      <ContactSection />
+      <Footer
+        onSelectCategory={(cat) => {
+          setActiveCategory(cat);
+          scrollToCatalog();
+        }}
+        onOpenAdmin={() => {
+          window.location.href = '/admin.html';
+        }}
+      />
+
+      <ProductModal
+        product={modalProduct}
+        onClose={() => setModalProduct(null)}
+        onAddToCart={handleAddToCart}
+        onOpenStockAlert={handleOpenStockAlert}
+      />
+
+      <StockAlertModal
+        isOpen={!!stockAlertTarget}
+        onClose={() => setStockAlertTarget(null)}
+        product={stockAlertTarget?.product || null}
+        variant={stockAlertTarget?.variant || null}
+        onAlertSaved={() => showToast('¡Alerta registrada! Te avisaremos cuando haya stock.')}
+      />
+
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        items={cartItems}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+        onClearCart={handleClearCart}
+        onProceedToCheckout={handleProceedToCheckout}
+        settings={settings}
+      />
+
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        items={cartItems}
+        shippingMethod={checkoutShippingMethod}
+        discountCode={checkoutDiscountCode}
+        onOrderCompleted={handleOrderCompleted}
+        settings={settings}
+        onBackToCart={() => {
+          setIsCheckoutOpen(false);
+          setIsCartOpen(true);
+        }}
+      />
+
+      <ChatAssistant isOpen={isChatOpen} onToggle={() => setIsChatOpen(!isChatOpen)} onClose={() => setIsChatOpen(false)} />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        currentUser={currentUser}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
+        onOpenAdminPanel={() => {
+          window.location.href = '/admin.html';
+        }}
+      />
+    </div>
+  );
+}
