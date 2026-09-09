@@ -12,7 +12,6 @@ import {
   CheckCircle2, 
   AlertCircle,
   Package,
-  ExternalLink,
   ShieldCheck,
   Sparkles,
   Cloud,
@@ -651,7 +650,6 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   <th className="p-3.5">Producto</th>
                   <th className="p-3.5">Marca / Cat.</th>
                   <th className="p-3.5">Presentaciones & Precios</th>
-                  <th className="p-3.5">Mercado Libre</th>
                   <th className="p-3.5 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -735,19 +733,6 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                           </div>
                         ))}
                       </div>
-                    </td>
-
-                    {/* Mercado Libre Link */}
-                    <td className="p-3.5">
-                      <a
-                        href={product.mercadolibreUrl || `https://listado.mercadolibre.com.ar/${encodeURIComponent(product.mercadolibreQuery || product.name)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2D3277] hover:underline"
-                      >
-                        <span>Ver en ML</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
                     </td>
 
                     {/* Actions */}

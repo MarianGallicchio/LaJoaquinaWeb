@@ -3,11 +3,10 @@ import { motion } from 'motion/react';
 import {
   X,
   Trash2,
-  ShoppingBag,
-  ArrowRight,
-  ExternalLink,
-  Tag,
-  Truck,
+  ShoppingBag, 
+  ArrowRight, 
+  Tag, 
+  Truck, 
   ShieldCheck,
   CheckCircle2,
   Store,
@@ -159,7 +158,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   Tu carrito está vacío
                 </h3>
                 <p className="text-xs text-[#7A6A59] mt-1.5 max-w-xs mx-auto">
-                  Agregá alimentos, piedras o accesorios para iniciar tu compra integrada o en Mercado Libre.
+                  Agregá alimentos, piedras o accesorios para iniciar tu compra con envío a todo el país.
                 </p>
                 <button
                   onClick={onClose}
@@ -332,7 +331,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
 
               <div className="space-y-2">
-                {/* 1. Integrated store checkout */}
+                {/* Compra integrada */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.95 }}
@@ -343,21 +342,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <span>Iniciar Compra Integrada</span>
                   <ArrowRight className="w-4 h-4" />
                 </motion.button>
-
-                {/* 2. Mercado Libre Option */}
-                <a
-                  href="https://listado.mercadolibre.com.ar/la-juaquina"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 bg-[#FFF159] hover:bg-[#FFE926] text-[#2D3277] font-bold py-2.5 px-4 rounded-xl text-xs border border-[#E5DA4F] transition-all"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="7" width="18" height="13" rx="2" />
-                    <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-                  </svg>
-                  <span>Comprar también en Mercado Libre</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
               </div>
 
               <p className="text-[10px] text-center text-[#7A6A59] flex items-center justify-center gap-1">

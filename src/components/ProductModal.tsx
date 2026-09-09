@@ -4,7 +4,6 @@ import {
   X, 
   ShoppingBag, 
   Star, 
-  ExternalLink, 
   ShieldCheck, 
   Truck, 
   Check, 
@@ -60,10 +59,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     currency: 'ARS',
     maximumFractionDigits: 0,
   }).format((activeVariant.price || 0) * quantity);
-
-  const mlUrl = product.mercadolibreUrl || 
-    `https://listado.mercadolibre.com.ar/${encodeURIComponent((product.mercadolibreQuery || product.name) + ' ' + (activeVariant.weight || ''))}`;
-
 
   const whatsappMessage = encodeURIComponent(
     `¡Hola La Juaquina! Quiero consultar sobre el producto: ${product.name} (${activeVariant.weight}). ¿Tienen stock disponible para entrega inmediata?`
@@ -294,20 +289,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 </motion.button>
               )}
 
-
-              <a
-                href={mlUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm text-[#2D3277] bg-[#FFF159] hover:bg-[#FFE926] border border-[#E5DA4F] transition-all shadow-xs"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="7" width="18" height="13" rx="2" />
-                  <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-                </svg>
-                <span>Comprar este producto en Mercado Libre</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
 
               <a
                 href={`https://wa.me/5491123456789?text=${whatsappMessage}`}

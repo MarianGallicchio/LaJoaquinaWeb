@@ -28,7 +28,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     {
       id: 'welcome-1',
       sender: 'bot',
-      text: '¡Hola! 🐾 Soy **JuaquiBot**, tu asesor de La Juaquina Pet Shop. ¿En qué te puedo ayudar hoy? Podés preguntarme sobre nutrición para tu perro o gato, piedras sanitarias, compras directas o en Mercado Libre.',
+      text: '¡Hola! 🐾 Soy **JuaquiBot**, tu asesor de La Juaquina Pet Shop. ¿En qué te puedo ayudar hoy? Podés preguntarme sobre nutrición para tu perro o gato, piedras sanitarias o compras con envío a todo el país.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -42,7 +42,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     '🐱 ¿Alimento para gato castrado?',
     '🧼 ¿Qué piedras controlan mejor el olor?',
     '🚚 ¿Cómo son los envíos a mi zona?',
-    '⚡ ¿Cómo compro por Mercado Libre?',
+    '💳 ¿Qué medios de pago aceptan?',
   ];
 
   const scrollToBottom = () => {

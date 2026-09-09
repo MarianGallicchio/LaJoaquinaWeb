@@ -149,13 +149,13 @@ app.post('/api/chat', async (req, res) => {
       const lower = message.toLowerCase();
       let reply = '¡Hola! 🐾 Soy JuaquiBot de La Juaquina Pet Shop. ¿En qué puedo asesorarte hoy con tu mascota?';
       if (lower.includes('cachorro') || lower.includes('perrito')) {
-        reply = 'Para cachorros te recomendamos fórmulas ricas en calcio, proteínas de alta digestibilidad y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y óseo. Podés comprarlo acá mismo en la tienda o pedirlo por Mercado Libre con envío rápido.';
+        reply = 'Para cachorros te recomendamos fórmulas ricas en calcio, proteínas de alta digestibilidad y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y óseo. Podés comprarlo acá mismo en la tienda con envío a todo el país.';
       } else if (lower.includes('gato') || lower.includes('felino') || lower.includes('gatito')) {
         reply = 'Para felinos contamos con marcas de gran palatabilidad como **Cat Chow Defense Plus**, **Raza Castrados** (vital para proteger el tracto urinario) y **Sabrosito Gatos Delicias del Mar**. Además podés sumar nuestras piedras aglomerantes sin polvo.';
       } else if (lower.includes('piedra') || lower.includes('arena') || lower.includes('olor')) {
         reply = 'Para control de olores te sugerimos las **Piedras de Sílice en Cristales** (duran hasta 30 días) o las **Piedras Aglomerantes Ultra Clumping** de bentonita volcánica que hacen bloques sólidos instantáneos.';
       } else if (lower.includes('envio') || lower.includes('zona') || lower.includes('donde') || lower.includes('bella vista')) {
-        reply = 'Somos una tienda 100% online con base en Bella Vista: enviamos en 24/48 hs a todo el AMBA, por Correo Argentino a todo el país, y además podés comprar nuestros combos directo en **Mercado Libre** con Mercado Envíos Full.';
+        reply = 'Somos una tienda 100% online con base en Bella Vista: enviamos en 24/48 hs a todo el AMBA y por Correo Argentino a todo el país. Comprás directo en la web con 10% OFF por transferencia.';
       }
       res.json({ reply, source: 'fallback' });
       return;
@@ -164,7 +164,7 @@ app.post('/api/chat', async (req, res) => {
     const systemPrompt = `
 Sos JuaquiBot, el asistente experto y empático de "La Juaquina Pet Shop", una tienda online argentina de mascotas, alimentos balanceados y accesorios con base en Bella Vista, Buenos Aires (solo online, sin local a la calle).
 Tu misión es brindar atención cálida, entusiasta y muy útil a los amantes de las mascotas.
-Envíos: despachamos desde Bella Vista a todo el AMBA en 24/48 hs y a todo el país por Correo Argentino y Mercado Envíos.
+Envíos: despachamos desde Bella Vista a todo el AMBA en 24/48 hs y a todo el país por Correo Argentino.
 
 Catálogo de La Juaquina:
 - Perros: Sabrosito Mix Carne y Pollo, Raza Mordida Chica, Dogui Cachorros con leche y DHA, Criadores Mantenimiento Adultos, Purina Dog Chow ExtraLife.
@@ -172,7 +172,7 @@ Catálogo de La Juaquina:
 - Piedras sanitarias: Aglomerantes Ultra Clumping (bentonita volcánica sin polvo), Cristales de Sílice Perfumados (duran 30 días), Clásicas Absorbentes Super Ahorro.
 - Accesorios: Cama Nube Antiestrés, Arnés Antitirón reflectivo, Comedero Antivoracidad Slow Feeder, Rascador Castillo con Cucha.
 - Mascotas en Adopción: Promovemos la adopción responsable de perritos y gatitos rescatados con vacunas al día.
-- Modalidad de compra: Los clientes pueden comprar directo en la tienda web con carrito (Mercado Pago, transferencia con 10% OFF o efectivo contra entrega) O comprar a través de Mercado Libre con Mercado Envíos a todo el país.
+- Modalidad de compra: venta directa en la tienda web con carrito (Mercado Pago, transferencia con 10% OFF o efectivo contra entrega) y envíos a todo el país. No ofrecemos compra por Mercado Libre: todo se vende acá.
 
 Tono de comunicación:
 - Amable, argentino natural (usá modismos suaves y cordiales como "¡Hola!", "¡Claro!", "mirá", "fijate"), afectuoso con perros y gatos.
@@ -207,13 +207,13 @@ Tono de comunicación:
       // Fallback pet response
       const lower = message.toLowerCase();
       if (lower.includes('cachorro') || lower.includes('perrito')) {
-        reply = 'Para cachorros te recomendamos fórmulas ricas en calcio, proteínas digestibles y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y óseo. Podés comprarlo acá mismo con carrito o pedirlo por Mercado Libre.';
+        reply = 'Para cachorros te recomendamos fórmulas ricas en calcio, proteínas digestibles y DHA como **Dogui Cachorros** o **Raza Cachorros**. Ayudan al desarrollo cerebral y óseo. Podés comprarlo acá mismo con carrito y envío a todo el país.';
       } else if (lower.includes('gato') || lower.includes('felino') || lower.includes('gatito')) {
         reply = 'Para felinos contamos con marcas de gran palatabilidad como **Cat Chow Defense Plus**, **Raza Castrados** (vital para proteger el tracto urinario) y **Sabrosito Gatos Delicias del Mar**.';
       } else if (lower.includes('piedra') || lower.includes('arena') || lower.includes('olor')) {
         reply = 'Para control de olores te sugerimos las **Piedras de Sílice en Cristales** (duran hasta 30 días) o las **Piedras Aglomerantes Ultra Clumping** de bentonita volcánica que hacen bloques sólidos instantáneos.';
       } else {
-        reply = '¡Hola! 🐾 En La Juaquina tenemos alimentos balanceados (Sabrosito, Raza, Dogui, Criadores), piedras sanitarias y accesorios. Podés comprar directo en la web con 10% de descuento por transferencia o en nuestra tienda oficial de Mercado Libre.';
+        reply = '¡Hola! 🐾 En La Juaquina tenemos alimentos balanceados (Sabrosito, Raza, Dogui, Criadores), piedras sanitarias y accesorios. Comprás directo en la web con 10% de descuento por transferencia y envío a todo el país.';
       }
     }
 

@@ -18,7 +18,7 @@ import { PRODUCTS } from './data/products';
 import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings } from './types';
 import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder } from './lib/cloudDb';
 import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
-import { Filter, ArrowUpDown, ExternalLink, CheckCircle, Truck } from 'lucide-react';
+import { Filter, ArrowUpDown, CheckCircle, Truck } from 'lucide-react';
 
 export default function StoreApp() {
   const [activeCategory, setActiveCategory] = useState<ProductCategory>('todos');
@@ -301,22 +301,6 @@ export default function StoreApp() {
             <p className="text-xs text-[#7A6A59] mt-1">
               {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} · Precios en ARS · Stock actualizado
             </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <a
-              href="https://listado.mercadolibre.com.ar/la-juaquina"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-xs font-bold text-[#2D3277] bg-[#FFF159]/80 hover:bg-[#FFF159] border border-[#E5DA4F] px-3.5 py-2 rounded-2xl transition-all shadow-2xs self-start md:self-auto"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="7" width="18" height="13" rx="2" />
-                <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-              </svg>
-              <span>Tienda oficial en Mercado Libre</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
           </div>
         </div>
 

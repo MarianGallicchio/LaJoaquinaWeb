@@ -368,7 +368,7 @@ export const TESTIMONIALS: Testimonial[] = [
     petName: 'Rocco',
     petType: 'perro',
     petBreed: 'Bulldog Francés (4 años)',
-    comment: 'Siempre compraba en Mercado Libre pero ahora compro directo acá en la página porque sale más económico y coordinamos el envío directo. El comedero antivoracidad le cambió la digestión a Rocco.',
+    comment: 'Antes compraba en otro lado pero ahora compro directo acá en la página porque sale más económico y coordinamos el envío directo. El comedero antivoracidad le cambió la digestión a Rocco.',
     rating: 5,
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80',
     petImage: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=500&auto=format&fit=crop&q=80',

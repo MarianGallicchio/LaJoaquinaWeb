@@ -5,7 +5,6 @@ import {
   Sparkles, 
   HeartHandshake, 
   ShoppingBag, 
-  ExternalLink,
   ArrowRight,
   Star
 } from 'lucide-react';
@@ -46,7 +45,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
             {/* Subheading */}
             <p className="text-base sm:text-lg text-[#5A4D3F] max-w-2xl leading-relaxed">
               Alimentos balanceados de primeras marcas, piedras sanitarias de alto rendimiento y accesorios premium. 
-              <strong> Comprá acá con carrito y descuentos directos</strong>, o con cuotas y envíos rápidos en <strong>Mercado Libre</strong>.
+              <strong> Comprá acá con carrito, descuentos directos y envíos a todo el país</strong>.
             </p>
 
             {/* CTA Buttons */}
@@ -59,20 +58,6 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
                 <ShoppingBag className="w-5 h-5" />
                 <span>Ver Catálogo Completo</span>
                 <ArrowRight className="w-4 h-4 ml-0.5" />
-              </a>
-
-              <a
-                href="https://listado.mercadolibre.com.ar/la-juaquina"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-[#FFF159] hover:bg-[#FFE926] text-[#2D3277] font-bold px-5 py-3.5 rounded-full shadow-xs hover:shadow-md transition-all text-sm sm:text-base border border-[#E8DE43]"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="7" width="18" height="13" rx="2" />
-                  <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-                </svg>
-                <span>Comprar en Mercado Libre</span>
-                <ExternalLink className="w-4 h-4" />
               </a>
 
               <button
@@ -92,7 +77,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
                   ))}
                 </div>
                 <span className="font-bold text-[#1B4E43]">4.9 / 5</span>
-                <span>(+1.800 ventas en ML)</span>
+                <span>(clientes en todo el país)</span>
               </div>
 
               <div className="flex items-center gap-2">

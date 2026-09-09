@@ -35,8 +35,8 @@ export const ContactSection: React.FC = () => {
 
   const faqs = [
     {
-      q: '¿Cómo elijo entre comprar en la web o en Mercado Libre?',
-      a: '¡Tenés ambas opciones! Si comprás directamente en nuestra web tenés 10% de descuento abonando por transferencia y atención local con envíos en el día. Si preferís comprar en Mercado Libre, cada producto tiene su botón directo con la garantía de Mercado Envíos y cuotas con tarjeta.',
+      q: '¿Cómo compro en la tienda?',
+      a: '¡Muy fácil! Elegís los productos, los sumás al carrito y completás tus datos de envío. Pagás por transferencia (con 10% de descuento), tarjeta o efectivo contra entrega. Coordinamos todo por WhatsApp y lo recibís en tu puerta.',
     },
     {
       q: '¿Qué marcas de alimento comercializan?',
@@ -238,29 +238,26 @@ export const ContactSection: React.FC = () => {
               })}
             </div>
 
-            {/* Mercado Libre Badge Banner */}
-            <div className="bg-[#FFF159]/80 border border-[#E5DA4F] p-4 rounded-3xl mt-6 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-[#2D3277] shrink-0 shadow-xs">
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="7" width="18" height="13" rx="2" />
-                  <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-                </svg>
+            {/* Compra directa Banner */}
+            <div className="bg-[#E8F3EF] border border-[#BCE0D4] p-4 rounded-3xl mt-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#25D366] flex items-center justify-center text-white shrink-0 shadow-xs">
+                <MessageCircle className="w-6 h-6" />
               </div>
               <div className="flex-1 text-xs">
-                <span className="font-extrabold text-[#2D3277] block">
-                  Comprá seguro en Mercado Libre
+                <span className="font-extrabold text-[#1B4E43] block">
+                  Comprá directo y ahorrá 10%
                 </span>
-                <span className="text-[#4E4D3E] text-[11px]">
-                  Todos nuestros productos cuentan con publicación y garantía en Mercado Libre.
+                <span className="text-[#3A5D54] text-[11px]">
+                  Pagando por transferencia en nuestra tienda online, con asesoramiento incluido.
                 </span>
               </div>
               <a
-                href="https://listado.mercadolibre.com.ar/la-juaquina"
+                href="https://wa.me/5491123456789"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-[#2D3277] text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-[#1E2255] transition-colors shrink-0"
+                className="bg-[#1B4E43] text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-[#256B5C] transition-colors shrink-0"
               >
-                Visitar
+                WhatsApp
               </a>
             </div>
 
