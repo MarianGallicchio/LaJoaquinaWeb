@@ -277,9 +277,20 @@ async function patchOrder(id, patch) {
   const list = await listOrders();
   const idx = list.findIndex((o) => o.orderId === id);
   if (idx === -1) throw new Error("Pedido no encontrado.");
+  const before = list[idx].status || "pendiente";
   for (const k of allowed) if (patch[k] !== void 0) list[idx][k] = patch[k];
   await writeDoc("orders", list);
-  return list[idx];
+  const updated = list[idx];
+  let whatsappSent = false;
+  const after = updated.status || "pendiente";
+  if (patch.status && before !== after && ["confirmado", "pagado", "preparando", "enviado", "entregado"].includes(after)) {
+    try {
+      whatsappSent = await notifyOrderStatus(updated);
+    } catch {
+      whatsappSent = false;
+    }
+  }
+  return { ...updated, whatsappSent };
 }
 async function deleteOrder(id) {
   const list = await listOrders();
@@ -386,6 +397,9 @@ function fallbackReply(message) {
   if (lower.includes("piedra") || lower.includes("arena") || lower.includes("olor")) {
     return "Para control de olores te sugerimos las **Piedras de S\xEDlice** (duran hasta 30 d\xEDas) o las **Aglomerantes Ultra Clumping** que forman bloques s\xF3lidos al instante.";
   }
+  if (lower.includes("ave") || lower.includes("pajaro") || lower.includes("p\xE1jaro") || lower.includes("loro") || lower.includes("canario") || lower.includes("alpiste") || lower.includes("pez") || lower.includes("peces") || lower.includes("pecera") || lower.includes("acuario") || lower.includes("conejo") || lower.includes("cobayo") || lower.includes("hamster") || lower.includes("h\xE1mster") || lower.includes("tortuga") || lower.includes("jaula")) {
+    return "Tambi\xE9n tenemos de todo para **otras mascotas**: alpiste y mix para aves, escamas y granulados para peces, mix y heno para cobayos y conejos, m\xE1s jaulas, peceras y accesorios. Mir\xE1 la categor\xEDa Otras mascotas \u{1F426}.";
+  }
   if (lower.includes("envio") || lower.includes("env\xEDo") || lower.includes("zona") || lower.includes("donde") || lower.includes("bella vista") || lower.includes("tardan") || lower.includes("llega")) {
     return "Somos una tienda 100% online con base en Bella Vista: enviamos en 24/48 hs a todo el AMBA y por Correo Argentino a todo el pa\xEDs.";
   }
@@ -404,6 +418,7 @@ async function chatReply(message, history) {
   const systemPrompt = [
     'Sos JoaquiBot, asistente de "La Joaquina Pet Shop", tienda online argentina de mascotas con base en Bella Vista, Buenos Aires (solo online, sin local).',
     "Vend\xE9s SOLO por esta web con carrito: Mercado Pago online, transferencia con 10% OFF o efectivo. Env\xEDos desde Bella Vista a todo AMBA en 24/48 hs y al pa\xEDs por Correo Argentino.",
+    "Tambi\xE9n hay categor\xEDa Otras mascotas: aves (alpiste, mix), peces (escamas, bettas), cobayos/conejos y accesorios (jaulas, peceras).",
     "NO menciones Mercado Libre: no vendemos por ah\xED.",
     "Tono argentino cordial, respuestas cortas con negritas. Ante s\xEDntomas graves, deriv\xE1 a un veterinario."
   ].join("\n");
@@ -423,6 +438,65 @@ JoaquiBot:` }),
   } catch {
     return { reply: fallbackReply(message), source: "local" };
   }
+}
+function normalizePhoneAR(phone) {
+  const digits = String(phone || "").replace(/\D/g, "").replace(/^0+/, "");
+  if (digits.length < 10) return null;
+  return digits.startsWith("54") ? digits : "54" + digits;
+}
+function orderStatusMessage(order, storeName) {
+  const total = Number(order.total || 0).toLocaleString("es-AR");
+  const base = `\xA1Hola ${order.customerName}! Te escribimos de ${storeName} por tu pedido ${order.orderId} ($${total}).`;
+  switch (order.status) {
+    case "confirmado":
+      return `${base} Ya lo confirmamos y lo estamos preparando.`;
+    case "pagado":
+      return `${base} Recibimos tu pago. Ya lo estamos preparando.`;
+    case "preparando":
+      return `${base} Ya est\xE1 en preparaci\xF3n. Te avisamos cuando salga para entrega.`;
+    case "enviado":
+      return `${base} \xA1Ya est\xE1 en camino!${order.trackingCode ? ` Seguilo con el c\xF3digo ${order.trackingCode}.` : ""}`;
+    case "entregado":
+      return `${base} Figura como entregado. \xBFLleg\xF3 todo bien? \xA1Gracias por tu compra!`;
+    default:
+      return `${base} Novedades sobre tu pedido.`;
+  }
+}
+function whatsappConfigured() {
+  return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
+}
+async function sendWhatsAppText(to, text) {
+  if (!whatsappConfigured()) return false;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 9e3);
+    const res = await fetch(`https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "text",
+        text: { preview_url: false, body: text.slice(0, 4e3) }
+      })
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+async function notifyOrderStatus(order) {
+  const to = normalizePhoneAR(order.customerPhone);
+  if (!to) return false;
+  const settings = await getSettings().catch(() => null);
+  const storeName = settings && settings.storeName || "La Joaquina Pet Shop";
+  return sendWhatsAppText(to, orderStatusMessage(order, storeName));
 }
 function mpConfigured() {
   return Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
