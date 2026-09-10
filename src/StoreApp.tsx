@@ -596,6 +596,7 @@ export default function StoreApp() {
         discountCode={checkoutDiscountCode}
         onOrderCompleted={handleOrderCompleted}
         settings={settings}
+        customer={currentUser ? { id: currentUser.id, name: currentUser.name || '', email: currentUser.email } : null}
         onBackToCart={() => {
           setIsCheckoutOpen(false);
           setIsCartOpen(true);

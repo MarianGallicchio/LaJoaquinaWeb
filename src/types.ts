@@ -48,6 +48,7 @@ export interface OrderDetails {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  customerId?: string;
   deliveryMethod: 'pickup' | 'express_amba' | 'correo_argentino';
   address: string;
   notes?: string;

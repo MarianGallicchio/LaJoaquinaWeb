@@ -22,12 +22,23 @@ PASO 2 — Crear las tablas (2 min)
 1. En el menú izquierdo andá a SQL Editor > New query.
 2. Abrí de tu PC el archivo supabase/schema.sql (está en el repositorio),
    copiá TODO el contenido y pegalo en el editor.
-3. Apretá Run (o Ctrl+Enter). Tiene que decir "Success".
-4. Andá a Authentication > Sign In / Sign Ups (pestaña Settings o Providers)
-   y APAGÁ "Allow new users to sign up" (para que nadie más pueda crearse
-   cuenta de admin).
-5. Andá a Authentication > Users > Add user > Create new user: poné tu
-   email y una contraseña (esta es tu NUEVA clave de administradora).
+3. Apretá Run (o Ctrl+Enter). Tiene que decir "Success". Podés correrlo
+   todas las veces que quieras: no duplica nada.
+4. Los clientes se registran solos desde la tienda (el registro queda
+   ENCENDIDO a propósito). Solo tu usuaria va a ser administradora.
+
+----------------------------------------
+PASO 2B — Tu cuenta de dueña (2 min)
+----------------------------------------
+1. En Supabase andá a Authentication > Users > Add user > Create new user:
+   poné tu email y una contraseña (esta es tu NUEVA clave de administradora).
+2. Después dale el rol de dueña con este SQL (cambiá el email por el tuyo),
+   en SQL Editor > New query > Run:
+     update auth.users set raw_user_meta_data =
+       coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role":"admin"}'
+     where email = 'tu-email@ejemplo.com';
+3. Listo: vos entrás al admin online con ese email y clave; los clientes
+   se crean su cuenta solos desde la tienda y ven solo SU historial.
 
 ----------------------------------------
 PASO 3 — Conectar la página (2 min + me avisás)

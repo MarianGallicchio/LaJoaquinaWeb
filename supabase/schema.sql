@@ -1,12 +1,17 @@
 -- LA JOAQUINA PET SHOP — esquema Supabase
 -- Pegar en el editor SQL de Supabase (Dashboard > SQL Editor > New query) y Run.
--- Tablas documento (id + JSONB), igual que la nube local. RLS:
+-- Se puede correr todas las veces que quieras (no duplica nada).
+-- ROLES: dueña (user_metadata.role = 'admin') vs clientes (registro libre).
 --   - catálogo y configuración: lectura pública, escritura solo dueña
---   - pedidos y alertas: cualquiera puede CREAR (checkout), solo la dueña ve/edita
+--   - pedidos: cualquiera puede CREAR; cada cliente ve SOLO los suyos;
+--     la dueña ve y edita todo
+--   - alertas: cualquiera puede crear; cada uno ve las suyas; dueña todo
 --   - distribuidores: solo dueña
--- IMPORTANTE: en Authentication > Sign In / Sign ups, APAGAR "Allow new users
--- to sign up". Así la única cuenta posible es la de la dueña (la creás en
--- Authentication > Users > Add user).
+-- DESPUÉS DEL SQL: dale rol admin a tu usuaria con (cambiá el email):
+--   update auth.users set raw_user_meta_data =
+--     coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role":"admin"}'
+--   where email = 'tu-email@ejemplo.com';
+-- Los clientes se registran solos desde la tienda (NO apagues el registro).
 
 create table if not exists products (
   id text primary key,
@@ -51,41 +56,55 @@ drop policy if exists "settings read" on store_settings;
 drop policy if exists "settings write" on store_settings;
 drop policy if exists "orders insert" on orders;
 drop policy if exists "orders admin" on orders;
+drop policy if exists "orders own" on orders;
 drop policy if exists "alerts insert" on stock_alerts;
 drop policy if exists "alerts admin" on stock_alerts;
+drop policy if exists "alerts own" on stock_alerts;
 drop policy if exists "distributors admin" on distributors;
 
 create policy "products read" on products
   for select using (true);
 
 create policy "products write" on products
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  for all using (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'))
+  with check (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'));
 
 create policy "settings read" on store_settings
   for select using (true);
 
 create policy "settings write" on store_settings
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  for all using (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'))
+  with check (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'));
 
 create policy "orders insert" on orders
   for insert with check (true);
 
 create policy "orders admin" on orders
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  for all using (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'))
+  with check (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'));
+
+create policy "orders own" on orders
+  for select using (
+    ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+    or ((data ->> 'customerEmail') = (auth.jwt() ->> 'email'))
+  );
 
 create policy "alerts insert" on stock_alerts
   for insert with check (true);
 
 create policy "alerts admin" on stock_alerts
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  for all using (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'))
+  with check (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'));
+
+create policy "alerts own" on stock_alerts
+  for select using (
+    ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+    or ((data ->> 'customerEmail') = (auth.jwt() ->> 'email'))
+  );
 
 create policy "distributors admin" on distributors
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  for all using (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'))
+  with check (((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'));
 
 -- Índices para ordenar pedidos y alertas por fecha
 create index if not exists orders_created_idx on orders (created_at desc);

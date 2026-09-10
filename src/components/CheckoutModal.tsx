@@ -31,6 +31,7 @@ interface CheckoutModalProps {
   onOrderCompleted: (order: OrderDetails) => void;
   onBackToCart?: () => void;
   settings?: StoreSettings;
+  customer?: { id?: string; name?: string; email?: string } | null;
 }
 
 export type CheckoutStep = 'shipping' | 'payment' | 'success';
@@ -44,6 +45,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderCompleted,
   onBackToCart,
   settings,
+  customer,
 }) => {
   const store = settings || DEFAULT_SETTINGS;
   const enabledMethods = getEnabledShipping(store);
@@ -58,10 +60,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
-  // Customer form fields
-  const [name, setName] = useState('');
+  // Customer form fields (precompletados si tiene cuenta)
+  const [name, setName] = useState(customer?.name || '');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(customer?.email || '');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState(store.city);
   const [notes, setNotes] = useState('');
@@ -193,6 +195,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     const newOrder: OrderDetails = {
       orderId: `JQ-${Math.floor(100000 + Math.random() * 900000)}`,
+      customerId: customer?.id,
       customerName: name.trim(),
       customerPhone: phone.trim(),
       customerEmail: email.trim(),

@@ -174,15 +174,37 @@ export async function supaSaveSettings(s: StoreSettings): Promise<StoreSettings>
   return full;
 }
 
-// ============ AUTH DUEÑA (Supabase Auth, sin claves en código) ============
-function toProfile(id: string, email: string): AuthUserProfile {
-  return { id, email, name: 'Administradora La Joaquina', role: 'admin' };
+// ============ AUTH (dueña por rol admin, clientes por registro libre) ============
+function toProfile(id: string, email: string, role: 'admin' | 'customer', name?: string): AuthUserProfile {
+  const fallback = role === 'admin' ? 'Administradora La Joaquina' : email.split('@')[0];
+  return { id, email, name: name || fallback, role };
+}
+
+function roleOf(user: any): 'admin' | 'customer' {
+  return user?.user_metadata?.role === 'admin' ? 'admin' : 'customer';
+}
+
+function displayName(user: any): string {
+  return user?.user_metadata?.name || (user?.email || '').split('@')[0] || 'Usuario';
 }
 
 export async function supaLogin(email: string, password: string): Promise<AuthUserProfile> {
   const { data, error } = await supa().auth.signInWithPassword({ email: email.trim(), password });
   if (error || !data.user) throw new Error('Credenciales inválidas.');
-  return toProfile(data.user.id, data.user.email || email.trim());
+  return toProfile(data.user.id, data.user.email || email.trim(), roleOf(data.user), displayName(data.user));
+}
+
+export async function supaRegisterCustomer(name: string, email: string, password: string): Promise<AuthUserProfile> {
+  const { data, error } = await supa().auth.signUp({
+    email: email.trim(),
+    password,
+    options: { data: { name: name.trim(), role: 'customer' } },
+  });
+  if (error) throw new Error(error.message.includes('already') ? 'Ese email ya tiene cuenta. Iniciá sesión.' : 'No se pudo crear la cuenta.');
+  const user = data.user;
+  // Si el proyecto exige confirmar email, igual devolvemos el perfil para comprar
+  if (!user) throw new Error('Revisá tu email para confirmar la cuenta y después iniciá sesión.');
+  return toProfile(user.id, user.email || email.trim(), roleOf(user), name.trim());
 }
 
 export async function supaMe(): Promise<AuthUserProfile | null> {
@@ -190,7 +212,7 @@ export async function supaMe(): Promise<AuthUserProfile | null> {
     const { data } = await supa().auth.getSession();
     const u = data.session?.user;
     if (!u) return null;
-    return toProfile(u.id, u.email || '');
+    return toProfile(u.id, u.email || '', roleOf(u), displayName(u));
   } catch {
     return null;
   }
@@ -200,4 +222,17 @@ export async function supaLogout(): Promise<void> {
   try {
     await supa().auth.signOut();
   } catch { /* ignore */ }
+}
+
+// Historial del cliente: solo sus pedidos (RLS lo garantiza)
+export async function supaMyOrders(email: string): Promise<OrderDetails[]> {
+  const clean = email.toLowerCase().trim();
+  if (!clean) return [];
+  const query: any = supa().from('orders').select('data');
+  const { data, error } = await query
+    .eq('data->>customerEmail', clean)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw errMsg(error, 'No se pudo leer tu historial.');
+  return (data || []).map((r: any) => r.data);
 }

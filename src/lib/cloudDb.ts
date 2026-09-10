@@ -491,6 +491,40 @@ export async function fetchAdminMe(): Promise<AuthUserProfile | null> {
   return null;
 }
 
+// ============ CUENTAS DE CLIENTES (registro libre + historial) ============
+
+export async function customerRegister(name: string, email: string, password: string): Promise<AuthUserProfile> {
+  if (supaMode()) {
+    const u = await supa.supaRegisterCustomer(name, email, password);
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(u));
+    return u;
+  }
+  return cloudRegister(name, email, password);
+}
+
+export async function customerLogin(email: string, password: string): Promise<AuthUserProfile> {
+  if (supaMode()) {
+    const u = await supa.supaLogin(email, password);
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(u));
+    return u;
+  }
+  const profile: AuthUserProfile = {
+    id: `user-${Date.now()}`,
+    email: email.toLowerCase().trim(),
+    name: email.split('@')[0] || 'Cliente',
+    role: 'customer',
+  };
+  localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
+  return profile;
+}
+
+export async function fetchMyOrders(email: string): Promise<OrderDetails[]> {
+  const clean = (email || '').toLowerCase().trim();
+  if (!clean) return [];
+  if (supaMode()) return supa.supaMyOrders(clean);
+  return getStoredOrders().filter((o) => (o.customerEmail || '').toLowerCase() === clean);
+}
+
 // Cloud Register (clientes: solo perfil local, sin contraseñas ni usuarios Auth)
 export async function cloudRegister(name: string, email: string, password?: string): Promise<AuthUserProfile> {
   if (supaMode()) {
