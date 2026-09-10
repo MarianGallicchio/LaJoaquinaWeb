@@ -152,6 +152,9 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, settings }) =>
           </p>
           <p className="flex items-center gap-1">
             Hecho con <Heart className="w-3.5 h-3.5 text-[#DE5D4E] fill-[#DE5D4E]" /> para las mascotas argentinas.
+            <a href="./admin.html" title="Acceso privado" className="ml-2 opacity-30 hover:opacity-100 transition-opacity">
+              🔒
+            </a>
           </p>
         </div>
 

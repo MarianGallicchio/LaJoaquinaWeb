@@ -96,7 +96,7 @@ export default function AdminApp() {
       if (prods && prods.length > 0) {
         setProducts(prods);
         try {
-          localStorage.setItem('la_juaquina_products', JSON.stringify(prods));
+          localStorage.setItem('la_joaquina_products_v2', JSON.stringify(prods));
         } catch { /* ignore */ }
       }
       if (ords) setOrders(ords);
@@ -130,7 +130,7 @@ export default function AdminApp() {
   const handleUpdateProducts = (list: Product[]) => {
     setProducts(list);
     try {
-      localStorage.setItem('la_juaquina_products', JSON.stringify(list));
+      localStorage.setItem('la_joaquina_products_v2', JSON.stringify(list));
     } catch { /* ignore */ }
   };
 

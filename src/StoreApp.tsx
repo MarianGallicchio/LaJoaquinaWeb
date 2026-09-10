@@ -36,7 +36,7 @@ export default function StoreApp() {
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('la_juaquina_products');
+      const saved = localStorage.getItem('la_joaquina_products_v2');
       return saved ? JSON.parse(saved) : PRODUCTS;
     } catch {
       return PRODUCTS;
@@ -51,7 +51,7 @@ export default function StoreApp() {
       if (cloudProds && cloudProds.length > 0) {
         setProducts(cloudProds);
         try {
-          localStorage.setItem('la_juaquina_products', JSON.stringify(cloudProds));
+          localStorage.setItem('la_joaquina_products_v2', JSON.stringify(cloudProds));
         } catch (e) {
           console.warn('Could not save to localStorage', e);
         }

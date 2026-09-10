@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="bg-[#EFA332] text-[#1B4E43] text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0">
               <Percent className="w-3 h-3" /> 10% OFF
             </span>
-            <span className="hidden sm:inline">Pagando con transferencia bancaria directa · Tienda online con envíos a todo el país</span>
+            <span className="hidden sm:inline">Pagá con transferencia bancaria directa · Tienda online con envíos a todo el país</span>
             <span className="sm:hidden truncate">Transferencia · Bella Vista · Todo el país</span>
           </div>
 

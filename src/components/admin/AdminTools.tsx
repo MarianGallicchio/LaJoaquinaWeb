@@ -89,7 +89,7 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
     );
     onUpdateProducts(updated);
     try {
-      localStorage.setItem('la_juaquina_products', JSON.stringify(updated));
+      localStorage.setItem('la_joaquina_products_v2', JSON.stringify(updated));
     } catch { /* ignore */ }
     for (const p of products.filter((x) => !updated.includes(x))) {
       try {

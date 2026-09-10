@@ -17,7 +17,7 @@ export interface CloudDbStatus {
   ordersCount: number;
 }
 
-const STORAGE_KEY_PRODUCTS = 'la_juaquina_products';
+const STORAGE_KEY_PRODUCTS = 'la_joaquina_products_v2';
 const STORAGE_KEY_ORDERS = 'la_juaquina_orders';
 const STORAGE_KEY_USER = 'la_juaquina_user';
 const STORAGE_KEY_ALERTS = 'la_juaquina_stock_alerts';
