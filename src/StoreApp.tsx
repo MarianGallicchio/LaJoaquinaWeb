@@ -14,6 +14,7 @@ import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { AuthModal } from './components/AuthModal';
 import { StockAlertModal } from './components/StockAlertModal';
+import { Reveal } from './components/Reveal';
 import { PRODUCTS } from './data/products';
 import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings } from './types';
 import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder } from './lib/cloudDb';
@@ -27,6 +28,11 @@ export default function StoreApp() {
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [onlyOffers, setOnlyOffers] = useState(false);
+  const PAGE_SIZE = 12;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [filtersOpen, setFiltersOpen] = useState(
+    () => typeof window === 'undefined' || window.innerWidth >= 768
+  );
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
@@ -253,6 +259,20 @@ export default function StoreApp() {
     return list;
   }, [products, activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock, onlyOffers]);
 
+  // Al cambiar filtros se vuelve a la primera página
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock, onlyOffers]);
+
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const remaining = filteredProducts.length - visibleProducts.length;
+
+  const activeFilterCount =
+    (selectedBrand !== 'todas' ? 1 : 0) +
+    (onlyInStock ? 1 : 0) +
+    (onlyOffers ? 1 : 0) +
+    (searchQuery.trim() ? 1 : 0);
+
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cartItems.reduce((s, i) => s + i.selectedVariant.price * i.quantity, 0);
 
@@ -312,6 +332,7 @@ export default function StoreApp() {
       />
 
       <main id="catalogo" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+        <Reveal>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-[#E8DFC9] gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#1B4E43] mb-1">
@@ -326,7 +347,7 @@ export default function StoreApp() {
               {activeCategory === 'accesorios' && 'Camas, Arnés y Accesorios 🎾'}
             </h2>
             <p className="text-xs text-[#7A6A59] mt-1">
-              {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} · Precios en ARS · Stock actualizado
+              Mostrando {Math.min(visibleCount, filteredProducts.length)} de {filteredProducts.length} · Precios en ARS · Stock actualizado
             </p>
             <div className="flex items-center gap-2 mt-2">
               <div className="flex -space-x-2">
@@ -352,7 +373,23 @@ export default function StoreApp() {
           </div>
         </div>
 
-        <div className="bg-[#FFFDF9] p-3.5 sm:p-4 rounded-2xl border border-[#E5D7BF] shadow-xs mb-8 flex flex-wrap items-center gap-3">
+        {/* Toggle filtros (móvil): el resto se esconde para no alargar */}
+        <button
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className="md:hidden w-full mb-3 flex items-center justify-between bg-[#FFFDF9] border border-[#E3D6BE] rounded-2xl px-4 py-2.5 text-xs font-bold text-[#1B4E43] cursor-pointer shadow-xs"
+        >
+          <span>🎛️ Filtros y orden</span>
+          <span className="flex items-center gap-2">
+            {activeFilterCount > 0 && (
+              <span className="bg-[#EFA332] text-[#1E170E] text-[10px] font-black px-2 py-0.5 rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+            <span>{filtersOpen ? '▲' : '▼'}</span>
+          </span>
+        </button>
+
+        <div className={`${filtersOpen ? 'flex' : 'hidden'} md:flex bg-[#FFFDF9] p-3.5 sm:p-4 rounded-2xl border border-[#E5D7BF] shadow-xs mb-8 flex-wrap items-center gap-3`}>
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-[#7A6A59]" />
             <span className="text-xs font-bold text-[#7A6A59]">Marca:</span>
@@ -438,13 +475,15 @@ export default function StoreApp() {
             </button>
           ))}
         </div>
+        </Reveal>
 
         {filteredProducts.length > 0 ? (
+          <>
           <div
             key={`${activeCategory}-${selectedBrand}-${searchQuery}-${sortBy}-${onlyInStock}-${onlyOffers}`}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
-            {filteredProducts.map((product, index) => (
+            {visibleProducts.map((product, index) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -455,6 +494,31 @@ export default function StoreApp() {
               />
             ))}
           </div>
+          {(remaining > 0 || visibleCount > PAGE_SIZE) && (
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              {remaining > 0 && (
+                <button
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#1B4E43] hover:bg-[#256B5C] text-white font-bold text-sm px-8 py-3 rounded-full transition-colors cursor-pointer font-display btn-gloss"
+                >
+                  <span>Ver más productos ({remaining} restantes)</span>
+                  <span>▼</span>
+                </button>
+              )}
+              {visibleCount > PAGE_SIZE && (
+                <button
+                  onClick={() => {
+                    setVisibleCount(PAGE_SIZE);
+                    scrollToCatalog();
+                  }}
+                  className="text-xs font-bold text-[#7A6A59] hover:text-[#1B4E43] underline cursor-pointer py-2"
+                >
+                  Ver menos
+                </button>
+              )}
+            </div>
+          )}
+          </>
         ) : (
           <div className="text-center py-16 bg-[#FFFDF9] rounded-3xl border border-[#E5D7BF] p-8 max-w-lg mx-auto">
             <div className="w-16 h-16 rounded-full bg-[#FAF5EC] text-3xl flex items-center justify-center mx-auto mb-3">
@@ -481,8 +545,12 @@ export default function StoreApp() {
       </main>
 
       <TestimonialsSection settings={settings} />
-      <FoodCalculator products={products} onSelectProduct={(product) => setModalProduct(product)} />
-      <ContactSection settings={settings} />
+      <Reveal>
+        <FoodCalculator products={products} onSelectProduct={(product) => setModalProduct(product)} />
+      </Reveal>
+      <Reveal>
+        <ContactSection settings={settings} />
+      </Reveal>
       <Footer
         settings={settings}
         onSelectCategory={(cat) => {

@@ -103,6 +103,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               Top Ventas
             </span>
           )}
+          {!isOutOfStock && activeVariant.originalPrice && activeVariant.originalPrice > activeVariant.price && (
+            <span className="bg-[#16A34A] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+              -{Math.round((1 - activeVariant.price / activeVariant.originalPrice) * 100)}% OFF
+            </span>
+          )}
           {!isOutOfStock && typeof activeVariant.stock === 'number' && activeVariant.stock <= 5 && (
             <span className="bg-[#7C3AED] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
               ¡Últimas {activeVariant.stock} u.!
@@ -209,6 +214,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             10% OFF pagando con transferencia ($
             {Math.round(activeVariant.price * 0.9).toLocaleString('es-AR')})
           </p>
+          {!isOutOfStock && typeof activeVariant.stock === 'number' && activeVariant.stock <= 8 && (
+            <div className="mt-2">
+              <div className="h-1.5 rounded-full bg-[#EFE3D2] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#EFA332] to-[#DE5D4E]"
+                  style={{ width: `${Math.max(10, Math.min(100, activeVariant.stock * 10))}%` }}
+                />
+              </div>
+              <p className="text-[10px] font-bold text-[#8C5800] mt-0.5">
+                ¡Quedan {activeVariant.stock} unidades!
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons: Integrated Cart vs Stock Alert */}
