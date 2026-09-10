@@ -45,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'todos', label: 'Todo el Catálogo' },
     { id: 'perros', label: 'Perros 🐶' },
     { id: 'gatos', label: 'Gatos 🐱' },
+    { id: 'otras', label: 'Otras Mascotas 🐦' },
     { id: 'piedras', label: 'Piedras Sanitarias 🧼' },
     { id: 'accesorios', label: 'Accesorios & Camas 🎾' },
   ];

@@ -76,6 +76,14 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, settings }) =>
               </li>
               <li>
                 <button
+                  onClick={() => onSelectCategory('otras')}
+                  className="hover:text-white transition-colors cursor-pointer"
+                >
+                  Aves, Peces y Pequeñas Mascotas
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => onSelectCategory('piedras')}
                   className="hover:text-white transition-colors cursor-pointer"
                 >

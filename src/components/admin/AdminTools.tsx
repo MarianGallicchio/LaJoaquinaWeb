@@ -189,6 +189,7 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
               <option value="todas">Todo el catálogo</option>
               <option value="perros">Perros</option>
               <option value="gatos">Gatos</option>
+              <option value="otras">Otras mascotas</option>
               <option value="piedras">Piedras</option>
               <option value="accesorios">Accesorios</option>
               {brands.map((b) => (
@@ -248,6 +249,7 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
               <option value="todas">Todo</option>
               <option value="perros">Perros</option>
               <option value="gatos">Gatos</option>
+              <option value="otras">Otras mascotas</option>
               <option value="piedras">Piedras</option>
               <option value="accesorios">Accesorios</option>
               {brands.map((b) => (

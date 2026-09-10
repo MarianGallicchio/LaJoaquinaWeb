@@ -26,6 +26,7 @@ function parseOrderDate(s: string): Date | null {
 const CAT_COLORS: Record<string, string> = {
   perros: '#1B4E43',
   gatos: '#EFA332',
+  otras: '#0D9488',
   piedras: '#7C3AED',
   accesorios: '#DE5D4E',
 };
@@ -108,7 +109,7 @@ export const AdminDashboard: React.FC<Props> = ({ products, orders, alerts, onGo
 
   // Catálogo por categoría (donut)
   const catCounts = useMemo(() => {
-    const cats = ['perros', 'gatos', 'piedras', 'accesorios'];
+    const cats = ['perros', 'gatos', 'otras', 'piedras', 'accesorios'];
     return cats.map((c) => ({ cat: c, count: products.filter((p) => p.category === c).length }));
   }, [products]);
 

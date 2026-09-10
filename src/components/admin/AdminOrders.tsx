@@ -68,21 +68,6 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<string>('preparando');
   const [savingId, setSavingId] = useState<string | null>(null);
-  // Aviso automático: al confirmar un cambio de estado se abre WhatsApp con el mensaje listo
-  const [autoWa, setAutoWa] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('la_joaquina_auto_wa') !== 'off';
-    } catch {
-      return true;
-    }
-  });
-
-  const setAutoWaPersist = (v: boolean) => {
-    setAutoWa(v);
-    try {
-      localStorage.setItem('la_joaquina_auto_wa', v ? 'on' : 'off');
-    } catch { /* ignore */ }
-  };
 
   const filtered = useMemo(() => {
     const query = q.toLowerCase().trim();
@@ -127,29 +112,22 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
         notify(`↩️ Stock devuelto por cancelación del pedido ${order.orderId}.`);
       }
       const history = stampHistory(order, newStatus);
-      await updateCloudOrderStatus(order.orderId, { status: newStatus as any, history });
+      // Instantáneo y sin ventanas: el servidor guarda, registra y avisa solo por WhatsApp
+      const result = await updateCloudOrderStatus(order.orderId, { status: newStatus as any, history });
       const saved = { ...order, status: newStatus, history };
       onOrdersChange(orders.map((o) => (o.orderId === order.orderId ? saved : o)));
       notify(`✅ Pedido ${order.orderId}: ${STATUS_LABEL[old] || old} → ${STATUS_LABEL[newStatus] || newStatus}. Guardado.`);
+      if (result.whatsappSent) {
+        notify(`📲 Aviso enviado automáticamente al WhatsApp del cliente.`);
+      }
 
       // Si se marca enviado sin seguimiento: abrir detalle y pedir el código
       if (newStatus === 'enviado' && !((editingTracking[order.orderId] ?? order.trackingCode) || '').trim()) {
         setExpanded(order.orderId);
-        notify('⚠️ Agregá el código de seguimiento antes de avisar al cliente.');
+        notify('⚠️ Agregá el código de seguimiento y guardalo.');
         setTimeout(() => {
           document.getElementById(`tracking-${order.orderId}`)?.focus();
         }, 350);
-      }
-
-      // Aviso automático por WhatsApp con el mensaje del nuevo estado
-      if (autoWa) {
-        const link = waLinkFor(saved);
-        if (link) {
-          const w = window.open(link, '_blank', 'noopener');
-          if (!w) {
-            notify('⚠️ El navegador bloqueó la ventana de WhatsApp: usá el botón verde "Avisar estado".');
-          }
-        }
       }
     } catch (e: any) {
       setActionError(e.message || 'No se pudo actualizar el pedido.');
@@ -341,18 +319,6 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
           <button onClick={onReload} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1B4E43] hover:underline cursor-pointer">
             <RefreshCw className="w-3.5 h-3.5" /> Actualizar
           </button>
-          <label
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#14532D] cursor-pointer select-none bg-[#E8F8EE] border border-[#BBF7D0] px-3 py-2 rounded-xl"
-            title="Al confirmar un cambio de estado se abre WhatsApp con el aviso listo para enviar"
-          >
-            <input
-              type="checkbox"
-              checked={autoWa}
-              onChange={(e) => setAutoWaPersist(e.target.checked)}
-              className="w-3.5 h-3.5 accent-[#16A34A] cursor-pointer"
-            />
-            📲 Aviso auto WhatsApp
-          </label>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {QUICK_FILTERS.map((f) => (
@@ -454,7 +420,7 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
                       onChange={(e) => handleStatus(o, e.target.value)}
                       className="text-xs bg-[#FAF5EC] border-2 border-[#E3D6BE] rounded-xl pl-2.5 pr-2 py-2 font-black cursor-pointer outline-none disabled:opacity-60"
                       style={{ borderLeftColor: STATUS_COLOR[st] || '#1B4E43', borderLeftWidth: 6 }}
-                      title="Cambiar estado: guarda, registra historial, devuelve stock si se cancela y avisa por WhatsApp"
+                      title="Cambiar estado: se guarda al instante, registra historial y devuelve stock si se cancela"
                     >
                       {STATUS.filter((s) => s !== 'todas').map((s) => (
                         <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>

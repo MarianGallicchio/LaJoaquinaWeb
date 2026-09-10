@@ -340,6 +340,7 @@ export default function StoreApp() {
               {activeCategory === 'todos' && 'Catálogo Completo de Alimentos & Piedras'}
               {activeCategory === 'perros' && 'Alimentos y Cuidados para Perros 🐶'}
               {activeCategory === 'gatos' && 'Alimentos y Nutrición para Gatos 🐱'}
+              {activeCategory === 'otras' && 'Aves, Peces y Pequeñas Mascotas 🐦'}
               {activeCategory === 'piedras' && 'Piedras Sanitarias y Control de Olor 🧼'}
               {activeCategory === 'accesorios' && 'Camas, Arnés y Accesorios 🎾'}
             </h2>
@@ -455,6 +456,7 @@ export default function StoreApp() {
               { id: 'todos', label: 'Todo 📦' },
               { id: 'perros', label: 'Perros 🐶' },
               { id: 'gatos', label: 'Gatos 🐱' },
+              { id: 'otras', label: 'Otras 🐦' },
               { id: 'piedras', label: 'Piedras 🧼' },
               { id: 'accesorios', label: 'Accesorios 🎾' },
             ] as { id: ProductCategory; label: string }[]

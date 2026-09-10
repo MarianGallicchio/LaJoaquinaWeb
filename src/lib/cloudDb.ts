@@ -425,7 +425,7 @@ function saveOrderLocally(order: OrderDetails) {
 export async function updateCloudOrderStatus(
   orderId: string,
   patch: Partial<Pick<OrderDetails, 'status' | 'trackingCode' | 'adminNotes' | 'history'>>
-): Promise<boolean> {
+): Promise<{ ok: boolean; order?: OrderDetails; whatsappSent?: boolean }> {
   const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -436,9 +436,10 @@ export async function updateCloudOrderStatus(
     throw new Error('No se pudo actualizar el pedido.');
   }
   const data = await res.json();
-  if (data.order) saveOrderLocally(data.order);
+  const { whatsappSent, ...clean } = data.order || {};
+  if (data.order) saveOrderLocally(clean as OrderDetails);
   else patchLocalOrder(orderId, patch);
-  return true;
+  return { ok: true, order: clean as OrderDetails, whatsappSent: !!whatsappSent };
 }
 
 export async function deleteCloudOrder(orderId: string): Promise<boolean> {

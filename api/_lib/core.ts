@@ -57,9 +57,22 @@ export async function patchOrder(id: string, patch: Record<string, any>) {
   const list = await listOrders();
   const idx = list.findIndex((o: any) => o.orderId === id);
   if (idx === -1) throw new Error('Pedido no encontrado.');
+  const before = list[idx].status || 'pendiente';
   for (const k of allowed) if (patch[k] !== undefined) list[idx][k] = patch[k];
   await writeDoc('orders', list);
-  return list[idx];
+  const updated = list[idx];
+  // Automatización: al cambiar a ciertos estados se avisa solo por WhatsApp
+  // (sin abrir ventanas: lo envía el servidor si está configurado)
+  let whatsappSent = false;
+  const after = updated.status || 'pendiente';
+  if (patch.status && before !== after && ['confirmado', 'pagado', 'preparando', 'enviado', 'entregado'].includes(after)) {
+    try {
+      whatsappSent = await notifyOrderStatus(updated);
+    } catch {
+      whatsappSent = false;
+    }
+  }
+  return { ...updated, whatsappSent };
 }
 
 export async function deleteOrder(id: string) {
@@ -185,6 +198,9 @@ function fallbackReply(message: string): string {
   if (lower.includes('piedra') || lower.includes('arena') || lower.includes('olor')) {
     return 'Para control de olores te sugerimos las **Piedras de Sílice** (duran hasta 30 días) o las **Aglomerantes Ultra Clumping** que forman bloques sólidos al instante.';
   }
+  if (lower.includes('ave') || lower.includes('pajaro') || lower.includes('pájaro') || lower.includes('loro') || lower.includes('canario') || lower.includes('alpiste') || lower.includes('pez') || lower.includes('peces') || lower.includes('pecera') || lower.includes('acuario') || lower.includes('conejo') || lower.includes('cobayo') || lower.includes('hamster') || lower.includes('hámster') || lower.includes('tortuga') || lower.includes('jaula')) {
+    return 'También tenemos de todo para **otras mascotas**: alpiste y mix para aves, escamas y granulados para peces, mix y heno para cobayos y conejos, más jaulas, peceras y accesorios. Mirá la categoría Otras mascotas 🐦.';
+  }
   if (lower.includes('envio') || lower.includes('envío') || lower.includes('zona') || lower.includes('donde') || lower.includes('bella vista') || lower.includes('tardan') || lower.includes('llega')) {
     return 'Somos una tienda 100% online con base en Bella Vista: enviamos en 24/48 hs a todo el AMBA y por Correo Argentino a todo el país.';
   }
@@ -205,6 +221,7 @@ export async function chatReply(message: string, history: Array<{ sender: string
   const systemPrompt = [
     'Sos JoaquiBot, asistente de "La Joaquina Pet Shop", tienda online argentina de mascotas con base en Bella Vista, Buenos Aires (solo online, sin local).',
     'Vendés SOLO por esta web con carrito: Mercado Pago online, transferencia con 10% OFF o efectivo. Envíos desde Bella Vista a todo AMBA en 24/48 hs y al país por Correo Argentino.',
+    'También hay categoría Otras mascotas: aves (alpiste, mix), peces (escamas, bettas), cobayos/conejos y accesorios (jaulas, peceras).',
     'NO menciones Mercado Libre: no vendemos por ahí.',
     'Tono argentino cordial, respuestas cortas con negritas. Ante síntomas graves, derivá a un veterinario.',
   ].join('\n');
@@ -225,7 +242,74 @@ export async function chatReply(message: string, history: Array<{ sender: string
   }
 }
 
-// ============ MERCADO PAGO ============
+// ============ WHATSAPP AUTOMÁTICO (Meta Cloud API, sin ventanas) ============
+// Si WHATSAPP_TOKEN y WHATSAPP_PHONE_ID están configurados, el servidor
+// envía solo el aviso al cambiar el estado. Si no, no hace nada (el panel
+// conserva el botón manual de WhatsApp).
+
+function normalizePhoneAR(phone: string): string | null {
+  const digits = String(phone || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (digits.length < 10) return null;
+  return digits.startsWith('54') ? digits : '54' + digits;
+}
+
+function orderStatusMessage(order: any, storeName: string): string {
+  const total = Number(order.total || 0).toLocaleString('es-AR');
+  const base = `¡Hola ${order.customerName}! Te escribimos de ${storeName} por tu pedido ${order.orderId} ($${total}).`;
+  switch (order.status) {
+    case 'confirmado':
+      return `${base} Ya lo confirmamos y lo estamos preparando.`;
+    case 'pagado':
+      return `${base} Recibimos tu pago. Ya lo estamos preparando.`;
+    case 'preparando':
+      return `${base} Ya está en preparación. Te avisamos cuando salga para entrega.`;
+    case 'enviado':
+      return `${base} ¡Ya está en camino!${order.trackingCode ? ` Seguilo con el código ${order.trackingCode}.` : ''}`;
+    case 'entregado':
+      return `${base} Figura como entregado. ¿Llegó todo bien? ¡Gracias por tu compra!`;
+    default:
+      return `${base} Novedades sobre tu pedido.`;
+  }
+}
+
+export function whatsappConfigured(): boolean {
+  return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
+}
+
+export async function sendWhatsAppText(to: string, text: string): Promise<boolean> {
+  if (!whatsappConfigured()) return false;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 9000);
+    const res = await fetch(`https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'text',
+        text: { preview_url: false, body: text.slice(0, 4000) },
+      }),
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function notifyOrderStatus(order: any): Promise<boolean> {
+  const to = normalizePhoneAR(order.customerPhone);
+  if (!to) return false;
+  const settings = await getSettings().catch(() => null);
+  const storeName = (settings && settings.storeName) || 'La Joaquina Pet Shop';
+  return sendWhatsAppText(to, orderStatusMessage(order, storeName));
+}
 export function mpConfigured(): boolean {
   return Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
 }

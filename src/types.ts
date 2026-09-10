@@ -1,4 +1,4 @@
-export type ProductCategory = 'todos' | 'perros' | 'gatos' | 'piedras' | 'accesorios';
+export type ProductCategory = 'todos' | 'perros' | 'gatos' | 'otras' | 'piedras' | 'accesorios';
 
 export interface ProductVariant {
   weight: string;
@@ -22,7 +22,7 @@ export interface Product {
   id: string;
   name: string;
   brand: string;
-  category: 'perros' | 'gatos' | 'piedras' | 'accesorios';
+  category: 'perros' | 'gatos' | 'otras' | 'piedras' | 'accesorios';
   subCategory?: string; // e.g. "Cachorro", "Adulto", "Aglomerante", "Juguete"
   description: string;
   nutritionalInfo?: string;

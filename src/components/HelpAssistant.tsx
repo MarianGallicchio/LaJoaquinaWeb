@@ -78,6 +78,14 @@ function localAnswer(question: string, products: Product[], store: StoreSettings
   if (has('piedra', 'arena', 'olor', 'aglomerante', 'silice')) {
     return 'Para el olor: piedras aglomerantes (bloque sólido instantáneo) o sílice (dura hasta 30 días). Las tenés en la categoría Piedras con stock actualizado.';
   }
+  if (has('ave', 'pajaro', 'loro', 'canario', 'alpiste', 'pez', 'peces', 'pecera', 'acuario', 'conejo', 'cobayo', 'cobaya', 'hamster', 'tortuga', 'jaula', 'roedor')) {
+    const others = products.filter((p) => p.category === 'otras' && p.variants.some((v) => v.inStock !== false));
+    if (others.length > 0) {
+      const top = others.slice(0, 3).map((p) => `**${p.name}** desde ${formatARS(Math.min(...p.variants.map((v) => v.price)))}`).join(' · ');
+      return `Para otras mascotas tenemos: ${top}. Entrá a la categoría Otras mascotas 🐦 para ver todo.`;
+    }
+    return 'Tenemos alimentos y accesorios para aves, peces, cobayos y más en la categoría Otras mascotas 🐦.';
+  }
   if (has('oferta', 'promo', 'barato', 'economico', 'descuento')) {
     const offers = products
       .filter((p) => p.variants.some((v) => v.originalPrice && v.originalPrice > v.price))

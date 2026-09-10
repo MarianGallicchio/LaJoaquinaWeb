@@ -44,6 +44,18 @@ PASO 3 — Cobros con Mercado Pago (5 min)
 6. Cuando ande, cambiá a las credenciales de PRODUCCIÓN (empiezan con APP_USR-).
 
 ----------------------------------------
+PASO 3B — Avisos automáticos de WhatsApp (opcional, 10 min)
+----------------------------------------
+Sin esto, igual podés avisar con el botón verde de cada pedido.
+Para que el servidor avise SOLO al cambiar estados (sin abrir ventanas):
+1. Entrá a https://developers.facebook.com > Crear app > producto WhatsApp.
+2. En la app copiá el token temporal (o generá uno permanente) y el
+   ID del número de teléfono (Phone number ID).
+3. En Vercel agregá: WHATSAPP_TOKEN y WHATSAPP_PHONE_ID + Redeploy.
+4. Probá: pasá un pedido a "En preparación" y fijate si llega el WhatsApp.
+   En el admin vas a ver "📲 Aviso enviado automáticamente".
+
+----------------------------------------
 PASO 4 — Verificación (la prueba de fuego)
 ----------------------------------------
 1. En el admin de Vercel marcá un producto sin stock (- hasta 0).

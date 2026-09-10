@@ -510,7 +510,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
         )}
 
         {/* Cloud Status & Stats Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <div className="bg-[#FFFDF9] p-4 rounded-2xl border border-[#E5D7BF] shadow-xs">
             <span className="text-[11px] font-bold text-[#7A6A59] block uppercase">Total Catálogo</span>
             <strong className="text-2xl font-extrabold text-[#1B4E43] font-display">{products.length}</strong>
@@ -528,9 +528,21 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
             </strong>
           </div>
           <div className="bg-[#FFFDF9] p-4 rounded-2xl border border-[#E5D7BF] shadow-xs">
-            <span className="text-[11px] font-bold text-[#7A6A59] block uppercase">🧼 Piedras & Otros</span>
+            <span className="text-[11px] font-bold text-[#7A6A59] block uppercase">🐦 Otras</span>
             <strong className="text-2xl font-extrabold text-[#1B4E43] font-display">
-              {products.filter((p) => p.category === 'piedras' || p.category === 'accesorios').length}
+              {products.filter((p) => p.category === 'otras').length}
+            </strong>
+          </div>
+          <div className="bg-[#FFFDF9] p-4 rounded-2xl border border-[#E5D7BF] shadow-xs">
+            <span className="text-[11px] font-bold text-[#7A6A59] block uppercase">🧼 Piedras</span>
+            <strong className="text-2xl font-extrabold text-[#1B4E43] font-display">
+              {products.filter((p) => p.category === 'piedras').length}
+            </strong>
+          </div>
+          <div className="bg-[#FFFDF9] p-4 rounded-2xl border border-[#E5D7BF] shadow-xs">
+            <span className="text-[11px] font-bold text-[#7A6A59] block uppercase">🎾 Accesorios</span>
+            <strong className="text-2xl font-extrabold text-[#1B4E43] font-display">
+              {products.filter((p) => p.category === 'accesorios').length}
             </strong>
           </div>
         </div>
@@ -559,6 +571,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
               <option value="todos">Todas las categorías</option>
               <option value="perros">Perros</option>
               <option value="gatos">Gatos</option>
+              <option value="otras">Otras mascotas</option>
               <option value="piedras">Piedras Sanitarias</option>
               <option value="accesorios">Accesorios</option>
             </select>
@@ -1237,6 +1250,7 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   >
                     <option value="perros">Perros</option>
                     <option value="gatos">Gatos</option>
+                    <option value="otras">Otras mascotas</option>
                     <option value="piedras">Piedras Sanitarias</option>
                     <option value="accesorios">Accesorios</option>
                   </select>
