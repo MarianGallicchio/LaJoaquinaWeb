@@ -240,16 +240,14 @@ export const HelpAssistant: React.FC<HelpAssistantProps> = ({
       {!isOpen && (
         <motion.button
           onClick={onToggle}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.93 }}
-          animate={{ scale: [1, 1.06, 1] }}
-          transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
-          className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 bg-gradient-to-b from-[#2B6D5E] to-[#1B4E43] text-white pl-4 pr-5 py-3.5 rounded-full shadow-3d cursor-pointer btn-gloss"
-          title="Ayuda y asesor con IA"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className="fixed bottom-5 right-5 z-[100] w-16 h-16 rounded-full bg-gradient-to-b from-[#2B6D5E] to-[#0F2E27] text-white shadow-3d flex items-center justify-center cursor-pointer border-2 border-[#EFA332]/60"
+          title="Ayuda y asesor"
           aria-label="Abrir ayuda y asesor"
         >
-          <MessageCircleQuestion className="w-6 h-6 text-[#FFE194]" />
-          <span className="text-sm font-extrabold font-display">Ayuda</span>
+          <span className="absolute inline-flex h-full w-full rounded-full bg-[#EFA332] opacity-25 animate-ping pointer-events-none" />
+          <MessageCircleQuestion className="w-7 h-7 text-[#FFE194] relative" />
         </motion.button>
       )}
 
@@ -260,7 +258,7 @@ export const HelpAssistant: React.FC<HelpAssistantProps> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-            className="fixed bottom-5 right-5 z-[60] w-[calc(100vw-2.5rem)] max-w-sm bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl shadow-3d overflow-hidden flex flex-col max-h-[82vh]"
+            className="fixed bottom-5 right-5 z-[100] w-[calc(100vw-2.5rem)] max-w-sm bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl shadow-3d overflow-hidden flex flex-col max-h-[82vh]"
           >
             <div className="bg-[#1B4E43] text-white p-4 flex items-center justify-between shrink-0">
               <div>
