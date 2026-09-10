@@ -32,6 +32,7 @@ import {
 } from './lib/cloudDb';
 import { DEFAULT_SETTINGS, fetchStoreSettings } from './lib/storeSettings';
 import { goStore as goStorePage } from './lib/nav';
+import { supaDiagnostics } from './lib/supabase';
 import { AdminCatalog } from './components/AdminCatalog';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminOrders } from './components/admin/AdminOrders';
@@ -79,6 +80,16 @@ export default function AdminApp() {
   const [gateError, setGateError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [diag, setDiag] = useState<{ reachable: boolean; tables: boolean; detail: string } | null>(null);
+
+  // Autodiagnóstico de conexión visible en el login
+  useEffect(() => {
+    if (currentUser?.role === 'admin') return;
+    setDiag(null);
+    supaDiagnostics()
+      .then(setDiag)
+      .catch(() => setDiag({ reachable: false, tables: false, detail: 'No se pudo verificar' }));
+  }, [currentUser?.role]);
 
   const notify = (msg: string) => {
     setToast(msg);
@@ -273,6 +284,15 @@ export default function AdminApp() {
             <button type="button" onClick={goToStore} className="w-full text-xs text-[#7A6A59] hover:text-[#1B4E43] font-bold py-2 cursor-pointer text-center">
               ← Ir a la tienda pública
             </button>
+            <div className={`text-[11px] font-bold rounded-xl px-3 py-2 border ${
+              !diag
+                ? 'bg-[#FAF5EC] text-[#8A7969] border-[#E8DFC9]'
+                : diag.reachable && diag.tables
+                ? 'bg-[#E8F3EF] text-[#1B4E43] border-[#BCE0D4]'
+                : 'bg-red-50 text-red-700 border-red-200'
+            }`}>
+              {!diag ? '🟡 Conectando con la nube...' : diag.reachable && diag.tables ? `🟢 ${diag.detail}` : `🔴 ${diag.detail}`}
+            </div>
           </form>
           )}
         </motion.div>

@@ -189,9 +189,48 @@ function displayName(user: any): string {
 }
 
 export async function supaLogin(email: string, password: string): Promise<AuthUserProfile> {
-  const { data, error } = await supa().auth.signInWithPassword({ email: email.trim(), password });
+  const op = supa().auth.signInWithPassword({ email: email.trim(), password });
+  const res = (await Promise.race([
+    op,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 20000)),
+  ]).catch((e: any) => {
+    throw new Error(
+      String(e?.message || '').includes('timeout')
+        ? 'Tiempo agotado conectando. Revisá tu internet o probá de nuevo.'
+        : 'Credenciales inválidas.'
+    );
+  })) as any;
+  const { data, error } = res;
   if (error || !data.user) throw new Error('Credenciales inválidas.');
   return toProfile(data.user.id, data.user.email || email.trim(), roleOf(data.user), displayName(data.user));
+}
+
+// Diagnóstico para mostrar en el login: ¿se llega a la nube? ¿están las tablas?
+export async function supaDiagnostics(): Promise<{ reachable: boolean; tables: boolean; detail: string }> {
+  if (!supaIsConfigured()) {
+    return { reachable: false, tables: false, detail: 'Nube no configurada en esta copia' };
+  }
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    const r = await fetch(`${URL}/auth/v1/health`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) return { reachable: false, tables: false, detail: `La nube responde con error ${r.status}` };
+  } catch {
+    return { reachable: false, tables: false, detail: 'Sin conexión a la nube (internet o bloqueador de anuncios)' };
+  }
+  try {
+    const { error } = await supa().from('products').select('id').limit(1);
+    if (error) {
+      if (/relation|schema cache|does not exist/i.test(error.message)) {
+        return { reachable: true, tables: false, detail: 'Faltan las tablas: hay que correr el schema.sql' };
+      }
+      return { reachable: true, tables: false, detail: error.message.slice(0, 90) };
+    }
+    return { reachable: true, tables: true, detail: 'Nube conectada y lista' };
+  } catch {
+    return { reachable: true, tables: false, detail: 'No se pudo leer la nube' };
+  }
 }
 
 export async function supaRegisterCustomer(name: string, email: string, password: string): Promise<AuthUserProfile> {
