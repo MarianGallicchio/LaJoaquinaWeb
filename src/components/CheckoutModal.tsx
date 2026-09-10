@@ -73,6 +73,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Cupón editable en el checkout (inicia con el del carrito, si hay)
+  const [couponInput, setCouponInput] = useState(discountCode);
+  const [activeCoupon, setActiveCoupon] = useState(discountCode);
+  const [couponMsg, setCouponMsg] = useState<string | null>(null);
+
+  // Sync shipping method when prop changes
+  useEffect(() => {
+    setSelectedShipping(initialShippingMethod);
+  }, [initialShippingMethod]);
+
+  // Sync coupon when reopened with a new code from the cart
+  useEffect(() => {
+    setCouponInput(discountCode);
+    setActiveCoupon(discountCode);
+    setCouponMsg(null);
+  }, [discountCode, isOpen]);
+
   // Sync shipping method when prop changes
   useEffect(() => {
     setSelectedShipping(initialShippingMethod);
@@ -93,7 +110,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     0
   );
 
-  const couponDiscount = discountCode.trim().toUpperCase() === store.couponCode.toUpperCase() ? subtotal * (store.couponPercent / 100) : 0;
+  const couponDiscount = activeCoupon.trim().toUpperCase() === store.couponCode.toUpperCase() && activeCoupon.trim() !== '' ? subtotal * (store.couponPercent / 100) : 0;
   // Descuento extra configurable si paga con transferencia
   const transferDiscount = paymentMethod === 'transferencia' ? (subtotal - couponDiscount) * (store.transferPercent / 100) : 0;
   const totalDiscount = couponDiscount + transferDiscount;
@@ -733,6 +750,51 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
 
+              {/* Cupón de descuento (editable acá mismo) */}
+              <div className="bg-[#FFFDF9] p-3.5 rounded-2xl border border-[#E5D7BF] text-xs">
+                <label className="block font-bold text-[#5B4E41] mb-1.5">
+                  ¿Tenés cupón? <span className="font-semibold text-[#8A7969]">(ej: {store.couponCode})</span>
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => {
+                      setCouponInput(e.target.value);
+                      setCouponMsg(null);
+                    }}
+                    placeholder={store.couponCode}
+                    className="flex-1 min-w-0 text-xs bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl px-3 py-2 uppercase focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const clean = couponInput.trim().toUpperCase();
+                      if (!clean) {
+                        setActiveCoupon('');
+                        setCouponMsg(null);
+                        return;
+                      }
+                      if (clean === store.couponCode.toUpperCase()) {
+                        setActiveCoupon(couponInput.trim());
+                        setCouponMsg(`✅ Cupón aplicado: ${store.couponPercent}% OFF.`);
+                      } else {
+                        setActiveCoupon('');
+                        setCouponMsg('❌ Ese cupón no es válido.');
+                      }
+                    }}
+                    className="bg-[#1B4E43] hover:bg-[#256B5C] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shrink-0 cursor-pointer"
+                  >
+                    Aplicar
+                  </button>
+                </div>
+                {couponMsg && (
+                  <p className={`mt-1.5 font-semibold ${couponMsg.startsWith('✅') ? 'text-[#256B5C]' : 'text-[#DE5D4E]'}`}>
+                    {couponMsg}
+                  </p>
+                )}
+              </div>
+
               {/* Order Total Breakdown */}
               <div className="bg-[#F6EFE2] p-4 rounded-2xl space-y-2 text-xs border border-[#E8DFC9]">
                 <div className="flex justify-between text-[#7A6A59]">
@@ -741,7 +803,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-[#256B5C] font-bold">
-                    <span>Cupón (JOAQUINA10):</span>
+                    <span>Cupón ({activeCoupon.trim().toUpperCase()}):</span>
                     <span>-{formatARS(couponDiscount)}</span>
                   </div>
                 )}

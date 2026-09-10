@@ -196,7 +196,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 </span>
               </div>
               <span className="text-[11px] text-[#256B5C] font-bold bg-[#E8F3EF] px-2 py-1 rounded-lg">
-                10% OFF pagando con transferencia
+                {store.transferPercent}% OFF pagando con transferencia
               </span>
             </div>
 

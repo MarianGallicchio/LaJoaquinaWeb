@@ -291,6 +291,7 @@ export default function StoreApp() {
       )}
 
       <Header
+        settings={settings}
         activeCategory={activeCategory}
         onSelectCategory={(cat) => {
           setActiveCategory(cat);
@@ -322,6 +323,7 @@ export default function StoreApp() {
       </div>
 
       <Hero
+        settings={settings}
         onSelectCategory={(cat) => {
           setActiveCategory(cat);
           scrollToCatalog();
@@ -487,6 +489,7 @@ export default function StoreApp() {
                 key={product.id}
                 product={product}
                 index={index}
+                settings={settings}
                 onAddToCart={handleAddToCart}
                 onOpenDetails={(p) => setModalProduct(p)}
                 onOpenStockAlert={handleOpenStockAlert}

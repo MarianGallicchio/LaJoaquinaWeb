@@ -39,7 +39,7 @@ export const ContactSection: React.FC<{ settings?: StoreSettings }> = ({ setting
   const faqs = [
     {
       q: '¿Cómo compro en la tienda?',
-      a: '¡Muy fácil! Elegís los productos, los sumás al carrito y completás tus datos de envío. Pagás por transferencia (con 10% de descuento), tarjeta o efectivo contra entrega. Coordinamos todo por WhatsApp y lo recibís en tu puerta.',
+      a: `¡Muy fácil! Elegís los productos, los sumás al carrito y completás tus datos de envío. Pagás por transferencia (con ${store.transferPercent}% de descuento), tarjeta o efectivo contra entrega. Coordinamos todo por WhatsApp y lo recibís en tu puerta.`,
     },
     {
       q: '¿Qué marcas de alimento comercializan?',
@@ -248,7 +248,7 @@ export const ContactSection: React.FC<{ settings?: StoreSettings }> = ({ setting
               </div>
               <div className="flex-1 text-xs">
                 <span className="font-extrabold text-[#1B4E43] block">
-                  Comprá directo y ahorrá 10%
+                  Comprá directo y ahorrá {store.transferPercent}%
                 </span>
                 <span className="text-[#3A5D54] text-[11px]">
                   Pagando por transferencia en nuestra tienda online, con asesoramiento incluido.

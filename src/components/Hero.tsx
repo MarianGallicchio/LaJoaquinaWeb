@@ -8,14 +8,17 @@ import {
   ArrowRight,
   Star
 } from 'lucide-react';
-import { ProductCategory } from '../types';
+import { ProductCategory, StoreSettings } from '../types';
+import { DEFAULT_SETTINGS } from '../lib/storeSettings';
 
 interface HeroProps {
   onSelectCategory: (category: ProductCategory) => void;
   onOpenCalculator: () => void;
+  settings?: StoreSettings;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }) => {
+export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator, settings }) => {
+  const store = settings || DEFAULT_SETTINGS;
   return (
     <section className="relative overflow-hidden pt-6 pb-12 sm:pt-10 sm:pb-16">
       {/* Decorative subtle background blobs */}
@@ -52,7 +55,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#1B4E43] leading-[1.12] tracking-tight">
               Todo lo que tu perro y tu gato necesitan, con el{' '}
-              <span className="text-[#DE5D4E] underline decoration-[#EFA332] decoration-wavy decoration-2">
+              <span className="text-gradient">
                 cariño de siempre
               </span>.
             </h1>
@@ -115,7 +118,7 @@ export const Hero: React.FC<HeroProps> = ({ onSelectCategory, onOpenCalculator }
               🚚 Envíos 24/48 hs
             </div>
             <div className="absolute -top-3 right-2 sm:right-4 z-10 bg-gradient-to-b from-[#1B4E43] to-[#0F2E27] text-[#FFE194] rounded-2xl px-3 py-1.5 text-[11px] sm:text-xs font-black shadow-3d animate-floaty" style={{ ['--float-rot' as any]: '3deg', animationDelay: '1.2s' }}>
-              10% OFF transferencia
+              {store.transferPercent}% OFF transferencia
             </div>
             <div className="bg-[#FFFDF9] p-4 sm:p-5 rounded-3xl border border-[#E5D7BF] shadow-3d relative overflow-hidden mt-3">
               

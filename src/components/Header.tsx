@@ -12,8 +12,9 @@ import {
   Truck,
   User
 } from 'lucide-react';
-import { ProductCategory } from '../types';
+import { ProductCategory, StoreSettings } from '../types';
 import { AuthUserProfile } from '../lib/cloudDb';
+import { DEFAULT_SETTINGS } from '../lib/storeSettings';
 
 interface HeaderProps {
   activeCategory: ProductCategory;
@@ -25,6 +26,7 @@ interface HeaderProps {
   onOpenHelp: () => void;
   currentUser: AuthUserProfile | null;
   onOpenAuth: () => void;
+  settings?: StoreSettings;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -37,7 +39,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   currentUser,
   onOpenAuth,
+  settings,
 }) => {
+  const store = settings || DEFAULT_SETTINGS;
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -57,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="bg-[#EFA332] text-[#1B4E43] text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0">
-              <Percent className="w-3 h-3" /> 10% OFF
+              <Percent className="w-3 h-3" /> {store.transferPercent}% OFF
             </span>
             <span className="hidden sm:inline">Pagá con transferencia bancaria directa · Tienda online con envíos a todo el país</span>
             <span className="sm:hidden truncate">Transferencia · Bella Vista · Todo el país</span>

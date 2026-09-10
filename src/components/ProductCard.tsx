@@ -9,7 +9,8 @@ import {
   Bell,
   PackageX
 } from 'lucide-react';
-import { Product, ProductVariant } from '../types';
+import { Product, ProductVariant, StoreSettings } from '../types';
+import { DEFAULT_SETTINGS } from '../lib/storeSettings';
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +18,7 @@ interface ProductCardProps {
   onOpenDetails: (product: Product) => void;
   onOpenStockAlert?: (product: Product, variant: ProductVariant) => void;
   index?: number;
+  settings?: StoreSettings;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -25,9 +27,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onOpenDetails,
   onOpenStockAlert,
   index,
+  settings,
 }) => {
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [justAdded, setJustAdded] = useState(false);
+  const store = settings || DEFAULT_SETTINGS;
 
   const fallbackVariant: ProductVariant = { weight: 'Estándar', price: 0, inStock: true };
   const activeVariant = (product.variants && product.variants.length > 0)
@@ -211,8 +215,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
           <p className="text-[11px] text-[#256B5C] font-semibold flex items-center gap-1 mt-0.5">
             <Zap className="w-3 h-3 text-[#EFA332]" />
-            10% OFF pagando con transferencia ($
-            {Math.round(activeVariant.price * 0.9).toLocaleString('es-AR')})
+            {store.transferPercent}% OFF pagando con transferencia ($
+            {Math.round(activeVariant.price * (1 - store.transferPercent / 100)).toLocaleString('es-AR')})
           </p>
           {!isOutOfStock && typeof activeVariant.stock === 'number' && activeVariant.stock <= 8 && (
             <div className="mt-2">

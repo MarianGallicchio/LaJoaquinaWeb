@@ -129,7 +129,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, settings }) =>
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-sm">⚡</span>
-                <span>10% OFF en transferencia bancaria</span>
+                <span>{store.transferPercent}% OFF en transferencia bancaria</span>
               </li>
             </ul>
           </div>
@@ -141,7 +141,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, settings }) =>
             </h4>
             <div className="bg-white/10 p-3.5 rounded-2xl border border-white/15 text-xs text-[#D3E5DE] space-y-2">
               <p>
-                Comprá acá mismo con carrito: 10% OFF con transferencia, cuotas con tarjeta y envíos asegurados a todo el país.
+                Comprá acá mismo con carrito: {store.transferPercent}% OFF con transferencia, cuotas con tarjeta y envíos asegurados a todo el país.
               </p>
               <a
                 href="#catalogo"
