@@ -23,7 +23,8 @@ PASO 2 — Crear las tablas (2 min)
 2. Abrí de tu PC el archivo supabase/schema.sql (está en el repositorio),
    copiá TODO el contenido y pegalo en el editor.
 3. Apretá Run (o Ctrl+Enter). Tiene que decir "Success". Podés correrlo
-   todas las veces que quieras: no duplica nada.
+   todas las veces que quieras: no duplica nada (incluye perfiles,
+   historial y roles de clientes).
 4. Los clientes se registran solos desde la tienda (el registro queda
    ENCENDIDO a propósito). Solo tu usuaria va a ser administradora.
 

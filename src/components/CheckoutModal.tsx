@@ -31,7 +31,15 @@ interface CheckoutModalProps {
   onOrderCompleted: (order: OrderDetails) => void;
   onBackToCart?: () => void;
   settings?: StoreSettings;
-  customer?: { id?: string; name?: string; email?: string } | null;
+  customer?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    paymentMethod?: 'mercadopago' | 'transferencia' | 'efectivo';
+  } | null;
 }
 
 export type CheckoutStep = 'shipping' | 'payment' | 'success';
@@ -60,14 +68,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
-  // Customer form fields (precompletados si tiene cuenta)
+  // Customer form fields (precompletados con su cuenta y predeterminados)
   const [name, setName] = useState(customer?.name || '');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(customer?.phone || '');
   const [email, setEmail] = useState(customer?.email || '');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState(store.city);
+  const [address, setAddress] = useState(customer?.address || '');
+  const [city, setCity] = useState(customer?.city || store.city);
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'transferencia' | 'efectivo'>('transferencia');
+  const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'transferencia' | 'efectivo'>(customer?.paymentMethod || 'transferencia');
+
+  // Al abrir, completar vacíos con los datos guardados de su cuenta
+  useEffect(() => {
+    if (isOpen && customer) {
+      if (!name && customer.name) setName(customer.name);
+      if (!phone && customer.phone) setPhone(customer.phone);
+      if (!email && customer.email) setEmail(customer.email);
+      if (!address && customer.address) setAddress(customer.address);
+      if (customer.city) setCity(customer.city);
+      if (customer.paymentMethod) setPaymentMethod(customer.paymentMethod);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
   
   const [loading, setLoading] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<OrderDetails | null>(null);

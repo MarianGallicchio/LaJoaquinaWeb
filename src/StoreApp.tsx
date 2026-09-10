@@ -16,8 +16,8 @@ import { AuthModal } from './components/AuthModal';
 import { StockAlertModal } from './components/StockAlertModal';
 import { Reveal } from './components/Reveal';
 import { PRODUCTS } from './data/products';
-import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings } from './types';
-import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder } from './lib/cloudDb';
+import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings, CustomerProfileData, emptyCustomerProfile } from './types';
+import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile } from './lib/cloudDb';
 import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
 import { Filter, ArrowUpDown, CheckCircle, Truck } from 'lucide-react';
 
@@ -99,12 +99,80 @@ export default function StoreApp() {
   const handleLogout = async () => {
     await cloudLogout();
     setCurrentUser(null);
+    setProfile(null);
     try {
-      localStorage.removeItem('la_juaquina_user');
+      localStorage.removeItem('la_joaquina_user');
     } catch (e) {
       console.warn(e);
     }
     showToast('Sesión cerrada.');
+  };
+
+  // Perfil de cliente (direcciones, pago favorito, favoritos)
+  const [profile, setProfile] = useState<CustomerProfileData | null>(null);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setProfile(null);
+      return;
+    }
+    fetchCustomerProfile({ id: currentUser.id, email: currentUser.email, name: currentUser.name || '' })
+      .then(setProfile)
+      .catch(() => setProfile(null));
+  }, [currentUser]);
+
+  const persistProfile = async (next: CustomerProfileData, silent = false) => {
+    setProfile(next);
+    if (!currentUser) return;
+    try {
+      await saveCustomerProfile({ id: currentUser.id, email: currentUser.email }, next);
+      if (!silent) showToast('✅ Datos guardados.');
+    } catch {
+      if (!silent) showToast('⚠️ Se guardó solo en este dispositivo.');
+    }
+  };
+
+  const toggleFavorite = (id: string) => {
+    const base = profile || emptyCustomerProfile(currentUser?.email || '', currentUser?.name || '');
+    const favs = base.favorites.includes(id) ? base.favorites.filter((f) => f !== id) : [...base.favorites, id];
+    persistProfile({ ...base, favorites: favs }, true);
+  };
+
+  const handleQuickAdd = (p: Product) => {
+    const v = p.variants.find((x) => x.inStock !== false) || p.variants[0];
+    if (v) handleAddToCart(p, v, 1);
+  };
+
+  const handleReorder = (order: OrderDetails) => {
+    const next = [...cartItems];
+    let added = 0;
+    let missing = 0;
+    for (const item of order.items || []) {
+      const prod = products.find((pp) => pp.id === item.product.id);
+      const variant =
+        prod?.variants.find((v) => v.weight === item.selectedVariant.weight && v.inStock !== false) ||
+        prod?.variants.find((v) => v.inStock !== false);
+      if (!prod || !variant) {
+        missing++;
+        continue;
+      }
+      const inCart = next
+        .filter((i) => i.product.id === prod.id && i.selectedVariant.weight === variant.weight)
+        .reduce((s, i) => s + i.quantity, 0);
+      const avail = typeof variant.stock === 'number' ? Math.max(0, variant.stock - inCart) : item.quantity;
+      const qty = Math.min(item.quantity, avail);
+      if (qty <= 0) {
+        missing++;
+        continue;
+      }
+      const idx = next.findIndex((i) => i.product.id === prod.id && i.selectedVariant.weight === variant.weight);
+      if (idx > -1) next[idx] = { ...next[idx], quantity: next[idx].quantity + qty };
+      else next.push({ product: prod, selectedVariant: variant, quantity: qty });
+      added += qty;
+    }
+    setCartItems(next);
+    showToast(missing > 0 ? `Agregadas ${added} u. (${missing} sin stock)` : `¡Pedido repetido! ${added} u. en el carrito.`);
+    setIsCartOpen(true);
   };
 
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
@@ -274,6 +342,20 @@ export default function StoreApp() {
     (searchQuery.trim() ? 1 : 0);
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Datos del cliente para precompletar el checkout (dirección y pago favoritos)
+  const checkoutCustomer = useMemo(() => {
+    const defAddr = profile?.addresses.find((a) => a.isDefault) || profile?.addresses[0];
+    return {
+      id: currentUser?.id,
+      name: profile?.name || currentUser?.name || '',
+      email: profile?.email || currentUser?.email || '',
+      phone: profile?.phone || '',
+      address: defAddr ? defAddr.street : '',
+      city: defAddr?.city || '',
+      paymentMethod: profile?.defaultPayment,
+    };
+  }, [currentUser, profile]);
   const cartSubtotal = cartItems.reduce((s, i) => s + i.selectedVariant.price * i.quantity, 0);
 
   const scrollToCatalog = () => {
@@ -490,6 +572,8 @@ export default function StoreApp() {
                 product={product}
                 index={index}
                 settings={settings}
+                isFavorite={profile?.favorites.includes(product.id)}
+                onToggleFavorite={currentUser ? () => toggleFavorite(product.id) : undefined}
                 onAddToCart={handleAddToCart}
                 onOpenDetails={(p) => setModalProduct(p)}
                 onOpenStockAlert={handleOpenStockAlert}
@@ -596,7 +680,7 @@ export default function StoreApp() {
         discountCode={checkoutDiscountCode}
         onOrderCompleted={handleOrderCompleted}
         settings={settings}
-        customer={currentUser ? { id: currentUser.id, name: currentUser.name || '', email: currentUser.email } : null}
+        customer={checkoutCustomer}
         onBackToCart={() => {
           setIsCheckoutOpen(false);
           setIsCartOpen(true);
@@ -617,6 +701,11 @@ export default function StoreApp() {
         currentUser={currentUser}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
+        profile={profile}
+        onSaveProfile={(p, silent) => persistProfile(p, silent)}
+        products={products}
+        onReorder={handleReorder}
+        onQuickAdd={handleQuickAdd}
       />
     </div>
   );

@@ -3,7 +3,7 @@
 // La anon key es pública por diseño: los datos los protegen las políticas RLS
 // (ver supabase/schema.sql) y el login de dueña es por Supabase Auth.
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, OrderDetails, StockAlert, StoreSettings, Distributor } from '../types';
+import { Product, OrderDetails, StockAlert, StoreSettings, Distributor, CustomerProfileData } from '../types';
 import type { AuthUserProfile } from './cloudDb';
 
 const URL = (import.meta as any).env?.VITE_SUPABASE_URL || '';
@@ -222,6 +222,29 @@ export async function supaLogout(): Promise<void> {
   try {
     await supa().auth.signOut();
   } catch { /* ignore */ }
+}
+
+// ============ PERFIL DE CLIENTE (fila propia) ============
+async function supaUid(): Promise<string> {
+  const { data } = await supa().auth.getSession();
+  const id = data.session?.user?.id;
+  if (!id) throw new Error('Sin sesión. Volvé a ingresar.');
+  return id;
+}
+
+export async function supaGetProfile(): Promise<CustomerProfileData | null> {
+  const uid = await supaUid();
+  const { data, error } = await supa().from('profiles').select('data').eq('user_id', uid).limit(1);
+  if (error) throw errMsg(error, 'No se pudo leer tu perfil.');
+  return data && data[0] ? ((data[0] as any).data as CustomerProfileData) : null;
+}
+
+export async function supaSaveProfile(profile: CustomerProfileData): Promise<CustomerProfileData> {
+  const uid = await supaUid();
+  const full = { ...profile, updatedAt: new Date().toISOString() };
+  const { error } = await supa().from('profiles').upsert({ user_id: uid, data: full }, { onConflict: 'user_id' });
+  if (error) throw errMsg(error, 'No se pudo guardar tu perfil.');
+  return full;
 }
 
 // Historial del cliente: solo sus pedidos (RLS lo garantiza)

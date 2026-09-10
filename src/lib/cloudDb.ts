@@ -1,4 +1,4 @@
-import { Product, OrderDetails, StockAlert, StoreSettings, Distributor } from '../types';
+import { Product, OrderDetails, StockAlert, StoreSettings, Distributor, CustomerProfileData, emptyCustomerProfile } from '../types';
 import { PRODUCTS as DEFAULT_PRODUCTS } from '../data/products';
 import * as supa from './supabase';
 
@@ -867,6 +867,60 @@ function removeLocalDistributor(id: string) {
   } catch (e) {
     console.warn('Error removing local distributor', e);
   }
+}
+
+// ============ PERFIL DE CLIENTE (direcciones, pagos, favoritos) ============
+
+const STORAGE_KEY_CUSTOMER = 'la_joaquina_customer_profile';
+
+function customerKey(user: { id?: string; email: string }): string {
+  const id = (user.id || user.email || '').toLowerCase().trim() || 'anon';
+  return `${STORAGE_KEY_CUSTOMER}_${id}`;
+}
+
+function loadLocalCustomerProfile(user: { id?: string; email: string; name?: string }): CustomerProfileData | null {
+  try {
+    const saved = localStorage.getItem(customerKey(user));
+    return saved ? (JSON.parse(saved) as CustomerProfileData) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalCustomerProfile(user: { id?: string; email: string }, data: CustomerProfileData) {
+  try {
+    localStorage.setItem(customerKey(user), JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
+export async function fetchCustomerProfile(user: { id?: string; email: string; name?: string }): Promise<CustomerProfileData> {
+  const base = { ...emptyCustomerProfile(user.email, user.name || ''), ...(loadLocalCustomerProfile(user) || {}) };
+  if (!supaMode()) return base;
+  try {
+    const remote = await supa.supaGetProfile();
+    if (remote) {
+      saveLocalCustomerProfile(user, remote);
+      return remote;
+    }
+  } catch (e) {
+    console.warn('Perfil remoto no disponible, usando local:', e);
+  }
+  return base;
+}
+
+export async function saveCustomerProfile(
+  user: { id?: string; email: string },
+  data: CustomerProfileData
+): Promise<CustomerProfileData> {
+  saveLocalCustomerProfile(user, data);
+  if (supaMode()) {
+    try {
+      return await supa.supaSaveProfile(data);
+    } catch (e) {
+      console.warn('Perfil guardado solo local:', e);
+    }
+  }
+  return data;
 }
 
 // ============ PEDIDO POR EMAIL (llega al instante, sin backend) ============

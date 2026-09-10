@@ -18,6 +18,33 @@ export type OrderStatus =
   | 'entregado'
   | 'cancelado';
 
+export type PaymentMethodId = 'mercadopago' | 'transferencia' | 'efectivo';
+
+export interface CustomerAddress {
+  id: string;
+  label: string; // Casa, Trabajo...
+  street: string; // calle, altura, piso
+  city: string;
+  notes?: string;
+  isDefault?: boolean;
+}
+
+export interface CustomerProfileData {
+  name: string;
+  email: string;
+  phone: string;
+  petName?: string;
+  petInfo?: string; // especie, raza, edad
+  addresses: CustomerAddress[];
+  defaultPayment?: PaymentMethodId;
+  favorites: string[]; // ids de producto
+  updatedAt?: string;
+}
+
+export function emptyCustomerProfile(email = '', name = ''): CustomerProfileData {
+  return { name, email, phone: '', addresses: [], favorites: [] };
+}
+
 export interface Product {
   id: string;
   name: string;

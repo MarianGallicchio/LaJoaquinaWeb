@@ -7,7 +7,8 @@ import {
   ShieldCheck,
   Zap,
   Bell,
-  PackageX
+  PackageX,
+  Heart
 } from 'lucide-react';
 import { Product, ProductVariant, StoreSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../lib/storeSettings';
@@ -19,6 +20,8 @@ interface ProductCardProps {
   onOpenStockAlert?: (product: Product, variant: ProductVariant) => void;
   index?: number;
   settings?: StoreSettings;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: string) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -28,6 +31,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onOpenStockAlert,
   index,
   settings,
+  isFavorite,
+  onToggleFavorite,
 }) => {
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [justAdded, setJustAdded] = useState(false);
@@ -111,6 +116,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <span className="bg-[#16A34A] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
               -{Math.round((1 - activeVariant.price / activeVariant.originalPrice) * 100)}% OFF
             </span>
+          )}
+          {onToggleFavorite && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(product.id);
+              }}
+              title={isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+              className={`w-7 h-7 rounded-full flex items-center justify-center shadow-xs transition-transform hover:scale-110 cursor-pointer ${
+                isFavorite ? 'bg-[#DE5D4E] text-white' : 'bg-white/90 text-[#8A7969] hover:text-[#DE5D4E]'
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-white' : ''}`} />
+            </button>
           )}
           {!isOutOfStock && typeof activeVariant.stock === 'number' && activeVariant.stock <= 5 && (
             <span className="bg-[#7C3AED] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
