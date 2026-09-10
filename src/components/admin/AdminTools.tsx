@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../../types';
-import { saveCloudProduct, deleteCloudProduct } from '../../lib/cloudDb';
+import { saveCloudProduct, deleteCloudProduct, supaMode } from '../../lib/cloudDb';
 
 interface Props {
   products: Product[];
@@ -282,6 +282,17 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
       <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-2xl p-4 shadow-xs">
         <h3 className="font-bold text-sm text-[#1B4E43] mb-1">🔄 Exportar / importar catálogo</h3>
         <p className="text-[11px] text-[#8A7969] mb-3">Respaldá tu catálogo o cargá productos desde otro archivo. Ideal antes de cambios grandes.</p>
+        {supaMode() && (
+          <button
+            onClick={async () => {
+              await persistAll(products);
+              feedback('☁️ Catálogo sincronizado con la nube compartida. Ya se ve igual en todos los dispositivos.');
+            }}
+            className="mb-3 w-full text-xs font-black bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] px-4 py-2.5 rounded-xl cursor-pointer btn-gloss"
+          >
+            ☁️ Sincronizar todo a la nube compartida
+          </button>
+        )}
         <div className="flex flex-wrap gap-2 mb-3">
           <button onClick={exportJSON} className="text-xs font-bold bg-[#1B4E43] text-white px-4 py-2 rounded-xl cursor-pointer hover:bg-[#256B5C]">
             Descargar JSON

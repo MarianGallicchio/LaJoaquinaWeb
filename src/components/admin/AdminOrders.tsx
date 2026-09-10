@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { OrderDetails, Product, StoreSettings } from '../../types';
-import { updateCloudOrderStatus, deleteCloudOrder, restockForOrder } from '../../lib/cloudDb';
+import { updateCloudOrderStatus, deleteCloudOrder, restockForOrder, subscribeOrdersLive } from '../../lib/cloudDb';
 import { formatARS } from '../../lib/storeSettings';
 import { Trash2, Phone, MapPin, Truck, Package, Search, Download, RefreshCw, Printer, CheckSquare, Megaphone } from 'lucide-react';
 
@@ -68,6 +68,17 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<string>('preparando');
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  // Pedidos en vivo (Supabase): llegan solos sin recargar
+  const ordersRef = useRef(orders);
+  ordersRef.current = orders;
+  useEffect(() => {
+    return subscribeOrdersLive((o) => {
+      if (ordersRef.current.some((x) => x.orderId === o.orderId)) return;
+      onOrdersChange([o, ...ordersRef.current]);
+      notify(`🔔 Nuevo pedido recibido: ${o.orderId} (${o.customerName}).`);
+    });
+  }, []);
 
   const filtered = useMemo(() => {
     const query = q.toLowerCase().trim();

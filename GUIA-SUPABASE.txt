@@ -1,0 +1,50 @@
+SINCRONIZACIÓN REAL ENTRE DISPOSITIVOS — SUPABASE (gratis, ~10 min)
+=====================================================================
+Todo el código ya está listo en la página. Solo vos podés hacer estos 3
+pasos porque requieren entrar con tu cuenta. No hay que programar nada.
+
+¿POR QUÉ? La página online (GitHub Pages) no puede guardar datos por sí
+sola: cada navegador guarda lo suyo. Supabase es una base de datos gratuita
+en la nube: cuando esté conectada, lo que cambies en el admin se ve igual
+en el celu, la compu y la tablet, y los pedidos llegan solos al panel.
+
+----------------------------------------
+PASO 1 — Crear el proyecto (3 min)
+----------------------------------------
+1. Entrá a https://supabase.com y creá una cuenta (con Google o GitHub).
+2. New project > nombre: lajoaquina > poné una contraseña de base de datos
+   (anotala, es solo para emergencias) > región South America (São Paulo)
+   > Create new project. Esperá ~2 minutos a que se arme.
+
+----------------------------------------
+PASO 2 — Crear las tablas (2 min)
+----------------------------------------
+1. En el menú izquierdo andá a SQL Editor > New query.
+2. Abrí de tu PC el archivo supabase/schema.sql (está en el repositorio),
+   copiá TODO el contenido y pegalo en el editor.
+3. Apretá Run (o Ctrl+Enter). Tiene que decir "Success".
+4. Andá a Authentication > Sign In / Sign Ups (pestaña Settings o Providers)
+   y APAGÁ "Allow new users to sign up" (para que nadie más pueda crearse
+   cuenta de admin).
+5. Andá a Authentication > Users > Add user > Create new user: poné tu
+   email y una contraseña (esta es tu NUEVA clave de administradora).
+
+----------------------------------------
+PASO 3 — Conectar la página (2 min + me avisás)
+----------------------------------------
+1. En Supabase andá a Project Settings > Data API (o API): copiá
+   Project URL y la clave "anon public".
+2. Pasamelos a mí (por acá) y yo los conecto, publico y verifico que:
+   - un producto sin stock en el admin se ve agotado en otro dispositivo
+   - un pedido de prueba aparece solo en Ventas (llega en vivo, sin recargar)
+   - nadie entra al admin sin tu contraseña nueva
+
+PREGUNTAS FRECUENTES
+- ¿La clave anon es secreta? No: es pública por diseño, los datos los
+  protegen las reglas del archivo schema.sql (solo lectura pública de
+  catálogo; pedidos y edición solo para vos logueada).
+- ¿Y Mercado Pago online? Sigue necesitando backend con secreto: eso es el
+  paso de Vercel (GUIA-VERCEL.txt). Mientras tanto: transferencia, efectivo
+  y pedidos por email funcionan perfecto.
+- ¿Se pierde algo de lo cargado? No: la primera sincronización sube tu
+  catálogo actual con el botón de Herramientas.

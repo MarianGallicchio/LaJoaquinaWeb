@@ -1,5 +1,6 @@
 import { Product, OrderDetails, StockAlert, StoreSettings, Distributor } from '../types';
 import { PRODUCTS as DEFAULT_PRODUCTS } from '../data/products';
+import * as supa from './supabase';
 
 export interface AuthUserProfile {
   id: string;
@@ -24,7 +25,31 @@ const STORAGE_KEY_ALERTS = 'la_juaquina_stock_alerts';
 const STORAGE_KEY_DISTRIBUTORS = 'la_juaquina_distributors';
 const STORAGE_KEY_ADMIN_TOKEN = 'la_juaquina_admin_token';
 
-// ============ SESIÓN ADMIN (token real del backend) ============
+// Prioridad: 1) Supabase (nube compartida real), 2) backend /api (local o Vercel), 3) navegador.
+export function supaMode(): boolean {
+  return supa.supaIsConfigured();
+}
+
+let apiCache: { ok: boolean; at: number } | null = null;
+
+async function apiUp(): Promise<boolean> {
+  if (supaMode()) return false;
+  const now = Date.now();
+  if (apiCache && now - apiCache.at < 60000) return apiCache.ok;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch('/api/health', { signal: ctrl.signal });
+    clearTimeout(t);
+    const j = await r.json().catch(() => null);
+    apiCache = { ok: r.ok && !!j && j.status === 'ok', at: now };
+  } catch {
+    apiCache = { ok: false, at: now };
+  }
+  return apiCache.ok;
+}
+
+// ============ SESIÓN ADMIN ============
 
 export function getAdminToken(): string | null {
   try {
@@ -62,6 +87,14 @@ function getStoredUser(): AuthUserProfile | null {
 
 // Check Cloud Database connectivity
 export async function checkCloudDbStatus(): Promise<CloudDbStatus> {
+  if (supaMode()) {
+    try {
+      const [p, o] = await Promise.all([supa.supaGetProducts(), supa.supaGetOrders()]);
+      return { connected: true, provider: 'Supabase (nube compartida)', version: '3.1', isOnline: true, productsCount: p.length, ordersCount: o.length };
+    } catch {
+      return { connected: false, provider: 'Supabase (sin conexión)', version: '3.1', isOnline: false, productsCount: 0, ordersCount: 0 };
+    }
+  }
   try {
     const res = await fetch('/api/cloud/status', {
       method: 'GET',
@@ -86,16 +119,29 @@ export async function checkCloudDbStatus(): Promise<CloudDbStatus> {
   const localOrders = getStoredOrders();
   return {
     connected: true,
-    provider: 'Cloud Cache Local (Respaldo offline)',
-    version: '3.0',
+    provider: 'Solo este navegador (sin nube)',
+    version: '3.1',
     isOnline: false,
     productsCount: localProducts.length,
     ordersCount: localOrders.length,
   };
 }
 
-// Fetch products from Cloud Database (público)
+// Fetch products (público)
 export async function fetchCloudProducts(): Promise<Product[]> {
+  if (supaMode()) {
+    try {
+      const list = await supa.supaGetProducts();
+      if (list.length > 0) {
+        localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(list));
+        return list;
+      }
+    } catch (err) {
+      console.warn('Supabase products error, usando caché:', err);
+    }
+    return getStoredProducts();
+  }
+  if (!(await apiUp())) return getStoredProducts();
   try {
     const res = await fetch('/api/cloud/products', {
       method: 'GET',
@@ -115,15 +161,20 @@ export async function fetchCloudProducts(): Promise<Product[]> {
   return getStoredProducts();
 }
 
-// Save or Update Product (solo admin, con token)
+// Save or Update Product (solo admin)
 export async function saveCloudProduct(product: Product): Promise<Product> {
+  if (supaMode()) {
+    const saved = await supa.supaSaveProduct(product);
+    syncLocalProduct(saved);
+    return saved;
+  }
   const res = await fetch('/api/cloud/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ product }),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo guardar el producto.');
   }
   const data = await res.json();
@@ -133,12 +184,17 @@ export async function saveCloudProduct(product: Product): Promise<Product> {
 
 // Delete Product (solo admin)
 export async function deleteCloudProduct(productId: string): Promise<boolean> {
+  if (supaMode()) {
+    await supa.supaDeleteProduct(productId);
+    removeLocalProduct(productId);
+    return true;
+  }
   const res = await fetch(`/api/cloud/products/${productId}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo eliminar el producto.');
   }
   removeLocalProduct(productId);
@@ -147,12 +203,17 @@ export async function deleteCloudProduct(productId: string): Promise<boolean> {
 
 // Reset Catalog (solo admin)
 export async function resetCloudProducts(): Promise<Product[]> {
+  if (supaMode()) {
+    await supa.supaReplaceProducts(DEFAULT_PRODUCTS);
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
+    return DEFAULT_PRODUCTS;
+  }
   const res = await fetch('/api/cloud/products/reset', {
     method: 'POST',
     headers: authHeaders(),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo restablecer el catálogo.');
   }
   localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
@@ -161,6 +222,21 @@ export async function resetCloudProducts(): Promise<Product[]> {
 
 // Save Order (público: lo usa el checkout de la tienda)
 export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails> {
+  if (supaMode()) {
+    try {
+      const saved = await supa.supaSaveOrder(order);
+      saveOrderLocally(saved);
+      return saved;
+    } catch (err) {
+      console.warn('Supabase order error, guardando local:', err);
+    }
+    saveOrderLocally(order);
+    return order;
+  }
+  if (!(await apiUp())) {
+    saveOrderLocally(order);
+    return order;
+  }
   try {
     const res = await fetch('/api/cloud/orders', {
       method: 'POST',
@@ -184,6 +260,11 @@ export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails>
 
 // Fetch Orders (solo admin)
 export async function fetchCloudOrders(): Promise<OrderDetails[]> {
+  if (supaMode()) {
+    const orders = await supa.supaGetOrders();
+    localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(orders));
+    return orders;
+  }
   const res = await fetch('/api/cloud/orders', {
     method: 'GET',
     headers: { Accept: 'application/json', ...authHeaders() },
@@ -195,13 +276,18 @@ export async function fetchCloudOrders(): Promise<OrderDetails[]> {
       return data.orders;
     }
   }
-  if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+  if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
   return getStoredOrders();
 }
 
 // ============ STOCK ALERTS ============
 
 export async function fetchCloudStockAlerts(): Promise<StockAlert[]> {
+  if (supaMode()) {
+    const alerts = await supa.supaGetAlerts();
+    localStorage.setItem(STORAGE_KEY_ALERTS, JSON.stringify(alerts));
+    return alerts;
+  }
   const res = await fetch('/api/cloud/stock-alerts', {
     method: 'GET',
     headers: { Accept: 'application/json', ...authHeaders() },
@@ -213,7 +299,7 @@ export async function fetchCloudStockAlerts(): Promise<StockAlert[]> {
       return data.alerts;
     }
   }
-  if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+  if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
   return getStoredStockAlerts();
 }
 
@@ -227,6 +313,21 @@ export async function createCloudStockAlert(
     status: 'pending',
   };
 
+  if (supaMode()) {
+    try {
+      const saved = await supa.supaCreateAlert(newAlert);
+      saveLocalStockAlert(saved);
+      return saved;
+    } catch (err) {
+      console.warn('Supabase alert error, guardando local:', err);
+    }
+    saveLocalStockAlert(newAlert);
+    return newAlert;
+  }
+  if (!(await apiUp())) {
+    saveLocalStockAlert(newAlert);
+    return newAlert;
+  }
   try {
     const res = await fetch('/api/cloud/stock-alerts', {
       method: 'POST',
@@ -253,22 +354,34 @@ export async function updateCloudStockAlertStatus(
   status: 'pending' | 'notified' | 'resolved',
   notes?: string
 ): Promise<boolean> {
+  if (supaMode()) {
+    const patch: Record<string, any> = { status };
+    if (notes !== undefined) patch.notes = notes;
+    await supa.supaPatchAlert(id, patch);
+    updateLocalStockAlert(id, status, notes);
+    return true;
+  }
   const res = await fetch(`/api/cloud/stock-alerts/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ status, notes }),
   });
-  if (!res.ok && res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+  if (!res.ok && res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
   updateLocalStockAlert(id, status, notes);
   return true;
 }
 
 export async function deleteCloudStockAlert(id: string): Promise<boolean> {
+  if (supaMode()) {
+    await supa.supaDeleteAlert(id);
+    deleteLocalStockAlert(id);
+    return true;
+  }
   const res = await fetch(`/api/cloud/stock-alerts/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
-  if (!res.ok && res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+  if (!res.ok && res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
   deleteLocalStockAlert(id);
   return true;
 }
@@ -312,9 +425,14 @@ function deleteLocalStockAlert(id: string) {
   }
 }
 
-// ============ LOGIN ADMIN REAL (sin atajos) ============
+// ============ LOGIN (dueña: Supabase Auth o backend, nunca atajos) ============
 
 export async function cloudLogin(email: string, password?: string): Promise<AuthUserProfile> {
+  if (supaMode()) {
+    const user = await supa.supaLogin(email, password || '');
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+    return user;
+  }
   let res: Response;
   try {
     res = await fetch('/api/cloud/auth/login', {
@@ -323,9 +441,8 @@ export async function cloudLogin(email: string, password?: string): Promise<Auth
       body: JSON.stringify({ email, password }),
     });
   } catch {
-    throw new Error('Sin conexión con el servidor. El panel admin necesita el backend: local con npm run dev o tu URL de Vercel.');
+    throw new Error('Sin conexión con el servidor. El panel admin necesita el backend: local con npm run dev o tu URL de Vercel/Supabase.');
   }
-  // En GitHub Pages no hay backend (/api devuelve la página 404, no JSON)
   const text = await res.text().catch(() => '');
   let data: any = null;
   try {
@@ -345,8 +462,16 @@ export async function cloudLogin(email: string, password?: string): Promise<Auth
   return data.user;
 }
 
-// Verifica la sesión guardada contra el backend
+// Verifica la sesión guardada
 export async function fetchAdminMe(): Promise<AuthUserProfile | null> {
+  if (supaMode()) {
+    const me = await supa.supaMe().catch(() => null);
+    if (me) {
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(me));
+      return me;
+    }
+    return null;
+  }
   const token = getAdminToken();
   if (!token) return null;
   try {
@@ -361,14 +486,33 @@ export async function fetchAdminMe(): Promise<AuthUserProfile | null> {
       }
     }
   } catch {
-    // Sin red: se mantiene la sesión guardada solo si existe token previo
     return getStoredUser();
   }
   return null;
 }
 
-// Cloud Register (público, siempre rol cliente)
+// Cloud Register (clientes: solo perfil local, sin contraseñas ni usuarios Auth)
 export async function cloudRegister(name: string, email: string, password?: string): Promise<AuthUserProfile> {
+  if (supaMode()) {
+    const profile: AuthUserProfile = {
+      id: `user-${Date.now()}`,
+      email: email.toLowerCase().trim(),
+      name: name || email.split('@')[0],
+      role: 'customer',
+    };
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
+    return profile;
+  }
+  if (!(await apiUp())) {
+    const profile: AuthUserProfile = {
+      id: `user-${Date.now()}`,
+      email: email.toLowerCase().trim(),
+      name: name || email.split('@')[0],
+      role: 'customer',
+    };
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
+    return profile;
+  }
   const res = await fetch('/api/cloud/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -383,6 +527,7 @@ export async function cloudRegister(name: string, email: string, password?: stri
 
 // Cloud Logout
 export async function cloudLogout(): Promise<void> {
+  if (supaMode()) await supa.supaLogout();
   try {
     localStorage.removeItem(STORAGE_KEY_USER);
     clearAdminToken();
@@ -440,13 +585,22 @@ export async function updateCloudOrderStatus(
   orderId: string,
   patch: Partial<Pick<OrderDetails, 'status' | 'trackingCode' | 'adminNotes' | 'history'>>
 ): Promise<{ ok: boolean; order?: OrderDetails; whatsappSent?: boolean }> {
+  if (supaMode()) {
+    const allowed: Record<string, any> = {};
+    for (const k of ['status', 'trackingCode', 'adminNotes', 'history'] as const) {
+      if ((patch as any)[k] !== undefined) allowed[k] = (patch as any)[k];
+    }
+    const order = await supa.supaPatchOrder(orderId, allowed);
+    saveOrderLocally(order);
+    return { ok: true, order, whatsappSent: false };
+  }
   const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(patch),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo actualizar el pedido.');
   }
   const data = await res.json();
@@ -457,12 +611,17 @@ export async function updateCloudOrderStatus(
 }
 
 export async function deleteCloudOrder(orderId: string): Promise<boolean> {
+  if (supaMode()) {
+    await supa.supaDeleteOrder(orderId);
+    removeLocalOrder(orderId);
+    return true;
+  }
   const res = await fetch(`/api/cloud/orders/${encodeURIComponent(orderId)}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo eliminar el pedido.');
   }
   removeLocalOrder(orderId);
@@ -490,6 +649,15 @@ function removeLocalOrder(orderId: string) {
 // ============ STORE SETTINGS ============
 
 export async function fetchCloudSettings(): Promise<StoreSettings | null> {
+  if (supaMode()) {
+    try {
+      return await supa.supaGetSettings();
+    } catch (e) {
+      console.warn('Supabase settings error:', e);
+      return null;
+    }
+  }
+  if (!(await apiUp())) return null;
   try {
     const res = await fetch('/api/cloud/settings', { headers: { Accept: 'application/json' } });
     if (res.ok) {
@@ -503,13 +671,14 @@ export async function fetchCloudSettings(): Promise<StoreSettings | null> {
 }
 
 export async function saveCloudSettings(settings: StoreSettings): Promise<StoreSettings> {
+  if (supaMode()) return supa.supaSaveSettings(settings);
   const res = await fetch('/api/cloud/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ settings }),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo guardar la configuración.');
   }
   const data = await res.json();
@@ -576,7 +745,7 @@ export async function restockForOrder(order: OrderDetails, products: Product[]):
   return updated;
 }
 
-// ============ DISTRIBUIDORES MAYORISTAS (solo admin) ============
+// ============ DISTRIBUIDORES (solo admin) ============
 
 function getStoredDistributors(): Distributor[] {
   try {
@@ -588,6 +757,11 @@ function getStoredDistributors(): Distributor[] {
 }
 
 export async function fetchCloudDistributors(): Promise<Distributor[]> {
+  if (supaMode()) {
+    const list = await supa.supaGetDistributors();
+    localStorage.setItem(STORAGE_KEY_DISTRIBUTORS, JSON.stringify(list));
+    return list;
+  }
   const res = await fetch('/api/cloud/distributors', {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
@@ -598,18 +772,23 @@ export async function fetchCloudDistributors(): Promise<Distributor[]> {
       return data.distributors;
     }
   }
-  if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+  if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
   return getStoredDistributors();
 }
 
 export async function saveCloudDistributor(d: Distributor): Promise<Distributor> {
+  if (supaMode()) {
+    const saved = await supa.supaSaveDistributor(d);
+    syncLocalDistributor(saved);
+    return saved;
+  }
   const res = await fetch('/api/cloud/distributors', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ distributor: d }),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo guardar el distribuidor.');
   }
   const data = await res.json();
@@ -618,12 +797,17 @@ export async function saveCloudDistributor(d: Distributor): Promise<Distributor>
 }
 
 export async function deleteCloudDistributor(id: string): Promise<boolean> {
+  if (supaMode()) {
+    await supa.supaDeleteDistributor(id);
+    removeLocalDistributor(id);
+    return true;
+  }
   const res = await fetch(`/api/cloud/distributors/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Sesión de administrador vencida. Volvé a ingresar.');
+    if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
     throw new Error('No se pudo eliminar el distribuidor.');
   }
   removeLocalDistributor(id);
@@ -652,8 +836,7 @@ function removeLocalDistributor(id: string) {
 }
 
 // ============ PEDIDO POR EMAIL (llega al instante, sin backend) ============
-// Usa el servicio gratuito FormSubmit: el primer envío te pide activar
-// con un clic. Nunca bloquea el checkout: si falla, se ignora en silencio.
+
 export async function sendOrderEmail(order: OrderDetails, to: string): Promise<boolean> {
   try {
     const clean = (to || '').trim();
@@ -690,7 +873,8 @@ export async function sendOrderEmail(order: OrderDetails, to: string): Promise<b
   }
 }
 
-// ============ PAGOS MERCADO PAGO ============
+// ============ PAGOS MERCADO PAGO (requiere backend con token) ============
+
 export interface MpPaymentResult {
   order: OrderDetails;
   initPoint: string;
@@ -712,4 +896,11 @@ export async function createMpPayment(order: OrderDetails): Promise<MpPaymentRes
   if (!res.ok) throw new Error(data.error || 'No se pudo generar el link de pago.');
   saveOrderLocally(data.order);
   return data as MpPaymentResult;
+}
+
+// ============ REALTIME (pedidos en vivo, solo Supabase) ============
+
+export function subscribeOrdersLive(onInsert: (o: OrderDetails) => void): () => void {
+  if (!supaMode()) return () => {};
+  return supa.supaSubscribeOrders(onInsert);
 }
