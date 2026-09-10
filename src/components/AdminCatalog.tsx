@@ -401,8 +401,8 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
     });
 
   // ================= ACCESO RESTRINGIDO =================
-  // El login real vive en AdminApp (admin.html). Sin sesión válida no se muestra nada.
-  if (currentUser?.role !== 'admin') {
+  // Solo personal con acceso (dueña o roles con productos). Sin sesión válida no se muestra nada.
+  if (!currentUser || currentUser.role === 'customer') {
     return (
       <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl p-8 max-w-md w-full shadow-xs text-center mx-auto">
         <div className="w-14 h-14 bg-red-50 border border-red-200 rounded-full flex items-center justify-center mx-auto mb-3">

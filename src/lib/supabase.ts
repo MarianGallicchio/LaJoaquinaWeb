@@ -174,18 +174,48 @@ export async function supaSaveSettings(s: StoreSettings): Promise<StoreSettings>
   return full;
 }
 
-// ============ AUTH (dueña por rol admin, clientes por registro libre) ============
-function toProfile(id: string, email: string, role: 'admin' | 'customer', name?: string): AuthUserProfile {
-  const fallback = role === 'admin' ? 'Administradora La Joaquina' : email.split('@')[0];
-  return { id, email, name: name || fallback, role };
+// ============ AUTH (dueña por email fijo + empleados por tabla staff) ============
+// La dueña es siempre marianoagusting1996@gmail.com (ver schema.sql).
+// Los empleados se crean su cuenta en la tienda y la dueña les da el puesto
+// en Equipo. Nadie puede auto-otorgarse nada: los permisos viven en SQL.
+
+export const OWNER_EMAIL = 'marianoagusting1996@gmail.com';
+
+export type StaffRole = 'admin' | 'stock' | 'ventas';
+
+export interface StaffRow {
+  email: string;
+  name: string;
+  role: StaffRole;
+  active: boolean;
+  createdAt?: string;
 }
 
-function roleOf(user: any): 'admin' | 'customer' {
-  return user?.user_metadata?.role === 'admin' ? 'admin' : 'customer';
+function toProfile(
+  id: string,
+  email: string,
+  role: 'admin' | 'customer' | 'stock' | 'ventas',
+  isOwner: boolean,
+  name?: string
+): AuthUserProfile {
+  const fallback = isOwner ? 'Administradora La Joaquina' : email.split('@')[0];
+  return { id, email, name: name || fallback, role, isOwner };
 }
 
-function displayName(user: any): string {
-  return user?.user_metadata?.name || (user?.email || '').split('@')[0] || 'Usuario';
+async function resolveRole(email: string, userId: string): Promise<AuthUserProfile> {
+  const clean = email.toLowerCase().trim();
+  if (clean === OWNER_EMAIL) {
+    return toProfile(userId, clean, 'admin', true);
+  }
+  const { data } = await supa().from('staff').select('*').eq('email', clean).limit(1);
+  const row = (data && data[0]) as StaffRow | undefined;
+  if (row) {
+    if (!row.active) throw new Error('Cuenta de empleado desactivada. Hablá con la dueña.');
+    if (['admin', 'stock', 'ventas'].includes(row.role)) {
+      return toProfile(userId, clean, row.role as any, false, row.name || undefined);
+    }
+  }
+  return toProfile(userId, clean, 'customer', false);
 }
 
 export async function supaLogin(email: string, password: string): Promise<AuthUserProfile> {
@@ -202,7 +232,7 @@ export async function supaLogin(email: string, password: string): Promise<AuthUs
   })) as any;
   const { data, error } = res;
   if (error || !data.user) throw new Error('Credenciales inválidas.');
-  return toProfile(data.user.id, data.user.email || email.trim(), roleOf(data.user), displayName(data.user));
+  return resolveRole(data.user.email || email.trim(), data.user.id);
 }
 
 // Diagnóstico para mostrar en el login: ¿se llega a la nube? ¿están las tablas?
@@ -243,7 +273,7 @@ export async function supaRegisterCustomer(name: string, email: string, password
   const user = data.user;
   // Si el proyecto exige confirmar email, igual devolvemos el perfil para comprar
   if (!user) throw new Error('Revisá tu email para confirmar la cuenta y después iniciá sesión.');
-  return toProfile(user.id, user.email || email.trim(), roleOf(user), name.trim());
+  return toProfile(user.id, user.email || email.trim(), 'customer', false, name.trim());
 }
 
 export async function supaMe(): Promise<AuthUserProfile | null> {
@@ -251,7 +281,7 @@ export async function supaMe(): Promise<AuthUserProfile | null> {
     const { data } = await supa().auth.getSession();
     const u = data.session?.user;
     if (!u) return null;
-    return toProfile(u.id, u.email || '', roleOf(u), displayName(u));
+    return await resolveRole(u.email || '', u.id).catch(() => null);
   } catch {
     return null;
   }
@@ -261,6 +291,34 @@ export async function supaLogout(): Promise<void> {
   try {
     await supa().auth.signOut();
   } catch { /* ignore */ }
+}
+
+// Cambiar la propia contraseña (dueña y empleados, con sesión iniciada)
+export async function supaChangePassword(newPassword: string): Promise<void> {
+  if (!newPassword || newPassword.length < 6) throw new Error('La clave debe tener al menos 6 caracteres.');
+  const { error } = await supa().auth.updateUser({ password: newPassword });
+  if (error) throw new Error('No se pudo cambiar la clave. Volvé a ingresar e intentá de nuevo.');
+}
+
+// ============ EQUIPO (solo dueña; RLS lo exige) ============
+export async function supaGetStaff(): Promise<StaffRow[]> {
+  const q: any = supa().from('staff').select('*').order('created_at', { ascending: false });
+  const { data, error } = await q;
+  if (error) throw errMsg(error, 'No se pudo leer el equipo.');
+  return ((data || []) as any[]) as StaffRow[];
+}
+
+export async function supaSaveStaff(row: StaffRow): Promise<StaffRow> {
+  const clean: StaffRow = { ...row, email: row.email.toLowerCase().trim() };
+  if (clean.email === OWNER_EMAIL) throw new Error('Ese email es de la dueña y no necesita fila de empleado.');
+  const { error } = await supa().from('staff').upsert(clean, { onConflict: 'email' });
+  if (error) throw errMsg(error, 'No se pudo guardar el empleado.');
+  return clean;
+}
+
+export async function supaDeleteStaff(email: string): Promise<void> {
+  const { error } = await supa().from('staff').delete().eq('email', email.toLowerCase().trim());
+  if (error) throw errMsg(error, 'No se pudo eliminar el empleado.');
 }
 
 // ============ PERFIL DE CLIENTE (fila propia) ============

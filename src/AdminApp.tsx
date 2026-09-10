@@ -16,6 +16,7 @@ import {
   Bell,
   AlertCircle,
   AtSign,
+  Users,
   RefreshCw,
   CheckCircle2,
 } from 'lucide-react';
@@ -38,8 +39,9 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminShipping } from './components/admin/AdminShipping';
 import { AdminTools } from './components/admin/AdminTools';
+import { AdminTeam } from './components/admin/AdminTeam';
 
-type Tab = 'resumen' | 'productos' | 'ventas' | 'envios' | 'herramientas';
+type Tab = 'resumen' | 'productos' | 'ventas' | 'envios' | 'herramientas' | 'equipo';
 
 const TAB_META: Record<Tab, { label: string; desc: string }> = {
   resumen: { label: 'Resumen', desc: 'Facturación, estados y alertas de un vistazo' },
@@ -47,6 +49,7 @@ const TAB_META: Record<Tab, { label: string; desc: string }> = {
   ventas: { label: 'Ventas y Pedidos', desc: 'Pedidos, envíos, seguimiento y cobranzas' },
   envios: { label: 'Envíos y Comercio', desc: 'Costos de envío, cupones y datos de la tienda' },
   herramientas: { label: 'Herramientas', desc: 'Aumentos masivos, respaldos e importación' },
+  equipo: { label: 'Equipo y Mi Cuenta', desc: 'Tu perfil, tu clave y empleados por puesto' },
 };
 
 export default function AdminApp() {
@@ -136,7 +139,7 @@ export default function AdminApp() {
   }, []);
 
   useEffect(() => {
-    if (currentUser?.role === 'admin') loadAll();
+    if (currentUser && currentUser.role !== 'customer') loadAll();
   }, [currentUser]);
 
   const handleUpdateProducts = (list: Product[]) => {
@@ -189,8 +192,9 @@ export default function AdminApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Puerta de acceso: solo admin
-  if (currentUser?.role !== 'admin') {
+  // Puerta de acceso: personal con rol (dueña, admin, stock, ventas).
+  // Los clientes ven el aviso correspondiente en vez del login.
+  if (!currentUser || currentUser.role === 'customer') {
     // Sesión válida pero sin rol de dueña: explicarlo en vez de mostrar el login
     if (currentUser) {
       return (
@@ -303,13 +307,29 @@ export default function AdminApp() {
   const pendingAlerts = alerts.filter((a) => a.status === 'pending').length;
   const pendingOrders = orders.filter((o) => (o.status || 'pendiente') === 'pendiente').length;
 
+  // Permisos por puesto (la dueña ve todo)
+  const staffRole = currentUser?.role || 'customer';
+  const isOwner = !!currentUser?.isOwner;
+  const canProductos = isOwner || staffRole === 'admin' || staffRole === 'stock';
+  const canVentas = isOwner || staffRole === 'admin' || staffRole === 'ventas';
+  const canComercio = isOwner || staffRole === 'admin';
+
   const navItems: { id: Tab; icon: React.ReactNode; badge?: number }[] = [
     { id: 'resumen', icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
-    { id: 'productos', icon: <Package className="w-[18px] h-[18px]" />, badge: pendingAlerts },
-    { id: 'ventas', icon: <ShoppingBag className="w-[18px] h-[18px]" />, badge: pendingOrders },
-    { id: 'envios', icon: <Truck className="w-[18px] h-[18px]" /> },
-    { id: 'herramientas', icon: <Wrench className="w-[18px] h-[18px]" /> },
+    ...(canProductos ? [{ id: 'productos' as Tab, icon: <Package className="w-[18px] h-[18px]" />, badge: pendingAlerts }] : []),
+    ...(canVentas ? [{ id: 'ventas' as Tab, icon: <ShoppingBag className="w-[18px] h-[18px]" />, badge: pendingOrders }] : []),
+    ...(canComercio ? [{ id: 'envios' as Tab, icon: <Truck className="w-[18px] h-[18px]" /> }] : []),
+    ...(canComercio ? [{ id: 'herramientas' as Tab, icon: <Wrench className="w-[18px] h-[18px]" /> }] : []),
+    ...(isOwner ? [{ id: 'equipo' as Tab, icon: <Users className="w-[18px] h-[18px]" /> }] : []),
   ];
+
+  const allowedTabIds = navItems.map((n) => n.id);
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'customer' && !allowedTabIds.includes(tab)) {
+      goTab(allowedTabIds[0] || 'resumen');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const navButton = (t: Tab, icon: React.ReactNode, badge?: number, vertical = false) => (
     <button
@@ -446,7 +466,7 @@ export default function AdminApp() {
               {tab === 'resumen' && (
                 <AdminDashboard products={products} orders={orders} alerts={alerts} onGoTo={(t) => goTab(t as Tab)} />
               )}
-              {tab === 'productos' && (
+              {tab === 'productos' && canProductos && (
                 <AdminCatalog
                   products={products}
                   onUpdateProducts={handleUpdateProducts}
@@ -456,7 +476,7 @@ export default function AdminApp() {
                   onLoginSuccess={(u) => setCurrentUser(u)}
                 />
               )}
-              {tab === 'ventas' && (
+              {tab === 'ventas' && canVentas && (
                 <AdminOrders
                   orders={orders}
                   products={products}
@@ -467,11 +487,14 @@ export default function AdminApp() {
                   notify={notify}
                 />
               )}
-              {tab === 'envios' && (
+              {tab === 'envios' && canComercio && (
                 <AdminShipping settings={settings} onSaved={(s) => { setSettings(s); notify('✅ Comercio y envíos guardados.'); }} />
               )}
-              {tab === 'herramientas' && (
+              {tab === 'herramientas' && canComercio && (
                 <AdminTools products={products} onUpdateProducts={handleUpdateProducts} />
+              )}
+              {tab === 'equipo' && isOwner && (
+                <AdminTeam currentUser={currentUser} notify={notify} />
               )}
             </motion.div>
           </AnimatePresence>

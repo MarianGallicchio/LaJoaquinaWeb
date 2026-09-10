@@ -6,7 +6,8 @@ export interface AuthUserProfile {
   id: string;
   email: string;
   name?: string;
-  role?: 'admin' | 'customer';
+  role?: 'admin' | 'customer' | 'stock' | 'ventas';
+  isOwner?: boolean;
 }
 
 export interface CloudDbStatus {
@@ -921,6 +922,28 @@ export async function saveCustomerProfile(
     }
   }
   return data;
+}
+
+// ============ EQUIPO Y CLAVE (Supabase; el backend local no lo soporta) ============
+
+export async function fetchStaff(): Promise<import('./supabase').StaffRow[]> {
+  if (!supaMode()) throw new Error('El equipo solo está disponible con la nube conectada.');
+  return supa.supaGetStaff();
+}
+
+export async function saveStaff(row: import('./supabase').StaffRow): Promise<import('./supabase').StaffRow> {
+  if (!supaMode()) throw new Error('El equipo solo está disponible con la nube conectada.');
+  return supa.supaSaveStaff(row);
+}
+
+export async function deleteStaff(email: string): Promise<void> {
+  if (!supaMode()) throw new Error('El equipo solo está disponible con la nube conectada.');
+  return supa.supaDeleteStaff(email);
+}
+
+export async function changeMyPassword(newPassword: string): Promise<void> {
+  if (!supaMode()) throw new Error('El cambio de clave solo está disponible con la nube conectada.');
+  return supa.supaChangePassword(newPassword);
 }
 
 // ============ PEDIDO POR EMAIL (llega al instante, sin backend) ============

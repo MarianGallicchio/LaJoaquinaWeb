@@ -29,17 +29,17 @@ PASO 2 — Crear las tablas (2 min)
    ENCENDIDO a propósito). Solo tu usuaria va a ser administradora.
 
 ----------------------------------------
-PASO 2B — Tu cuenta de dueña (2 min)
+PASO 2B — Tu cuenta de dueña (2 min, casi todo lo hago yo)
 ----------------------------------------
-1. En Supabase andá a Authentication > Users > Add user > Create new user:
-   poné tu email y una contraseña (esta es tu NUEVA clave de administradora).
-2. Después dale el rol de dueña con este SQL (cambiá el email por el tuyo),
-   en SQL Editor > New query > Run:
-     update auth.users set raw_user_meta_data =
-       coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role":"admin"}'
-     where email = 'tu-email@ejemplo.com';
-3. Listo: vos entrás al admin online con ese email y clave; los clientes
-   se crean su cuenta solos desde la tienda y ven solo SU historial.
+1. En Supabase andá a Authentication > Sign In / Sign Ups y:
+   - ACTIVÁ "Allow new users to sign up" (los clientes la necesitan para
+     sus cuentas; es seguro: los permisos están por email en el SQL).
+   - APAGÁ "Confirm email" (nadie se traba esperando un mail, ni vos).
+2. Avisame "listo" y YO te creo la cuenta de dueña en ese momento y
+   verifico en vivo que entrás al admin online.
+   (Si preferís: Users > Add user con tu email y clave tildando
+   Auto Confirm, y avisame igual para verificar.)
+3. Para BORRAR cuentas viejas o de prueba: Users > tildalas > Delete.
 
 ----------------------------------------
 PASO 3 — Conectar la página (2 min + me avisás)
