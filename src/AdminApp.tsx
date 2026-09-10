@@ -180,6 +180,36 @@ export default function AdminApp() {
 
   // Puerta de acceso: solo admin
   if (currentUser?.role !== 'admin') {
+    // Sesión válida pero sin rol de dueña: explicarlo en vez de mostrar el login
+    if (currentUser) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-[#0C1F1B] via-[#1B4E43] to-[#0C1F1B] flex items-center justify-center p-4">
+          <div className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center">
+            <div className="w-16 h-16 bg-[#FEF3C7] border border-[#FDE68A] rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">🔒</span>
+            </div>
+            <h2 className="text-xl font-bold font-display text-[#1B4E43] mb-1">Sin acceso de dueña</h2>
+            <p className="text-xs text-[#6A5949] mb-1">
+              Entraste como <strong>{currentUser.email}</strong>, pero esa cuenta no tiene rol de administradora.
+            </p>
+            <p className="text-[11px] text-[#8A7969] mb-6">
+              En Supabase, corré el SQL del rol para ese email (GUIA-SUPABASE.txt paso 2B) y volvé a entrar.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={handleLogout}
+                className="w-full bg-[#1B4E43] hover:bg-[#256B5C] text-[#FFE194] font-extrabold text-xs py-3 px-4 rounded-xl cursor-pointer"
+              >
+                Cerrar sesión y probar con otra cuenta
+              </button>
+              <button onClick={goToStore} className="w-full text-xs text-[#7A6A59] hover:text-[#1B4E43] font-bold py-2 cursor-pointer">
+                ← Ir a la tienda pública
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0C1F1B] via-[#1B4E43] to-[#0C1F1B] flex items-center justify-center p-4">
         <motion.div
