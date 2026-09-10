@@ -19,7 +19,7 @@ import {
   Store
 } from 'lucide-react';
 import { CartItem, OrderDetails, StoreSettings } from '../types';
-import { saveCloudOrder, createMpPayment } from '../lib/cloudDb';
+import { saveCloudOrder, createMpPayment, sendOrderEmail } from '../lib/cloudDb';
 import { DEFAULT_SETTINGS, getShippingCost, getEnabledShipping, getMethodLabel } from '../lib/storeSettings';
 
 interface CheckoutModalProps {
@@ -206,6 +206,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setConfirmedOrder(mp.order);
         setCurrentStep('success');
         onOrderCompleted(mp.order);
+        if (store.ordersEmail) sendOrderEmail(mp.order, store.ordersEmail).catch(() => {});
         window.open(mp.initPoint, '_blank', 'noopener,noreferrer');
       } catch (err: any) {
         setFormError(
@@ -241,6 +242,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setLoading(false);
       setCurrentStep('success');
       onOrderCompleted(newOrder);
+      if (store.ordersEmail) sendOrderEmail(newOrder, store.ordersEmail).catch(() => {});
     }
   };
 

@@ -54,6 +54,19 @@ export const AdminShipping: React.FC<Props> = ({ settings, onSaved }) => {
             <input value={form.instagram} onChange={(e) => set({ instagram: e.target.value })} placeholder="@lajoaquinapetshop" className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none" />
           </div>
           <div className="sm:col-span-2">
+            <label className="block font-bold text-[#5B4E41] mb-1">Email para recibir cada pedido (opcional)</label>
+            <input
+              type="email"
+              value={form.ordersEmail || ''}
+              onChange={(e) => set({ ordersEmail: e.target.value })}
+              placeholder="tucorreo@email.com"
+              className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none"
+            />
+            <p className="text-[11px] text-[#8A7969] mt-1">
+              Sin cuentas ni backend: cada compra te llega al instante por email. El primer pedido te pide activar el servicio (un clic).
+            </p>
+          </div>
+          <div className="sm:col-span-2">
             <label className="block font-bold text-[#5B4E41] mb-1">Anuncio bajo el encabezado (opcional)</label>
             <input value={form.announcement || ''} onChange={(e) => set({ announcement: e.target.value })} placeholder="Ej: ¡Envío gratis en AMBA esta semana!" className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none" />
           </div>

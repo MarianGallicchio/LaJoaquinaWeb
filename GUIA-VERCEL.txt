@@ -4,8 +4,17 @@ El código ya está listo: la carpeta api/ tiene todo el backend en funciones
 serverless y vercel.json lo publica junto a la tienda y el admin.
 Solo faltan 3 cuentas (gratis) y pegar 4 valores. Tiempo estimado: 20 minutos.
 
-IMPORTANTE: GitHub Pages sigue mostrando la versión estática (sin sincronizar).
-Cuando termines estos pasos, la URL oficial pasa a ser la de Vercel.
+IMPORTANTE: GitHub Pages es solo archivos estáticos: NO hay nube compartida
+ni login de admin (por eso el admin online dice que no hay backend).
+Mientras tanto, cada pedido IGUAL te puede llegar por email (ver PASO 0).
+
+----------------------------------------
+PASO 0 — Recibir pedidos por email HOY (2 min, sin cuentas)
+----------------------------------------
+1. En tu PC abrí el admin local (http://localhost:3000/admin.html).
+2. Andá a Envíos y Comercio > "Email para recibir cada pedido" y poné tu email.
+3. Hacé una compra de prueba: te llega un email para ACTIVAR (un clic).
+   Listo: desde entonces cada compra te llega al instante por email.
 
 ----------------------------------------
 PASO 1 — Base de datos gratis (Neon, 5 min)

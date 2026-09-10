@@ -315,16 +315,30 @@ function deleteLocalStockAlert(id: string) {
 // ============ LOGIN ADMIN REAL (sin atajos) ============
 
 export async function cloudLogin(email: string, password?: string): Promise<AuthUserProfile> {
-  const res = await fetch('/api/cloud/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
+  let res: Response;
+  try {
+    res = await fetch('/api/cloud/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new Error('Sin conexión con el servidor. El panel admin necesita el backend: local con npm run dev o tu URL de Vercel.');
+  }
+  // En GitHub Pages no hay backend (/api devuelve la página 404, no JSON)
+  const text = await res.text().catch(() => '');
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data) {
+    if (res.status === 404 || !data) {
+      throw new Error('Acá no hay backend: esta copia es solo archivos estáticos. Usá el admin donde corre el servidor (local o Vercel).');
+    }
     throw new Error(data.error || 'Credenciales inválidas.');
   }
-  const data = await res.json();
   if (!data.user || !data.token) throw new Error('Respuesta de acceso inválida.');
   setAdminToken(data.token);
   localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
@@ -637,8 +651,46 @@ function removeLocalDistributor(id: string) {
   }
 }
 
-// ============ PAGOS MERCADO PAGO ============
+// ============ PEDIDO POR EMAIL (llega al instante, sin backend) ============
+// Usa el servicio gratuito FormSubmit: el primer envío te pide activar
+// con un clic. Nunca bloquea el checkout: si falla, se ignora en silencio.
+export async function sendOrderEmail(order: OrderDetails, to: string): Promise<boolean> {
+  try {
+    const clean = (to || '').trim();
+    if (!clean || !clean.includes('@')) return false;
+    const items = (order.items || [])
+      .map((i) => `${i.product.name} (${i.selectedVariant.weight}) x${i.quantity} = $${(i.selectedVariant.price * i.quantity).toLocaleString('es-AR')}`)
+      .join('\n');
+    const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(clean)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        _subject: `Nuevo pedido ${order.orderId} - La Joaquina Pet Shop ($${Number(order.total || 0).toLocaleString('es-AR')})`,
+        _template: 'table',
+        Pedido: order.orderId,
+        Fecha: order.createdAt,
+        Estado: order.status || 'pendiente',
+        Cliente: order.customerName,
+        Telefono: order.customerPhone,
+        Email: order.customerEmail || '-',
+        Entrega: order.deliveryMethod === 'pickup' ? 'Entrega coordinada' : order.address,
+        Pago: order.paymentMethod,
+        Productos: items,
+        Subtotal: `$${Number(order.subtotal || 0).toLocaleString('es-AR')}`,
+        Descuento: `$${Number(order.discount || 0).toLocaleString('es-AR')}`,
+        Envio: `$${Number(order.shippingCost || 0).toLocaleString('es-AR')}`,
+        Total: `$${Number(order.total || 0).toLocaleString('es-AR')}`,
+        Notas: order.notes || '-',
+        Seguimiento: order.trackingCode || '-',
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
+// ============ PAGOS MERCADO PAGO ============
 export interface MpPaymentResult {
   order: OrderDetails;
   initPoint: string;

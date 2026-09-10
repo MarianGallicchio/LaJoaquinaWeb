@@ -126,6 +126,7 @@ export interface StoreSettings {
   couponPercent: number;
   transferPercent: number;
   announcement?: string;
+  ordersEmail?: string;
   shipping: ShippingMethodConfig[];
   updatedAt?: string;
 }
