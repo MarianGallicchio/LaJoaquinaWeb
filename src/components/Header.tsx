@@ -10,8 +10,7 @@ import {
   Percent,
   Sparkles,
   Truck,
-  User,
-  ShieldCheck
+  User
 } from 'lucide-react';
 import { ProductCategory } from '../types';
 import { AuthUserProfile } from '../lib/cloudDb';
@@ -26,8 +25,6 @@ interface HeaderProps {
   onOpenHelp: () => void;
   currentUser: AuthUserProfile | null;
   onOpenAuth: () => void;
-  onOpenAdmin: () => void;
-  isAdminView?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,8 +37,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   currentUser,
   onOpenAuth,
-  onOpenAdmin,
-  isAdminView = false,
 }) => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -157,22 +152,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </motion.button>
 
-            {/* Alternar Inicio / Vista de Administrador */}
-            <motion.button
-              whileTap={{ scale: 0.94 }}
-              onClick={onOpenAdmin}
-              className={`inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-2 rounded-full border transition-all cursor-pointer shadow-2xs ${
-                isAdminView
-                  ? 'bg-[#1B4E43] text-[#FFE194] border-[#1B4E43] hover:bg-[#256B5C]'
-                  : 'bg-[#FFF8E6] text-[#8C5800] border-[#EFA332] hover:bg-[#FFECC2]'
-              }`}
-              title="Alternar entre vista de Tienda y Panel Administrador"
-            >
-              <ShieldCheck className={`w-4 h-4 ${isAdminView ? 'text-[#FFE194]' : 'text-[#EFA332]'}`} />
-              <span className="hidden sm:inline">{isAdminView ? '🛍️ Modo Tienda' : '👑 Alternar Admin'}</span>
-            </motion.button>
-
-
+            {/* Acceso admin solo directo por admin.html */}
             {/* Cart Button with spring micro-interaction */}
             <motion.button
               id="cart-toggle-btn"
@@ -283,28 +263,16 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="pt-2 border-t border-[#E8DFC9] space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  onOpenAuth();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FAF5EC] border border-[#E3D6BE] text-[#3D3025] text-xs font-bold"
-              >
-                <User className="w-4 h-4 text-[#1B4E43]" />
-                <span>{currentUser ? 'Mi Perfil' : 'Iniciar Sesión'}</span>
-              </button>
-              <button
-                onClick={() => {
-                  onOpenAdmin();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FFF8E6] border border-[#EFA332] text-[#8C5800] text-xs font-bold"
-              >
-                <ShieldCheck className="w-4 h-4 text-[#EFA332]" />
-                <span>Admin Catálogo</span>
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                onOpenAuth();
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FAF5EC] border border-[#E3D6BE] text-[#3D3025] text-xs font-bold"
+            >
+              <User className="w-4 h-4 text-[#1B4E43]" />
+              <span>{currentUser ? 'Mi Perfil' : 'Iniciar Sesión'}</span>
+            </button>
 
               <button
                 onClick={() => {

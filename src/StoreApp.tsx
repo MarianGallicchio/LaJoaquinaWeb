@@ -303,9 +303,6 @@ export default function StoreApp() {
         onOpenHelp={() => setIsHelpOpen(true)}
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenAdmin={() => {
-          window.location.href = './admin.html';
-        }}
       />
 
       {/* Barra promo configurable desde el admin */}
@@ -557,9 +554,6 @@ export default function StoreApp() {
           setActiveCategory(cat);
           scrollToCatalog();
         }}
-        onOpenAdmin={() => {
-          window.location.href = './admin.html';
-        }}
       />
 
       <ProductModal
@@ -608,6 +602,7 @@ export default function StoreApp() {
         onToggle={() => setIsHelpOpen(!isHelpOpen)}
         onClose={() => setIsHelpOpen(false)}
         settings={settings}
+        products={products}
       />
 
       <AuthModal
@@ -616,9 +611,6 @@ export default function StoreApp() {
         currentUser={currentUser}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
-        onOpenAdminPanel={() => {
-          window.location.href = './admin.html';
-        }}
       />
     </div>
   );

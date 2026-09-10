@@ -4,7 +4,6 @@ import {
   X,
   Mail,
   User as UserIcon,
-  ShieldCheck,
   AlertCircle,
   CheckCircle2,
   ShoppingBag,
@@ -17,7 +16,6 @@ interface AuthModalProps {
   currentUser: AuthUserProfile | null;
   onLoginSuccess: (user: AuthUserProfile) => void;
   onLogout: () => void;
-  onOpenAdminPanel?: () => void;
 }
 
 // Cuenta de cliente simple: nombre + email (sin contraseñas).
@@ -28,7 +26,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onLoginSuccess,
   onLogout,
-  onOpenAdminPanel,
 }) => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -152,19 +149,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{loading ? 'Guardando...' : 'Guardar y seguir comprando'}</span>
               </button>
             </form>
-          )}
-
-          {onOpenAdminPanel && (
-            <button
-              onClick={() => {
-                onClose();
-                onOpenAdminPanel();
-              }}
-              className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs text-[#8A7969] hover:text-[#1B4E43] font-bold cursor-pointer"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Soy la dueña: ir al panel de administración</span>
-            </button>
           )}
 
           <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-[#8A7969]">

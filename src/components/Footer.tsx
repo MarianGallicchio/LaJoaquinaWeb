@@ -5,11 +5,10 @@ import { DEFAULT_SETTINGS, waLink, instagramUrl } from '../lib/storeSettings';
 
 interface FooterProps {
   onSelectCategory: (cat: ProductCategory) => void;
-  onOpenAdmin?: () => void;
   settings?: StoreSettings;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin, settings }) => {
+export const Footer: React.FC<FooterProps> = ({ onSelectCategory, settings }) => {
   const store = settings || DEFAULT_SETTINGS;
   return (
     <footer className="bg-[#1B4E43] text-[#FAF7F2] pt-14 pb-8 border-t border-[#153D34]">
@@ -98,16 +97,6 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin, s
                   ⭐ Testimonios de Clientes
                 </a>
               </li>
-              {onOpenAdmin && (
-                <li className="pt-1">
-                  <button
-                    onClick={onOpenAdmin}
-                    className="inline-flex items-center gap-1.5 text-xs text-[#FFE194] hover:underline font-bold"
-                  >
-                    <span>⚙️ Panel de Administración (Catálogo)</span>
-                  </button>
-                </li>
-              )}
             </ul>
           </div>
 
