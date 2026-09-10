@@ -1,7 +1,7 @@
 // ENTRADA 2 — ADMIN (admin.html -> src/admin-main.tsx -> AdminApp)
 // Panel privado: resumen, productos, ventas/pedidos, mayoristas, envíos/comercio y herramientas.
 // La tienda vive en otra entrada: index.html -> StoreApp.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -122,20 +122,29 @@ export default function AdminApp() {
     }
   };
 
-  // Restaurar sesión validándola contra el backend (sin sesión válida no hay acceso)
+  // Restaurar sesión validándola contra el backend (sin sesión válida no hay acceso).
+  // OJO: si el usuario ingresa manualmente mientras esto vuela, NO se pisa su sesión.
+  const sessionNonce = useRef(0);
   useEffect(() => {
+    const started = sessionNonce.current;
+    const stillMine = () => sessionNonce.current === started;
     fetchAdminMe()
       .then((u) => {
+        if (!stillMine()) return;
         if (u) setCurrentUser(u);
         else {
           setCurrentUser(null);
           try {
-            localStorage.removeItem('la_juaquina_user');
+            localStorage.removeItem('la_joaquina_user');
           } catch { /* ignore */ }
         }
       })
-      .catch(() => setCurrentUser(null))
-      .finally(() => setCheckingSession(false));
+      .catch(() => {
+        if (stillMine()) setCurrentUser(null);
+      })
+      .finally(() => {
+        if (stillMine()) setCheckingSession(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -159,8 +168,10 @@ export default function AdminApp() {
     setLoginLoading(true);
     try {
       const admin = await cloudLogin(gateEmail.trim(), gatePassword);
+      sessionNonce.current++;
       setCurrentUser(admin);
       setGatePassword('');
+      setCheckingSession(false);
       notify('✅ Sesión iniciada.');
     } catch (err: any) {
       const msg = String(err.message || '');
@@ -175,6 +186,7 @@ export default function AdminApp() {
   };
 
   const handleLogout = async () => {
+    sessionNonce.current++;
     await cloudLogout();
     setCurrentUser(null);
   };
