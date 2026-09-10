@@ -31,6 +31,7 @@ import {
   cloudLogout,
 } from './lib/cloudDb';
 import { DEFAULT_SETTINGS, fetchStoreSettings } from './lib/storeSettings';
+import { goStore as goStorePage } from './lib/nav';
 import { AdminCatalog } from './components/AdminCatalog';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminOrders } from './components/admin/AdminOrders';
@@ -165,8 +166,8 @@ export default function AdminApp() {
   };
 
   const goToStore = () => {
-    // Ruta relativa: funciona en localhost (/) y en GitHub Pages (/LaJoaquinaWeb/)
-    window.location.href = './';
+    // Va al index.html explícito: funciona con o sin barra final, en local y en Pages
+    goStorePage();
   };
 
   const goTab = (t: Tab) => {
