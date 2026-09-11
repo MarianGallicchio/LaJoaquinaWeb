@@ -24,6 +24,7 @@ import {
   customerLogin,
   customerRegister,
   fetchMyOrders,
+  changeMyPassword,
   supaMode,
 } from '../lib/cloudDb';
 import { OrderDetails, Product, CustomerProfileData, CustomerAddress, PaymentMethodId } from '../types';
@@ -68,6 +69,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [myOrders, setMyOrders] = useState<OrderDetails[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [showPassForm, setShowPassForm] = useState(false);
+  const [np1, setNp1] = useState('');
+  const [np2, setNp2] = useState('');
+  const [passMsg, setPassMsg] = useState<string | null>(null);
   const [tab, setTab] = useState<PanelTab>('pedidos');
 
   // Form datos
@@ -341,6 +346,74 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               ))}
             </div>
+
+            {supaMode() && (
+              <div className="px-4 pt-2 shrink-0">
+                {!showPassForm ? (
+                  <button
+                    onClick={() => {
+                      setShowPassForm(true);
+                      setPassMsg(null);
+                    }}
+                    className="text-[11px] font-bold text-[#1B4E43] hover:underline cursor-pointer"
+                  >
+                    🔑 Cambiar mi contraseña
+                  </button>
+                ) : (
+                  <div className="bg-[#FAF5EC] border border-[#E3D6BE] rounded-2xl p-2.5 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="password"
+                        value={np1}
+                        onChange={(e) => setNp1(e.target.value)}
+                        placeholder="Nueva (mín. 6)"
+                        className="text-xs p-2 bg-white border border-[#E3D6BE] rounded-xl outline-none"
+                      />
+                      <input
+                        type="password"
+                        value={np2}
+                        onChange={(e) => setNp2(e.target.value)}
+                        placeholder="Repetir"
+                        className="text-xs p-2 bg-white border border-[#E3D6BE] rounded-xl outline-none"
+                      />
+                    </div>
+                    {passMsg && <p className="text-[11px] font-semibold text-[#1B4E43]">{passMsg}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setShowPassForm(false);
+                          setNp1('');
+                          setNp2('');
+                          setPassMsg(null);
+                        }}
+                        className="flex-1 py-1.5 text-[11px] text-[#7A6A59] font-bold cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (np1 !== np2) {
+                            setPassMsg('⚠️ No coinciden.');
+                            return;
+                          }
+                          try {
+                            await changeMyPassword(np1);
+                            setPassMsg('✅ Clave cambiada.');
+                            setNp1('');
+                            setNp2('');
+                          } catch (err: any) {
+                            setPassMsg(`⚠️ ${err.message || 'No se pudo.'}`);
+                          }
+                        }}
+                        className="flex-1 bg-[#1B4E43] text-white font-bold text-[11px] py-1.5 rounded-xl cursor-pointer"
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="p-4 sm:p-5 overflow-y-auto flex-1">
               {tab === 'pedidos' && (
