@@ -253,7 +253,9 @@ async function resolveRole(email: string, userId: string): Promise<AuthUserProfi
 }
 
 export async function supaLogin(email: string, password: string): Promise<AuthUserProfile> {
-  const op = supa().auth.signInWithPassword({ email: email.trim(), password });
+  // Se recortan espacios accidentales (pegados o autocompletado) que son
+  // la causa más común de "credenciales inválidas" con datos correctos.
+  const op = supa().auth.signInWithPassword({ email: email.trim(), password: (password || '').trim() });
   const res = (await Promise.race([
     op,
     new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 20000)),
@@ -298,10 +300,11 @@ export async function supaDiagnostics(): Promise<{ reachable: boolean; tables: b
 }
 
 export async function supaRegisterCustomer(name: string, email: string, password: string): Promise<AuthUserProfile> {
+  const cleanPass = (password || '').trim();
   const { data, error } = await supa().auth.signUp({
     email: email.trim(),
-    password,
-    options: { data: { name: name.trim(), role: 'customer' } },
+    password: cleanPass,
+    options: { data: { name: name.trim() } },
   });
   if (error) throw new Error(mapAuthError(error.message, 'No se pudo crear la cuenta.'));
   const user = data.user;
