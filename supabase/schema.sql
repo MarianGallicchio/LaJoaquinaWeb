@@ -88,19 +88,19 @@ create policy "products read" on products
 
 create policy "products write" on products
   for all using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role in ('admin', 'stock')
     ))
   )
   with check (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role in ('admin', 'stock')
     ))
@@ -111,19 +111,19 @@ create policy "settings read" on store_settings
 
 create policy "settings write" on store_settings
   for all using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role = 'admin'
     ))
   )
   with check (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role = 'admin'
     ))
@@ -135,19 +135,19 @@ create policy "orders insert" on orders
 
 create policy "orders admin" on orders
   for all using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role in ('admin', 'ventas')
     ))
   )
   with check (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role in ('admin', 'ventas')
     ))
@@ -155,13 +155,13 @@ create policy "orders admin" on orders
 
 create policy "orders own" on orders
   for select using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
     ))
-    or ((data ->> 'customerEmail') = (auth.jwt() ->> 'email'))
+    or ((lower(data ->> 'customerEmail')) = lower(auth.jwt() ->> 'email'))
   );
 
 -- Alertas: crear (público), gestionar (dueña/admin)
@@ -170,19 +170,19 @@ create policy "alerts insert" on stock_alerts
 
 create policy "alerts admin" on stock_alerts
   for all using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role = 'admin'
     ))
   )
   with check (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role = 'admin'
     ))
@@ -190,31 +190,31 @@ create policy "alerts admin" on stock_alerts
 
 create policy "alerts own" on stock_alerts
   for select using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
     ))
-    or ((data ->> 'customerEmail') = (auth.jwt() ->> 'email'))
+    or ((lower(data ->> 'customerEmail')) = lower(auth.jwt() ->> 'email'))
   );
 
 -- Distribuidores: dueña + admin
 create policy "distributors admin" on distributors
   for all using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role = 'admin'
     ))
   )
   with check (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
     or (exists (
       select 1 from staff
-      where staff.email = (auth.jwt() ->> 'email')
+      where staff.email = lower(auth.jwt() ->> 'email')
         and staff.active = true
         and staff.role = 'admin'
     ))
@@ -228,13 +228,13 @@ create policy "profiles own" on profiles
 -- Empleados: la dueña todo; cada empleado lee su propia fila
 create policy "staff read" on staff
   for select using (
-    ((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
-    or (staff.email = (auth.jwt() ->> 'email'))
+    (lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com')
+    or (staff.email = lower(auth.jwt() ->> 'email'))
   );
 
 create policy "staff write" on staff
-  for all using (((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com'))
-  with check (((auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com'));
+  for all using ((lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com'))
+  with check ((lower(auth.jwt() ->> 'email') = 'marianoagusting1996@gmail.com'));
 
 -- ================= ÍNDICES =================
 create index if not exists orders_created_idx on orders (created_at desc);

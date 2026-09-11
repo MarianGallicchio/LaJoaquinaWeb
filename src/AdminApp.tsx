@@ -83,6 +83,7 @@ export default function AdminApp() {
   const [gateError, setGateError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [diag, setDiag] = useState<{ reachable: boolean; tables: boolean; detail: string } | null>(null);
 
   // Autodiagnóstico de conexión visible en el login
@@ -101,10 +102,14 @@ export default function AdminApp() {
 
   const loadAll = async () => {
     setLoadingData(true);
+    setOrdersError(null);
     try {
       const [prods, ords, als, sett] = await Promise.all([
         fetchCloudProducts().catch(() => null),
-        fetchCloudOrders().catch(() => null),
+        fetchCloudOrders().catch((e: any) => {
+          setOrdersError(e?.message || 'No se pudieron cargar los pedidos.');
+          return null;
+        }),
         fetchCloudStockAlerts().catch(() => null),
         fetchStoreSettings().catch(() => null),
       ]);
@@ -489,7 +494,13 @@ export default function AdminApp() {
                 />
               )}
               {tab === 'ventas' && canVentas && (
-                <AdminOrders
+                <>
+                  {ordersError && (
+                    <div className="mb-4 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 font-bold text-xs">
+                      ⚠️ No se pudieron cargar los pedidos: {ordersError} Revisá tu sesión e internet.
+                    </div>
+                  )}
+                  <AdminOrders
                   orders={orders}
                   products={products}
                   settings={settings}
@@ -498,6 +509,7 @@ export default function AdminApp() {
                   onProductsChange={handleUpdateProducts}
                   notify={notify}
                 />
+                </>
               )}
               {tab === 'envios' && canComercio && (
                 <AdminShipping settings={settings} onSaved={(s) => { setSettings(s); notify('✅ Comercio y envíos guardados.'); }} />
