@@ -218,6 +218,9 @@ function mapAuthError(raw: string, fallback: string): string {
   if (m.includes('signups not allowed') || (m.includes('signup') && m.includes('disabled'))) {
     return 'El registro está desactivado en este momento. Avisale a la dueña.';
   }
+  if (m.includes('rate') && m.includes('limit') || m.includes('too many') || m.includes('429')) {
+    return 'Demasiados intentos seguidos. Esperá 5 minutos y probá de nuevo.';
+  }
   if (m.includes('already') && (m.includes('registered') || m.includes('exists') || m.includes('use'))) {
     return 'Ese email ya tiene cuenta. Iniciá sesión.';
   }
