@@ -19,7 +19,7 @@ import {
   Store
 } from 'lucide-react';
 import { CartItem, OrderDetails, StoreSettings } from '../types';
-import { saveCloudOrder, createMpPayment, sendOrderEmail } from '../lib/cloudDb';
+import { saveCloudOrder, createMpPayment, sendOrderEmail, getLastOrderTarget, SaveTarget } from '../lib/cloudDb';
 import { DEFAULT_SETTINGS, getShippingCost, getEnabledShipping, getMethodLabel } from '../lib/storeSettings';
 
 interface CheckoutModalProps {
@@ -95,6 +95,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [mpInitPoint, setMpInitPoint] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [saveTarget, setSaveTarget] = useState<SaveTarget | null>(null);
 
   // Cupón editable en el checkout (inicia con el del carrito, si hay)
   const [couponInput, setCouponInput] = useState(discountCode);
@@ -245,6 +246,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         const mp = await createMpPayment(newOrder);
         setMpInitPoint(mp.initPoint);
         setConfirmedOrder(mp.order);
+        setSaveTarget(getLastOrderTarget());
         setCurrentStep('success');
         onOrderCompleted(mp.order);
         if (store.ordersEmail) sendOrderEmail(mp.order, store.ordersEmail).catch(() => {});
@@ -281,6 +283,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setConfirmedOrder(newOrder);
     } finally {
       setLoading(false);
+      setSaveTarget(getLastOrderTarget());
       setCurrentStep('success');
       onOrderCompleted(newOrder);
       if (store.ordersEmail) sendOrderEmail(newOrder, store.ordersEmail).catch(() => {});
@@ -896,6 +899,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <span className="text-xs font-bold uppercase tracking-wider text-[#EFA332] bg-[#FAF5EC] px-3.5 py-1 rounded-full border border-[#E8DFC9]">
                   Código de Pedido: {confirmedOrder?.orderId}
                 </span>
+                {saveTarget === 'ok' && (
+                  <p className="text-[11px] font-bold text-[#256B5C] mt-1.5">
+                    ✅ Registrado: ya figura en Ventas del admin
+                  </p>
+                )}
+                {saveTarget === 'local' && (
+                  <p className="text-[11px] font-bold text-[#8C5800] mt-1.5">
+                    ⚠️ Guardado solo en este navegador
+                  </p>
+                )}
                 <h3 className="text-xl sm:text-2xl font-black text-[#1B4E43] font-display mt-2.5">
                   ¡Gracias por tu compra, {confirmedOrder?.customerName}!
                 </h3>

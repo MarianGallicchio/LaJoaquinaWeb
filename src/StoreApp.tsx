@@ -1,6 +1,6 @@
 // ENTRADA 1 — TIENDA (index.html -> src/main.tsx -> StoreApp)
 // Tienda pública de La Joaquina. El panel admin vive en otra entrada: admin.html -> AdminApp.
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
@@ -85,15 +85,26 @@ export default function StoreApp() {
   });
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const pendingCheckout = useRef<{ method: 'pickup' | 'express_amba' | 'correo_argentino'; code: string } | null>(null);
 
   const handleLoginSuccess = (user: AuthUserProfile) => {
     setCurrentUser(user);
     try {
-      localStorage.setItem('la_juaquina_user', JSON.stringify(user));
+      localStorage.setItem('la_joaquina_user', JSON.stringify(user));
     } catch (e) {
       console.warn(e);
     }
     showToast(`¡Bienvenido, ${user.name || user.email}!`);
+    // Si venía de comprar, sigue al checkout automáticamente
+    if (pendingCheckout.current && cartItems.length > 0) {
+      const { method, code } = pendingCheckout.current;
+      pendingCheckout.current = null;
+      setCheckoutShippingMethod(method);
+      setCheckoutDiscountCode(code);
+      setIsAuthOpen(false);
+      setIsCheckoutOpen(true);
+    }
   };
 
   const handleLogout = async () => {
@@ -266,6 +277,15 @@ export default function StoreApp() {
     shippingMethod: 'pickup' | 'express_amba' | 'correo_argentino',
     discountCode: string
   ) => {
+    // Para comprar hay que tener cuenta: así cada pedido queda identificado
+    if (!currentUser) {
+      pendingCheckout.current = { method: shippingMethod, code: discountCode };
+      setAuthMode('register');
+      setIsCartOpen(false);
+      setIsAuthOpen(true);
+      showToast('Creá tu cuenta para comprar 🐾');
+      return;
+    }
     setCheckoutShippingMethod(shippingMethod);
     setCheckoutDiscountCode(discountCode);
     setIsCartOpen(false);
@@ -385,7 +405,10 @@ export default function StoreApp() {
         onOpenCart={() => setIsCartOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
         currentUser={currentUser}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={() => {
+          setAuthMode('login');
+          setIsAuthOpen(true);
+        }}
       />
 
       {/* Barra promo configurable desde el admin */}
@@ -698,6 +721,7 @@ export default function StoreApp() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
+        initialMode={authMode}
         currentUser={currentUser}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}

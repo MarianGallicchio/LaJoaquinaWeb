@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { OrderDetails, Product, StoreSettings } from '../../types';
-import { updateCloudOrderStatus, deleteCloudOrder, restockForOrder, subscribeOrdersLive } from '../../lib/cloudDb';
+import { updateCloudOrderStatus, deleteCloudOrder, restockForOrder, subscribeOrdersLive, supaMode } from '../../lib/cloudDb';
 import { formatARS } from '../../lib/storeSettings';
 import { Trash2, Phone, MapPin, Truck, Package, Search, Download, RefreshCw, Printer, CheckSquare, Megaphone } from 'lucide-react';
 
@@ -324,6 +324,15 @@ export const AdminOrders: React.FC<Props> = ({ orders, products, settings, onRel
           <span className="text-xs font-bold text-[#1B4E43] bg-[#E8F3EF] px-3 py-1.5 rounded-xl">
             {filtered.length} pedidos · {formatARS(revenue)}
           </span>
+          {supaMode() ? (
+            <span className="text-[11px] font-bold text-[#1B4E43] bg-[#E8F3EF] border border-[#BCE0D4] px-2.5 py-1.5 rounded-xl" title="Los pedidos llegan de todos los dispositivos">
+              ☁️ Nube compartida
+            </span>
+          ) : (
+            <span className="text-[11px] font-bold text-[#8C5800] bg-[#FFF8E6] border border-[#FDE68A] px-2.5 py-1.5 rounded-xl" title="Solo se ven los pedidos de este navegador">
+              💻 Solo este navegador
+            </span>
+          )}
           <button onClick={exportCSV} className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#1B4E43] text-white px-3 py-2 rounded-xl cursor-pointer hover:bg-[#256B5C]">
             <Download className="w-3.5 h-3.5" /> Exportar CSV
           </button>

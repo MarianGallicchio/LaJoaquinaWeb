@@ -221,21 +221,34 @@ export async function resetCloudProducts(): Promise<Product[]> {
   return DEFAULT_PRODUCTS;
 }
 
+// Dónde quedó guardado el último pedido (para mostrarlo en el checkout)
+export type SaveTarget = 'ok' | 'local';
+let lastOrderTarget: SaveTarget | null = null;
+export function getLastOrderTarget(): SaveTarget | null {
+  return lastOrderTarget;
+}
+function markOrderTarget(t: SaveTarget) {
+  lastOrderTarget = t;
+}
+
 // Save Order (público: lo usa el checkout de la tienda)
 export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails> {
   if (supaMode()) {
     try {
       const saved = await supa.supaSaveOrder(order);
       saveOrderLocally(saved);
+      markOrderTarget('ok');
       return saved;
     } catch (err) {
       console.warn('Supabase order error, guardando local:', err);
     }
     saveOrderLocally(order);
+    markOrderTarget('local');
     return order;
   }
   if (!(await apiUp())) {
     saveOrderLocally(order);
+    markOrderTarget('local');
     return order;
   }
   try {
@@ -248,6 +261,7 @@ export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails>
       const data = await res.json();
       if (data.order) {
         saveOrderLocally(data.order);
+        markOrderTarget('ok');
         return data.order;
       }
     }
@@ -256,6 +270,7 @@ export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails>
   }
 
   saveOrderLocally(order);
+  markOrderTarget('local');
   return order;
 }
 
@@ -1006,6 +1021,7 @@ export async function createMpPayment(order: OrderDetails): Promise<MpPaymentRes
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'No se pudo generar el link de pago.');
   saveOrderLocally(data.order);
+  markOrderTarget('ok');
   return data as MpPaymentResult;
 }
 

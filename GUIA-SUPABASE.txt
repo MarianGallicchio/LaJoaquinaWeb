@@ -32,8 +32,8 @@ PASO 2 — Crear las tablas (2 min)
 PASO 2B — Tu cuenta de dueña (2 min, casi todo lo hago yo)
 ----------------------------------------
 1. En Supabase andá a Authentication > Sign In / Sign Ups y:
-   - ACTIVÁ "Allow new users to sign up" (los clientes la necesitan para
-     sus cuentas; es seguro: los permisos están por email en el SQL).
+   - ACTIVÁ "Allow new users to sign up" (OBLIGATORIO: la tienda pide
+     cuenta para comprar, y los clientes la necesitan para entrar).
    - APAGÁ "Confirm email" (nadie se traba esperando un mail, ni vos).
 2. Avisame "listo" y YO te creo la cuenta de dueña en ese momento y
    verifico en vivo que entrás al admin online.

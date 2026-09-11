@@ -40,6 +40,7 @@ interface AuthModalProps {
   products: Product[];
   onReorder: (o: OrderDetails) => void;
   onQuickAdd: (p: Product) => void;
+  initialMode?: 'login' | 'register';
 }
 
 type PanelTab = 'datos' | 'direcciones' | 'pagos' | 'pedidos' | 'favoritos';
@@ -57,6 +58,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   products,
   onReorder,
   onQuickAdd,
+  initialMode = 'login',
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -82,6 +84,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showAddrForm, setShowAddrForm] = useState(false);
 
   const cloud = supaMode();
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
 
   useEffect(() => {
     if (isOpen && currentUser?.email) {
