@@ -68,12 +68,19 @@ export async function supaGetOrders(): Promise<OrderDetails[]> {
 }
 
 export async function supaSaveOrder(o: OrderDetails): Promise<OrderDetails> {
-  const { error } = await supa().from('orders').upsert(
-    { order_id: o.orderId, data: o },
-    { onConflict: 'order_id' }
-  );
-  if (error) throw errMsg(error, 'No se pudo guardar el pedido.');
-  return o;
+  // Solo INSERT para anónimos: el upsert exige permiso de UPDATE que los
+  // clientes no tienen (ni deben tener). Si el ID existiera, se regenera.
+  let order = o;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { error } = await supa().from('orders').insert({ order_id: order.orderId, data: order });
+    if (!error) return order;
+    if (error.code === '23505' && attempt === 0) {
+      order = { ...order, orderId: `JQ-${Date.now().toString().slice(-6)}` };
+      continue;
+    }
+    throw errMsg(error, 'No se pudo guardar el pedido.');
+  }
+  return order;
 }
 
 export async function supaPatchOrder(id: string, patch: Record<string, any>): Promise<OrderDetails> {
