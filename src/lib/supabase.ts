@@ -209,6 +209,30 @@ function toProfile(
   return { id, email, name: name || fallback, role, isOwner };
 }
 
+// Traduce errores de Auth a mensajes claros en español
+function mapAuthError(raw: string, fallback: string): string {
+  const m = (raw || '').toLowerCase();
+  if (!raw || m.includes('failed to fetch') || m.includes('network') || m.includes('timeout')) {
+    return 'Sin conexión con la nube. Revisá tu internet o probá de nuevo.';
+  }
+  if (m.includes('signups not allowed') || (m.includes('signup') && m.includes('disabled'))) {
+    return 'El registro está desactivado en este momento. Avisale a la dueña.';
+  }
+  if (m.includes('already') && (m.includes('registered') || m.includes('exists') || m.includes('use'))) {
+    return 'Ese email ya tiene cuenta. Iniciá sesión.';
+  }
+  if (m.includes('email not confirmed') || (m.includes('confirm') && m.includes('email'))) {
+    return 'Tenés que confirmar tu email primero. Revisá tu correo (y spam).';
+  }
+  if (m.includes('invalid') && m.includes('email')) {
+    return 'Ese email no parece válido. Revisalo.';
+  }
+  if (m.includes('password') && (m.includes('short') || m.includes('6 characters') || m.includes('weak'))) {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+  return fallback;
+}
+
 async function resolveRole(email: string, userId: string): Promise<AuthUserProfile> {
   const clean = email.toLowerCase().trim();
   if (clean === OWNER_EMAIL) {
@@ -238,7 +262,7 @@ export async function supaLogin(email: string, password: string): Promise<AuthUs
     );
   })) as any;
   const { data, error } = res;
-  if (error || !data.user) throw new Error('Credenciales inválidas.');
+  if (error || !data.user) throw new Error(mapAuthError(error?.message || '', 'Credenciales inválidas.'));
   return resolveRole(data.user.email || email.trim(), data.user.id);
 }
 
@@ -276,7 +300,7 @@ export async function supaRegisterCustomer(name: string, email: string, password
     password,
     options: { data: { name: name.trim(), role: 'customer' } },
   });
-  if (error) throw new Error(error.message.includes('already') ? 'Ese email ya tiene cuenta. Iniciá sesión.' : 'No se pudo crear la cuenta.');
+  if (error) throw new Error(mapAuthError(error.message, 'No se pudo crear la cuenta.'));
   const user = data.user;
   // Si el proyecto exige confirmar email, igual devolvemos el perfil para comprar
   if (!user) throw new Error('Revisá tu email para confirmar la cuenta y después iniciá sesión.');
