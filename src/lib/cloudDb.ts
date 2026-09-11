@@ -508,7 +508,6 @@ export async function fetchAdminMe(): Promise<AuthUserProfile | null> {
 }
 
 // ============ CUENTAS DE CLIENTES (registro libre + historial) ============
-
 export async function customerRegister(name: string, email: string, password: string): Promise<AuthUserProfile> {
   if (supaMode()) {
     const u = await supa.supaRegisterCustomer(name, email, password);
@@ -532,6 +531,11 @@ export async function customerLogin(email: string, password: string): Promise<Au
   };
   localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
   return profile;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  if (!supaMode()) throw new Error('Recuperación disponible solo con la nube conectada.');
+  return supa.supaRequestReset(email);
 }
 
 export async function fetchMyOrders(email: string): Promise<OrderDetails[]> {

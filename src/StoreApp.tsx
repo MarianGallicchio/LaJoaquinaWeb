@@ -17,7 +17,8 @@ import { StockAlertModal } from './components/StockAlertModal';
 import { Reveal } from './components/Reveal';
 import { PRODUCTS } from './data/products';
 import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings, CustomerProfileData, emptyCustomerProfile } from './types';
-import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile } from './lib/cloudDb';
+import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile, supaMode } from './lib/cloudDb';
+import { supa, supaMe } from './lib/supabase';
 import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
 import { Filter, ArrowUpDown, CheckCircle, Truck } from 'lucide-react';
 
@@ -77,12 +78,51 @@ export default function StoreApp() {
 
   const [currentUser, setCurrentUser] = useState<AuthUserProfile | null>(() => {
     try {
-      const saved = localStorage.getItem('la_juaquina_user');
+      const saved = localStorage.getItem('la_joaquina_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
+
+  const currentUserRef = useRef<AuthUserProfile | null>(null);
+  currentUserRef.current = currentUser;
+
+  // Si vuelve del email de recuperación (o renueva sesión), activar login solo
+  useEffect(() => {
+    if (!supaMode()) return;
+    let alive = true;
+    let unsub: (() => void) | null = null;
+    try {
+      const { data } = supa().auth.onAuthStateChange(async (event, session) => {
+        if (!alive) return;
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+          try {
+            const me = await supaMe();
+            if (me && me.email !== currentUserRef.current?.email) {
+              setCurrentUser(me);
+              try {
+                localStorage.setItem('la_joaquina_user', JSON.stringify(me));
+              } catch { /* ignore */ }
+              showToast(`¡Sesión iniciada como ${me.name || me.email}!`);
+              try {
+                const clean = window.location.pathname + window.location.search.replace(/([?&])code=[^&]*/g, '$1').replace(/[?&]$/, '');
+                window.history.replaceState(null, '', clean);
+              } catch { /* ignore */ }
+            }
+          } catch { /* ignore */ }
+        }
+        if (event === 'SIGNED_OUT' && currentUserRef.current) {
+          setCurrentUser(null);
+        }
+      });
+      unsub = () => data.subscription.unsubscribe();
+    } catch { /* ignore */ }
+    return () => {
+      alive = false;
+      if (unsub) unsub();
+    };
+  }, []);
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');

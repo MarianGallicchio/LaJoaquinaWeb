@@ -25,6 +25,7 @@ import {
   customerRegister,
   fetchMyOrders,
   changeMyPassword,
+  requestPasswordReset,
   supaMode,
 } from '../lib/cloudDb';
 import { OrderDetails, Product, CustomerProfileData, CustomerAddress, PaymentMethodId } from '../types';
@@ -67,6 +68,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetSending, setResetSending] = useState(false);
   const [myOrders, setMyOrders] = useState<OrderDetails[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [showPassForm, setShowPassForm] = useState(false);
@@ -307,7 +310,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               {cloud && (
                 <div>
-                  <label className="block text-xs font-bold text-[#5B4E41] mb-1">Contraseña</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-[#5B4E41]">Contraseña</label>
+                    {mode === 'login' && (
+                      <button
+                        type="button"
+                        disabled={resetSending}
+                        onClick={async () => {
+                          if (!email.trim()) {
+                            setErrorMsg('Escribí tu email arriba para enviarte el link.');
+                            return;
+                          }
+                          setResetSending(true);
+                          setResetMsg(null);
+                          try {
+                            await requestPasswordReset(email.trim());
+                            setResetMsg('✅ Te enviamos un email con el link. Abrilo y después volvé a entrar.');
+                          } catch (err: any) {
+                            setResetMsg(`⚠️ ${err.message || 'No se pudo enviar.'}`);
+                          } finally {
+                            setResetSending(false);
+                          }
+                        }}
+                        className="text-[11px] font-bold text-[#1B4E43] hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        {resetSending ? 'Enviando...' : '¿Olvidaste tu clave?'}
+                      </button>
+                    )}
+                  </div>
+                  {resetMsg && (
+                    <p className="mb-1.5 text-[11px] font-semibold text-[#1B4E43] bg-[#E8F3EF] border border-[#BCE0D4] rounded-xl px-3 py-2">
+                      {resetMsg}
+                    </p>
+                  )}
                   <div className="relative">
                     <Lock className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
                     <input

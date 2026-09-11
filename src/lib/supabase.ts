@@ -324,6 +324,17 @@ export async function supaLogout(): Promise<void> {
   } catch { /* ignore */ }
 }
 
+// Envía email para recuperar la contraseña (el link vuelve a la tienda
+// y la sesión se activa sola al abrirlo)
+export async function supaRequestReset(email: string): Promise<void> {
+  const clean = email.trim();
+  if (!clean || !clean.includes('@')) throw new Error('Ingresá tu email primero.');
+  const { error } = await supa().auth.resetPasswordForEmail(clean, {
+    redirectTo: typeof window !== 'undefined' ? window.location.origin + window.location.pathname : undefined,
+  });
+  if (error) throw new Error('No se pudo enviar el email. Revisá que el email sea el de tu cuenta.');
+}
+
 // Cambiar la propia contraseña (dueña y empleados, con sesión iniciada)
 export async function supaChangePassword(newPassword: string): Promise<void> {
   if (!newPassword || newPassword.length < 6) throw new Error('La clave debe tener al menos 6 caracteres.');
