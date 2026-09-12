@@ -1524,7 +1524,89 @@
       "mercadolibreUrl": "https://listado.mercadolibre.com.ar/rueda-hamster"
     }
   ],
-  "orders": [],
+  "orders": [
+    {
+      "orderId": "JQ-910243",
+      "customerName": "Mariano Agustin",
+      "customerPhone": "1165432190",
+      "customerEmail": "marianoagusting1996@gmail.com",
+      "paymentMethod": "transferencia",
+      "deliveryMethod": "pickup",
+      "address": "Retiro en local Bella Vista",
+      "total": 35000,
+      "items": [
+        {
+          "product": {
+            "id": "prod-1",
+            "name": "Alimento Premium Perro"
+          },
+          "selectedVariant": {
+            "weight": "15kg",
+            "price": 35000,
+            "stock": 8
+          },
+          "quantity": 1
+        }
+      ],
+      "createdAt": "2026-09-12T17:20:56.403Z",
+      "status": "pendiente"
+    },
+    {
+      "orderId": "JQ-888888",
+      "customerName": "Maria Gonzalez",
+      "customerPhone": "1123456789",
+      "customerEmail": "maria@ejemplo.com",
+      "paymentMethod": "transferencia",
+      "deliveryMethod": "pickup",
+      "address": "Retiro en local",
+      "total": 12500,
+      "items": [
+        {
+          "product": {
+            "id": "p1",
+            "name": "Alimento Perro Adulto"
+          },
+          "selectedVariant": {
+            "weight": "15kg",
+            "price": 12500,
+            "stock": 10
+          },
+          "quantity": 1
+        }
+      ],
+      "createdAt": "2026-09-12T17:18:35.395Z",
+      "status": "pendiente"
+    },
+    {
+      "orderId": "JQ-TEST123",
+      "customerName": "Test User",
+      "total": 5000,
+      "items": [],
+      "createdAt": "2026-09-12T17:15:10.197Z",
+      "status": "pendiente"
+    },
+    {
+      "orderId": "JQ-999999",
+      "customerName": "Juan Perez",
+      "customerPhone": "1122334455",
+      "items": [
+        {
+          "product": {
+            "id": "prod-1",
+            "name": "Dog Chow"
+          },
+          "quantity": 1,
+          "selectedVariant": {
+            "weight": "15kg",
+            "price": 10000
+          }
+        }
+      ],
+      "total": 10000,
+      "createdAt": "2026-09-11T12:47:43.229Z",
+      "status": "pendiente"
+    }
+  ],
   "users": [
     {
       "id": "admin-1",

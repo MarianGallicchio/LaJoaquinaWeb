@@ -17,7 +17,7 @@ import { StockAlertModal } from './components/StockAlertModal';
 import { Reveal } from './components/Reveal';
 import { PRODUCTS } from './data/products';
 import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings, CustomerProfileData, emptyCustomerProfile } from './types';
-import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile, supaMode } from './lib/cloudDb';
+import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, saveCloudOrder, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile, supaMode } from './lib/cloudDb';
 import { supa, supaMe } from './lib/supabase';
 import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
 import { Filter, ArrowUpDown, CheckCircle, Truck } from 'lucide-react';
@@ -332,15 +332,38 @@ export default function StoreApp() {
     setIsCheckoutOpen(true);
   };
 
-  // Al confirmar la compra: vaciar carrito + descontar stock (se refleja en el admin)
+  // Al confirmar la compra: vaciar carrito + asegurar persistencia + descontar stock (se refleja en el admin)
   const handleOrderCompleted = async (order: OrderDetails) => {
+    console.log('[StoreApp.handleOrderCompleted] Procesando orden completada:', order.orderId, {
+      cliente: order.customerName,
+      items: order.items?.length,
+      total: order.total,
+      metodo: order.paymentMethod,
+    });
+
     handleClearCart();
+
+    // 1. Asegurar persistencia de la orden en la base de datos (backend API o Supabase)
+    let finalOrder = order;
     try {
-      const updated = await decrementStockForOrder(order, products);
-      setProducts(updated);
-    } catch (e) {
-      console.warn('No se pudo descontar stock', e);
+      console.log('[StoreApp.handleOrderCompleted] Asegurando persistencia en base de datos:', order.orderId);
+      finalOrder = await saveCloudOrder(order);
+      console.log('[StoreApp.handleOrderCompleted] Orden persistida exitosamente:', finalOrder.orderId);
+    } catch (err) {
+      console.error('[StoreApp.handleOrderCompleted] Error al persistir la orden en base de datos:', err);
     }
+
+    // 2. Descontar stock localmente y persistir actualización
+    try {
+      console.log('[StoreApp.handleOrderCompleted] Descontando stock para orden:', finalOrder.orderId);
+      const updated = await decrementStockForOrder(finalOrder, products);
+      setProducts(updated);
+      console.log('[StoreApp.handleOrderCompleted] Stock de productos actualizado en la tienda.');
+    } catch (e) {
+      console.error('[StoreApp.handleOrderCompleted] Error al descontar stock:', e);
+    }
+
+    // 3. Notificación al cliente
     if (order.status === 'pago_pendiente') {
       showToast(`¡Pedido ${order.orderId} creado! Completá el pago en Mercado Pago.`);
     } else {
@@ -744,6 +767,7 @@ export default function StoreApp() {
         onOrderCompleted={handleOrderCompleted}
         settings={settings}
         customer={checkoutCustomer}
+        products={products}
         onBackToCart={() => {
           setIsCheckoutOpen(false);
           setIsCartOpen(true);

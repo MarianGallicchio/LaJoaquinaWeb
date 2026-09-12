@@ -230,8 +230,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   disabled={added}
                   whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
                   whileTap={{ scale: 0.94 }}
-                  animate={added ? { scale: [1, 1.05, 0.98, 1] } : {}}
-                  transition={{ type: 'spring', stiffness: 450, damping: 18 }}
+                  animate={added ? { scale: [1, 1.05, 0.98, 1] } : { scale: 1 }}
+                  transition={added ? { duration: 0.35, ease: 'easeInOut' } : { type: 'spring', stiffness: 450, damping: 18 }}
                   className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm font-display transition-colors cursor-pointer shadow-md ${
                     added ? 'bg-[#256B5C] text-white' : 'bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E]'
                   }`}

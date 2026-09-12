@@ -39,16 +39,60 @@ export async function listOrders() {
 }
 
 export async function createOrder(order: any) {
-  if (!order || !Array.isArray(order.items)) throw new Error('Orden requerida.');
+  if (!order || !Array.isArray(order.items)) {
+    console.error('[core.createOrder] Error de validación: orden o items inválidos:', order);
+    throw new Error('Orden requerida con lista de items.');
+  }
   const orderId = order.orderId || `JQ-${Date.now().toString().slice(-6)}`;
+  console.log('[core.createOrder] Iniciando guardado de pedido:', orderId, 'Cliente:', order.customerName, 'Total:', order.total);
+  
   const full = {
     ...order,
     orderId,
     createdAt: order.createdAt || nowIso(),
     status: order.status || 'pendiente',
   };
+
   const list = await listOrders();
+  const alreadyExists = list.some((o: any) => o.orderId === orderId);
   await writeDoc('orders', [full, ...list.filter((o: any) => o.orderId !== orderId)]);
+  console.log('[core.createOrder] Orden escrita en base de datos. Ya existía previamente?:', alreadyExists);
+
+  // Descontar stock de los productos comprados de forma segura en la base de datos (solo la primera vez)
+  if (!alreadyExists) {
+    try {
+      const products = await listProducts();
+      let prodsChanged = false;
+      const updatedProducts = products.map((p: any) => {
+        const itemsForProduct = (full.items || []).filter((i: any) => i?.product?.id === p.id);
+        if (itemsForProduct.length === 0) return p;
+        let variantChanged = false;
+        const variants = Array.isArray(p.variants)
+          ? p.variants.map((v: any) => {
+              const match = itemsForProduct.find(
+                (i: any) => (i?.selectedVariant?.weight || i?.selectedVariant?.flavor) === (v.weight || v.flavor)
+              ) || itemsForProduct.find((i: any) => i?.selectedVariant?.price === v.price);
+              if (!match) return v;
+              const currentStock = typeof v.stock === 'number' ? v.stock : null;
+              if (currentStock === null) return v;
+              const qty = Number(match.quantity) || 1;
+              const nextStock = Math.max(0, currentStock - qty);
+              variantChanged = true;
+              return { ...v, stock: nextStock, inStock: nextStock > 0 };
+            })
+          : p.variants;
+        if (variantChanged) prodsChanged = true;
+        return { ...p, variants };
+      });
+      if (prodsChanged) {
+        await writeDoc('products', updatedProducts);
+        console.log('[core.createOrder] Stock de productos descontado exitosamente en base de datos para pedido:', orderId);
+      }
+    } catch (err) {
+      console.error('[core.createOrder] Error al descontar stock en base de datos:', err);
+    }
+  }
+
   return full;
 }
 
@@ -61,6 +105,39 @@ export async function patchOrder(id: string, patch: Record<string, any>) {
   for (const k of allowed) if (patch[k] !== undefined) list[idx][k] = patch[k];
   await writeDoc('orders', list);
   const updated = list[idx];
+
+  // Si se cancela el pedido, reponer el stock automáticamente
+  if (patch.status === 'cancelado' && before !== 'cancelado') {
+    try {
+      const products = await listProducts();
+      let prodsChanged = false;
+      const updatedProducts = products.map((p: any) => {
+        const itemsForProduct = (updated.items || []).filter((i: any) => i?.product?.id === p.id);
+        if (itemsForProduct.length === 0) return p;
+        let variantChanged = false;
+        const variants = Array.isArray(p.variants)
+          ? p.variants.map((v: any) => {
+              const match = itemsForProduct.find(
+                (i: any) => (i?.selectedVariant?.weight || i?.selectedVariant?.flavor) === (v.weight || v.flavor)
+              ) || itemsForProduct.find((i: any) => i?.selectedVariant?.price === v.price);
+              if (!match || typeof v.stock !== 'number') return v;
+              const qty = Number(match.quantity) || 1;
+              const nextStock = v.stock + qty;
+              variantChanged = true;
+              return { ...v, stock: nextStock, inStock: true };
+            })
+          : p.variants;
+        if (variantChanged) prodsChanged = true;
+        return { ...p, variants };
+      });
+      if (prodsChanged) {
+        await writeDoc('products', updatedProducts);
+      }
+    } catch (err) {
+      console.error('Error al reponer stock por cancelación:', err);
+    }
+  }
+
   // Automatización: al cambiar a ciertos estados se avisa solo por WhatsApp
   // (sin abrir ventanas: lo envía el servidor si está configurado)
   let whatsappSent = false;

@@ -174,9 +174,9 @@ export const Header: React.FC<HeaderProps> = ({
                 {cartCount > 0 && (
                   <motion.span
                     key={`cart-badge-${cartCount}`}
-                    initial={{ scale: 0.3, opacity: 0 }}
-                    animate={{ scale: [1, 1.35, 1], opacity: 1 }}
-                    exit={{ scale: 0.3, opacity: 0 }}
+                    initial={{ scale: 0.4, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.4, opacity: 0 }}
                     transition={{ type: 'spring', stiffness: 600, damping: 14 }}
                     className="bg-[#1B4E43] text-white text-xs font-black w-5 h-5 rounded-full flex items-center justify-center -mr-1 shadow-xs"
                   >

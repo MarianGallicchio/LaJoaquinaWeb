@@ -19,6 +19,12 @@ import {
   Users,
   RefreshCw,
   CheckCircle2,
+  Wifi,
+  WifiOff,
+  Activity,
+  ShieldAlert,
+  Server,
+  X,
 } from 'lucide-react';
 import { Product, OrderDetails, StockAlert, StoreSettings } from './types';
 import { PRODUCTS } from './data/products';
@@ -27,11 +33,18 @@ import {
   fetchCloudProducts,
   fetchCloudOrders,
   fetchCloudStockAlerts,
-  fetchAdminMe,
   cloudLogin,
   cloudLogout,
+  supaMode,
+  getStoredOrders,
+  STORAGE_KEY_USER,
+  playOrderNotificationSound,
+  checkAdminSession,
+  SessionCheckResult,
+  checkBackendHealth,
+  BackendHealthResult,
 } from './lib/cloudDb';
-import { DEFAULT_SETTINGS, fetchStoreSettings } from './lib/storeSettings';
+import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
 import { goStore as goStorePage } from './lib/nav';
 import { supaDiagnostics } from './lib/supabase';
 import { AdminCatalog } from './components/AdminCatalog';
@@ -63,15 +76,26 @@ export default function AdminApp() {
     }
   });
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
-  const [orders, setOrders] = useState<OrderDetails[]>([]);
+  const [orders, setOrders] = useState<OrderDetails[]>(() => getStoredOrders());
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [toast, setToast] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  // Diagnóstico de sesión y token
+  const [sessionCheck, setSessionCheck] = useState<SessionCheckResult | null>(null);
+
+  // Diagnóstico y monitor de conexión en segundo plano (Supabase / Express)
+  const [backendHealth, setBackendHealth] = useState<BackendHealthResult | null>(null);
+  const [silentFailureDetected, setSilentFailureDetected] = useState(false);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [showDiagModal, setShowDiagModal] = useState(false);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+
   const [currentUser, setCurrentUser] = useState<AuthUserProfile | null>(() => {
     try {
-      const saved = localStorage.getItem('la_juaquina_user');
+      const saved = localStorage.getItem(STORAGE_KEY_USER) || localStorage.getItem('la_juaquina_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -83,16 +107,28 @@ export default function AdminApp() {
   const [gateError, setGateError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
-  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [diag, setDiag] = useState<{ reachable: boolean; tables: boolean; detail: string } | null>(null);
 
   // Autodiagnóstico de conexión visible en el login
   useEffect(() => {
     if (currentUser?.role === 'admin') return;
     setDiag(null);
-    supaDiagnostics()
-      .then(setDiag)
-      .catch(() => setDiag({ reachable: false, tables: false, detail: 'No se pudo verificar' }));
+    if (supaMode()) {
+      supaDiagnostics()
+        .then(setDiag)
+        .catch(() => setDiag({ reachable: false, tables: false, detail: 'No se pudo verificar' }));
+    } else {
+      fetch('/api/health')
+        .then((r) => r.json())
+        .then((j) => {
+          if (j?.status === 'ok') {
+            setDiag({ reachable: true, tables: true, detail: `Servidor conectado (${j.productsCount || 20} productos)` });
+          } else {
+            setDiag({ reachable: false, tables: false, detail: 'Servidor no listo' });
+          }
+        })
+        .catch(() => setDiag({ reachable: false, tables: false, detail: 'Modo local (sin servidor)' }));
+    }
   }, [currentUser?.role]);
 
   const notify = (msg: string) => {
@@ -100,60 +136,253 @@ export default function AdminApp() {
     setTimeout(() => setToast(null), 3200);
   };
 
-  const loadAll = async () => {
-    setLoadingData(true);
-    setOrdersError(null);
+  const loadAll = async (silent = false) => {
+    if (!silent) setLoadingData(true);
+    let fetchFailed = false;
+    let fetchErrorDetail = '';
+
     try {
-      const [prods, ords, als, sett] = await Promise.all([
-        fetchCloudProducts().catch(() => null),
-        fetchCloudOrders().catch((e: any) => {
-          setOrdersError(e?.message || 'No se pudieron cargar los pedidos.');
-          return null;
-        }),
-        fetchCloudStockAlerts().catch(() => null),
-        fetchStoreSettings().catch(() => null),
+      const [prodsRes, ordsRes, alsRes, settRes, healthRes] = await Promise.allSettled([
+        fetchCloudProducts(),
+        fetchCloudOrders(),
+        fetchCloudStockAlerts(),
+        fetchStoreSettings(),
+        checkBackendHealth(),
       ]);
-      if (prods && prods.length > 0) {
-        setProducts(prods);
+
+      if (prodsRes.status === 'fulfilled' && prodsRes.value && prodsRes.value.length > 0) {
+        setProducts(prodsRes.value);
         try {
-          localStorage.setItem('la_joaquina_products_v2', JSON.stringify(prods));
+          localStorage.setItem('la_joaquina_products_v2', JSON.stringify(prodsRes.value));
         } catch { /* ignore */ }
+      } else if (prodsRes.status === 'rejected') {
+        fetchFailed = true;
+        fetchErrorDetail = prodsRes.reason?.message || 'Error al obtener productos';
       }
-      if (ords) setOrders(ords);
-      if (als) setAlerts(als);
-      if (sett) setSettings(sett);
+
+      if (ordsRes.status === 'fulfilled' && ordsRes.value) {
+        const ords = ordsRes.value;
+        setOrders((prev) => {
+          // Detectar si entraron pedidos nuevos para notificar y sonar la alarma
+          if (prev.length > 0 && ords.length > prev.length) {
+            const prevIds = new Set(prev.map((o) => o.orderId));
+            const newOrders = ords.filter((o) => !prevIds.has(o.orderId));
+            if (newOrders.length > 0) {
+              const newest = newOrders[0];
+              playOrderNotificationSound();
+              notify(`🔔 ¡Nuevo pedido recibido! ${newest.orderId} (${newest.customerName || 'Cliente'}) · ${formatARS(newest.total)}`);
+            }
+          }
+          return ords;
+        });
+      } else if (ordsRes.status === 'rejected') {
+        fetchFailed = true;
+        fetchErrorDetail = fetchErrorDetail || ordsRes.reason?.message || 'Error al obtener pedidos';
+      }
+
+      if (alsRes.status === 'fulfilled' && alsRes.value) setAlerts(alsRes.value);
+      if (settRes.status === 'fulfilled' && settRes.value) setSettings(settRes.value);
+
+      // Evaluación del monitor de salud del backend
+      if (healthRes.status === 'fulfilled') {
+        const bh = healthRes.value;
+        setBackendHealth(bh);
+        if (!bh.connected || fetchFailed) {
+          setSilentFailureDetected(true);
+          setConsecutiveFailures((prev) => prev + 1);
+        } else {
+          setSilentFailureDetected(false);
+          setConsecutiveFailures(0);
+          setLastSyncTime(bh.timestamp);
+        }
+      } else {
+        setSilentFailureDetected(true);
+        setConsecutiveFailures((prev) => prev + 1);
+      }
+    } catch {
+      setSilentFailureDetected(true);
+      setConsecutiveFailures((prev) => prev + 1);
     } finally {
-      setLoadingData(false);
+      if (!silent) setLoadingData(false);
     }
   };
 
-  // Restaurar sesión validándola contra el backend (sin sesión válida no hay acceso).
-  // OJO: si el usuario ingresa manualmente mientras esto vuela, NO se pisa su sesión.
+  // 1. Diagnóstico del token y sesión inmediatamente al cargar el Dashboard
+  // Verifica si el token ha expirado, si la firma es inválida o si el backend lo rechaza
   const sessionNonce = useRef(0);
   useEffect(() => {
     const started = sessionNonce.current;
     const stillMine = () => sessionNonce.current === started;
-    fetchAdminMe()
-      .then((u) => {
+
+    checkAdminSession()
+      .then((diag) => {
         if (!stillMine()) return;
-        if (u) setCurrentUser(u);
-        else {
+        setSessionCheck(diag);
+
+        if (diag.status === 'expired') {
+          // Token expirado: bloquear acceso y pedir reingreso con mensaje claro
           setCurrentUser(null);
-          try {
-            localStorage.removeItem('la_joaquina_user');
-          } catch { /* ignore */ }
+          setGateError(`⚠️ Tu sesión ha expirado (${diag.detail}). Por favor ingresá tus credenciales nuevamente.`);
+        } else if (diag.status === 'invalid') {
+          // Token inválido o revocado
+          setCurrentUser(null);
+          setGateError(`⚠️ El token de acceso guardado es inválido. Por favor iniciá sesión nuevamente.`);
+        } else if (diag.status === 'valid' && diag.user) {
+          setCurrentUser(diag.user);
+        } else if (diag.status === 'server_unreachable') {
+          // Servidor inalcanzable temporalmente: permitir continuar con sesión en caché si existía
+          const existing = localStorage.getItem(STORAGE_KEY_USER) || localStorage.getItem('la_juaquina_user');
+          if (existing) {
+            try {
+              const parsed = JSON.parse(existing);
+              if (parsed && parsed.role !== 'customer') {
+                setCurrentUser(parsed);
+              }
+            } catch { /* ignore */ }
+          }
         }
       })
-      .catch(() => {
-        if (stillMine()) setCurrentUser(null);
+      .catch((err) => {
+        if (!stillMine()) return;
+        setSessionCheck({
+          valid: false,
+          status: 'invalid',
+          user: null,
+          expiresAt: null,
+          detail: err?.message || 'Error al validar el token de sesión.',
+        });
       })
       .finally(() => {
-        if (stillMine()) setCheckingSession(false);
+        if (!stillMine()) return;
+        setCheckingSession(false);
       });
+
+    // 2. Diagnóstico de conectividad inicial en segundo plano
+    checkBackendHealth().then((bh) => {
+      if (!stillMine()) return;
+      setBackendHealth(bh);
+      if (!bh.connected) {
+        setSilentFailureDetected(true);
+        setConsecutiveFailures(1);
+      } else {
+        setSilentFailureDetected(false);
+        setConsecutiveFailures(0);
+        setLastSyncTime(bh.timestamp);
+      }
+    });
   }, []);
 
+  // Función para ejecutar diagnóstico manual completo a demanda
+  const runFullDiagnostic = async () => {
+    setIsDiagnosing(true);
+    try {
+      const [sessionDiag, healthDiag] = await Promise.all([
+        checkAdminSession(),
+        checkBackendHealth(),
+      ]);
+      setSessionCheck(sessionDiag);
+      setBackendHealth(healthDiag);
+
+      if (!healthDiag.connected) {
+        setSilentFailureDetected(true);
+        setConsecutiveFailures((c) => Math.max(c, 1));
+        notify(`⚠️ Conexión fallando: ${healthDiag.error || 'No responde el backend'}`);
+      } else {
+        setSilentFailureDetected(false);
+        setConsecutiveFailures(0);
+        setLastSyncTime(new Date());
+      }
+
+      if (sessionDiag.status === 'expired' || sessionDiag.status === 'invalid') {
+        notify(`🔒 Token no válido: ${sessionDiag.detail}`);
+      } else if (healthDiag.connected && sessionDiag.valid) {
+        notify(`✅ Sistema en línea: Backend (${healthDiag.latencyMs}ms) y sesión validados.`);
+      }
+    } catch (err: any) {
+      notify(`❌ Error en prueba: ${err?.message || 'Fallo de diagnóstico'}`);
+    } finally {
+      setIsDiagnosing(false);
+    }
+  };
+
+  const formatTimeAgo = (date: Date | null) => {
+    if (!date) return 'Nunca sincronizado';
+    const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diffSec < 5) return 'Recién';
+    if (diffSec < 60) return `Hace ${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `Hace ${diffMin}m`;
+    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Sincronización en tiempo real multidispositivo y multiventana (BroadcastChannel + storage + polling cada 4s)
   useEffect(() => {
-    if (currentUser && currentUser.role !== 'customer') loadAll();
+    if (currentUser && currentUser.role !== 'customer') {
+      loadAll(false);
+
+      // 1. BroadcastChannel (moderno entre pestañas y ventanas del navegador)
+      let channel: BroadcastChannel | null = null;
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          channel = new BroadcastChannel('la_joaquina_sync');
+          channel.onmessage = (event) => {
+            const data = event?.data;
+            if (data?.type === 'order_created') {
+              loadAll(true);
+              const o = data.detail;
+              if (o?.orderId) {
+                playOrderNotificationSound();
+                notify(`🔔 ¡Nuevo pedido recibido! ${o.orderId} (${o.customerName || 'Cliente'}) · ${formatARS(o.total)}`);
+              }
+            } else if (data?.type === 'order_updated' || data?.type === 'products_updated') {
+              loadAll(true);
+            }
+          };
+        }
+      } catch { /* ignore */ }
+
+      // 2. Storage event (compatibilidad cruzada entre pestañas)
+      const onStorage = (e: StorageEvent) => {
+        if (e.key === 'la_joaquina_orders' || e.key === 'la_joaquina_last_sync' || e.key === 'la_joaquina_products_v2') {
+          loadAll(true);
+        }
+      };
+      window.addEventListener('storage', onStorage);
+
+      // 3. CustomEvent (misma ventana)
+      const onOrder = (e: any) => {
+        loadAll(true);
+        const o = e?.detail;
+        if (o?.orderId) {
+          playOrderNotificationSound();
+          notify(`🔔 ¡Nuevo pedido recibido! ${o.orderId} (${o.customerName || 'Cliente'}) · ${formatARS(o.total)}`);
+        }
+      };
+      window.addEventListener('joaquina:order_created', onOrder);
+
+      // 4. Vuelta a la pestaña (visibilidad)
+      const onFocus = () => {
+        if (document.visibilityState === 'visible') {
+          loadAll(true);
+        }
+      };
+      window.addEventListener('visibilitychange', onFocus);
+
+      // 5. Polling suave en segundo plano cada 4 segundos (para pedidos desde otros dispositivos/celulares)
+      const pollTimer = setInterval(() => {
+        loadAll(true);
+      }, 4000);
+
+      return () => {
+        window.removeEventListener('storage', onStorage);
+        window.removeEventListener('joaquina:order_created', onOrder);
+        window.removeEventListener('visibilitychange', onFocus);
+        clearInterval(pollTimer);
+        try {
+          channel?.close();
+        } catch { /* ignore */ }
+      };
+    }
   }, [currentUser]);
 
   const handleUpdateProducts = (list: Product[]) => {
@@ -194,6 +423,14 @@ export default function AdminApp() {
     sessionNonce.current++;
     await cloudLogout();
     setCurrentUser(null);
+    setSessionCheck({
+      valid: false,
+      status: 'no_token',
+      user: null,
+      expiresAt: null,
+      detail: 'Sesión cerrada por el usuario.',
+    });
+    setGateError(null);
   };
 
   const goToStore = () => {
@@ -257,6 +494,27 @@ export default function AdminApp() {
           <p className="text-[11px] text-[#8A7969] mb-6">
             Entrada privada <strong>admin.html</strong>. La tienda pública está en <strong>index.html</strong>.
           </p>
+
+          {/* Indicador de diagnóstico si el token expiró o es inválido */}
+          {sessionCheck && (sessionCheck.status === 'expired' || sessionCheck.status === 'invalid') && (
+            <div className="mb-4 p-3.5 bg-amber-50 border border-amber-300 text-amber-900 text-xs rounded-2xl flex items-start gap-2.5 text-left">
+              <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-950">
+                  {sessionCheck.status === 'expired' ? 'Sesión expirada' : 'Token de sesión no válido'}
+                </p>
+                <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                  {sessionCheck.detail}
+                </p>
+                {sessionCheck.expiresAt && (
+                  <p className="text-[10px] text-amber-700 font-mono mt-1">
+                    Venció: {new Date(sessionCheck.expiresAt).toLocaleString('es-AR')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {gateError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -291,10 +549,21 @@ export default function AdminApp() {
                 className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
               />
             </div>
-            <p className="text-[11px] text-[#8A7969] bg-[#FAF5EC] border border-[#E8DFC9] rounded-xl px-3 py-2">
-              ⚠️ El email cambió con el nombre nuevo: debe decir <strong>admin@lajoaquina.com</strong> (con O).
-              Si tu navegador autocompleta el viejo, corregilo a mano.
-            </p>
+            <div className="flex items-center justify-between text-[11px] text-[#8A7969] bg-[#FAF5EC] border border-[#E8DFC9] rounded-xl px-3 py-2">
+              <div>
+                Acceso inicial: <strong>admin@lajoaquina.com</strong> · Clave: <strong>admin1234</strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setGateEmail('admin@lajoaquina.com');
+                  setGatePassword('admin1234');
+                }}
+                className="ml-2 underline font-bold text-[#1B4E43] hover:text-[#256B5C] cursor-pointer shrink-0"
+              >
+                Autocompletar
+              </button>
+            </div>
             <button
               type="submit"
               disabled={loginLoading}
@@ -389,6 +658,37 @@ export default function AdminApp() {
         </div>
 
         <div className="mt-auto space-y-2">
+          {/* Monitor de conexión y estado de sesión en tiempo real */}
+          <button
+            onClick={() => setShowDiagModal(true)}
+            className="w-full text-left bg-black/20 hover:bg-black/30 border border-white/10 rounded-xl p-2.5 transition-colors cursor-pointer"
+            title="Clic para ver diagnóstico de sesión y conexión"
+          >
+            <div className="flex items-center justify-between text-[11px] font-bold text-[#E5D7BF]">
+              <span className="flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-[#EFA332]" />
+                Conexión
+              </span>
+              <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                backendHealth?.connected && !silentFailureDetected
+                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/50'
+                  : 'bg-red-950/80 text-red-300 border border-red-700/50 animate-pulse'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  backendHealth?.connected && !silentFailureDetected ? 'bg-emerald-400' : 'bg-red-400'
+                }`} />
+                {backendHealth?.connected && !silentFailureDetected
+                  ? `${backendHealth?.latencyMs !== undefined ? `${backendHealth.latencyMs}ms` : 'En línea'}`
+                  : 'Fallo'}
+              </span>
+            </div>
+            <div className="text-[10px] text-[#8FC0AF] mt-1 truncate">
+              {backendHealth?.connected && !silentFailureDetected
+                ? `Sync: ${formatTimeAgo(lastSyncTime)}`
+                : '⚠️ Backend fallando en 2do plano'}
+            </div>
+          </button>
+
           {(pendingOrders > 0 || pendingAlerts > 0) && (
             <div className="bg-white/10 border border-white/15 rounded-xl px-3 py-2.5 text-[11px] font-semibold text-[#FFE9B8] flex items-center gap-2">
               <Bell className="w-4 h-4 text-[#EFA332] shrink-0" />
@@ -433,6 +733,21 @@ export default function AdminApp() {
               </div>
             </div>
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowDiagModal(true)}
+                className={`p-2 rounded-xl border text-xs cursor-pointer ${
+                  backendHealth?.connected && !silentFailureDetected
+                    ? 'bg-emerald-950/60 border-emerald-700/50 text-emerald-300'
+                    : 'bg-red-950/80 border-red-700/60 text-red-300 animate-pulse'
+                }`}
+                title="Diagnóstico de conexión"
+              >
+                {backendHealth?.connected && !silentFailureDetected ? (
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <WifiOff className="w-4 h-4 text-red-400" />
+                )}
+              </button>
               <button onClick={goToStore} className="p-2 rounded-xl bg-[#FFE194] text-[#1E170E] cursor-pointer" title="Ver tienda">
                 <Store className="w-4 h-4" />
               </button>
@@ -458,6 +773,35 @@ export default function AdminApp() {
             <span className="hidden md:inline-flex text-[11px] font-bold text-[#5A4D3F] bg-[#FAF5EC] border border-[#E8DFC9] px-3 py-1.5 rounded-xl">
               {products.length} productos · {orders.length} pedidos
             </span>
+
+            {/* Indicador de conexión interactivo */}
+            <button
+              onClick={() => setShowDiagModal(true)}
+              className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+                backendHealth?.connected && !silentFailureDetected
+                  ? 'bg-[#E8F3EF] text-[#1B4E43] border-[#BCE0D4] hover:bg-[#D8EDE5]'
+                  : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 shadow-sm animate-pulse'
+              }`}
+              title="Clic para ver diagnóstico de sesión y conexión"
+            >
+              {backendHealth?.connected && !silentFailureDetected ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span>
+                    {backendHealth?.provider === 'supabase' ? 'Supabase' : 'Backend'}
+                    {backendHealth?.latencyMs !== undefined ? ` · ${backendHealth.latencyMs}ms` : ''}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <span>
+                    Fallo de conexión{consecutiveFailures > 1 ? ` (${consecutiveFailures})` : ''}
+                  </span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={() => {
                 loadAll();
@@ -470,6 +814,69 @@ export default function AdminApp() {
             </button>
           </div>
         </div>
+
+        {/* Alerta visible si la conexión en segundo plano está fallando silenciosamente */}
+        {silentFailureDetected && (
+          <div className="bg-red-50 border-b border-red-200 px-4 sm:px-6 py-3">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-red-100 rounded-lg shrink-0">
+                  <WifiOff className="w-4 h-4 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-red-900">
+                    Aviso: La sincronización en segundo plano con el servidor está fallando silenciosamente.
+                  </p>
+                  <p className="text-[11px] text-red-700">
+                    {backendHealth?.error || 'Sin respuesta al actualizar pedidos y productos en vivo.'} · {consecutiveFailures} intento(s) fallido(s).
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <button
+                  onClick={() => runFullDiagnostic()}
+                  disabled={isDiagnosing}
+                  className="text-xs font-bold bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  {isDiagnosing ? 'Reintentando…' : 'Reintentar ahora'}
+                </button>
+                <button
+                  onClick={() => setShowDiagModal(true)}
+                  className="text-xs font-bold text-red-800 underline hover:text-red-950 px-2 py-1.5 cursor-pointer"
+                >
+                  Ver diagnóstico
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Alerta visible si el token de sesión expiró mientras se navegaba el dashboard */}
+        {sessionCheck && (sessionCheck.status === 'expired' || sessionCheck.status === 'invalid') && (
+          <div className="bg-amber-50 border-b border-amber-300 px-4 sm:px-6 py-3">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-amber-100 rounded-lg shrink-0">
+                  <ShieldAlert className="w-4 h-4 text-amber-700" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-amber-950">
+                    Tu sesión de administrador ha expirado o el token de acceso es inválido.
+                  </p>
+                  <p className="text-[11px] text-amber-800">
+                    {sessionCheck.detail} · Las modificaciones a productos o pedidos no se guardarán en la base de datos.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-xs font-bold bg-amber-700 hover:bg-amber-800 text-white px-3.5 py-1.5 rounded-lg cursor-pointer transition-colors shrink-0"
+              >
+                Cerrar e iniciar sesión
+              </button>
+            </div>
+          </div>
+        )}
 
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-5">
           <AnimatePresence mode="wait">
@@ -494,13 +901,7 @@ export default function AdminApp() {
                 />
               )}
               {tab === 'ventas' && canVentas && (
-                <>
-                  {ordersError && (
-                    <div className="mb-4 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 font-bold text-xs">
-                      ⚠️ No se pudieron cargar los pedidos: {ordersError} Revisá tu sesión e internet.
-                    </div>
-                  )}
-                  <AdminOrders
+                <AdminOrders
                   orders={orders}
                   products={products}
                   settings={settings}
@@ -509,7 +910,6 @@ export default function AdminApp() {
                   onProductsChange={handleUpdateProducts}
                   notify={notify}
                 />
-                </>
               )}
               {tab === 'envios' && canComercio && (
                 <AdminShipping settings={settings} onSaved={(s) => { setSettings(s); notify('✅ Comercio y envíos guardados.'); }} />
@@ -541,6 +941,171 @@ export default function AdminApp() {
             <CheckCircle2 className="w-4 h-4 text-[#EFA332] shrink-0" />
             <span>{toast}</span>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Diagnóstico del Sistema, Sesión y Conexión */}
+      <AnimatePresence>
+        {showDiagModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-[#FFFDF9] border border-[#E5D7BF] rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-[#E8DFC9]">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-[#E8F3EF] text-[#1B4E43] rounded-xl">
+                    <Activity className="w-5 h-5 text-[#1B4E43]" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-[#1B4E43] font-display">
+                      Diagnóstico del Sistema y Conexión
+                    </h3>
+                    <p className="text-[11px] text-[#8A7969]">
+                      Monitoreo del token de sesión y sincronización en segundo plano
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDiagModal(false)}
+                  className="p-1.5 rounded-lg hover:bg-black/5 text-[#8A7969] cursor-pointer"
+                  title="Cerrar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 1. Estado del Token de Sesión */}
+              <div className="bg-[#FAF5EC] border border-[#E8DFC9] rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-[#1B4E43]" />
+                    <span className="text-xs font-extrabold text-[#2B231D]">Token de Sesión de Administrador</span>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                    sessionCheck?.status === 'valid'
+                      ? 'bg-[#E8F3EF] text-[#1B4E43] border-[#BCE0D4]'
+                      : sessionCheck?.status === 'expired' || sessionCheck?.status === 'invalid'
+                      ? 'bg-red-100 text-red-800 border-red-300'
+                      : 'bg-amber-100 text-amber-800 border-amber-300'
+                  }`}>
+                    {sessionCheck?.status === 'valid'
+                      ? '🟢 Válido'
+                      : sessionCheck?.status === 'expired'
+                      ? '🔴 Expirado'
+                      : sessionCheck?.status === 'invalid'
+                      ? '🔴 Inválido'
+                      : '⚪ Sin verificar'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#5A4D3F] leading-relaxed">
+                  {sessionCheck?.detail || 'Diagnóstico de sesión verificado al iniciar el dashboard.'}
+                </p>
+                {sessionCheck?.expiresAt && (
+                  <p className="text-[10px] text-[#8A7969] font-mono">
+                    Vencimiento del token: {new Date(sessionCheck.expiresAt).toLocaleString('es-AR')}
+                  </p>
+                )}
+                {currentUser && (
+                  <div className="text-[11px] text-[#6A5949] pt-1.5 border-t border-[#E8DFC9]/70 flex items-center justify-between">
+                    <span>Usuario: <strong>{currentUser.email}</strong></span>
+                    <span className="capitalize">Rol: <strong>{currentUser.role}</strong></span>
+                  </div>
+                )}
+                {sessionCheck && (sessionCheck.status === 'expired' || sessionCheck.status === 'invalid') && (
+                  <div className="pt-1">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-xs font-extrabold bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-xl cursor-pointer transition-colors"
+                    >
+                      Cerrar sesión e ingresar nuevamente
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Conexión en Segundo Plano (Backend / Supabase) */}
+              <div className="bg-[#FAF5EC] border border-[#E8DFC9] rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Server className="w-4 h-4 text-[#1B4E43]" />
+                    <span className="text-xs font-extrabold text-[#2B231D]">Conexión de Base de Datos / Backend</span>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                    backendHealth?.connected && !silentFailureDetected
+                      ? 'bg-[#E8F3EF] text-[#1B4E43] border-[#BCE0D4]'
+                      : 'bg-red-100 text-red-800 border-red-300 animate-pulse'
+                  }`}>
+                    {backendHealth?.connected && !silentFailureDetected ? '🟢 En línea' : '🔴 Fallo silencioso'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#5A4D3F] leading-relaxed">
+                  Proveedor: <strong>{backendHealth?.provider === 'supabase' ? 'Supabase (Nube)' : 'Servidor Express'}</strong>
+                </p>
+                {backendHealth?.latencyMs !== undefined && (
+                  <p className="text-[11px] text-[#5A4D3F]">
+                    Latencia de respuesta: <strong>{backendHealth.latencyMs} ms</strong>
+                  </p>
+                )}
+                {backendHealth?.error && (
+                  <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-800 font-mono">
+                    Detalle del error: {backendHealth.error}
+                  </div>
+                )}
+                <div className="text-[11px] text-[#6A5949] pt-1.5 border-t border-[#E8DFC9]/70 flex items-center justify-between">
+                  <span>Última sincronización exitosa:</span>
+                  <span className="font-bold text-[#1B4E43]">{formatTimeAgo(lastSyncTime)}</span>
+                </div>
+                {consecutiveFailures > 0 && (
+                  <div className="text-[10px] text-red-700 font-bold">
+                    ⚠️ {consecutiveFailures} intento(s) consecutivos sin respuesta del backend.
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Canales de Sincronización en Vivo */}
+              <div className="bg-[#FAF5EC] border border-[#E8DFC9] rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-[#1B4E43]" />
+                  <span className="text-xs font-extrabold text-[#2B231D]">Canales Activos en Vivo</span>
+                </div>
+                <ul className="text-[11px] text-[#6A5949] space-y-1.5 pl-1">
+                  <li className="flex items-center justify-between">
+                    <span>• Sondeo en segundo plano:</span>
+                    <strong className="text-emerald-700">Activo (cada 4s)</strong>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span>• Sincronización multiventana:</span>
+                    <strong className="text-emerald-700">BroadcastChannel ('la_joaquina_sync')</strong>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span>• Alarma de nuevos pedidos:</span>
+                    <strong className="text-emerald-700">Sonido habilitado</strong>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Acciones */}
+              <div className="pt-2 flex items-center justify-between gap-2">
+                <button
+                  onClick={runFullDiagnostic}
+                  disabled={isDiagnosing}
+                  className="bg-[#1B4E43] hover:bg-[#256B5C] text-white text-xs font-extrabold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isDiagnosing ? 'animate-spin' : ''}`} />
+                  {isDiagnosing ? 'Comprobando en vivo…' : 'Ejecutar prueba ahora'}
+                </button>
+                <button
+                  onClick={() => setShowDiagModal(false)}
+                  className="bg-white hover:bg-black/5 text-[#5A4D3F] border border-[#E8DFC9] text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

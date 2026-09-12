@@ -13,6 +13,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // Suprimir errores de WebSocket benignos de Vite en entorno iframe sandbox
+      window.addEventListener('unhandledrejection', function(event) {
+        var r = event.reason;
+        var msg = (r && (r.message || (typeof r === 'string' ? r : ''))) || '';
+        if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1 || (r && r.stack && r.stack.indexOf('vite') !== -1)) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      });
+      window.addEventListener('error', function(event) {
+        var msg = event.message || '';
+        if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      });
+    </script>
   </head>
   <body class="bg-[#FAF7F2] text-[#2B231D] antialiased selection:bg-[#EFA332]/30 selection:text-[#1B4E43]">
     <div id="root"></div>

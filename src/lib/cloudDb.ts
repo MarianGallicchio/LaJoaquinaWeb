@@ -19,12 +19,61 @@ export interface CloudDbStatus {
   ordersCount: number;
 }
 
-const STORAGE_KEY_PRODUCTS = 'la_joaquina_products_v2';
-const STORAGE_KEY_ORDERS = 'la_juaquina_orders';
-const STORAGE_KEY_USER = 'la_juaquina_user';
-const STORAGE_KEY_ALERTS = 'la_juaquina_stock_alerts';
-const STORAGE_KEY_DISTRIBUTORS = 'la_juaquina_distributors';
-const STORAGE_KEY_ADMIN_TOKEN = 'la_juaquina_admin_token';
+export const STORAGE_KEY_PRODUCTS = 'la_joaquina_products_v2';
+export const STORAGE_KEY_ORDERS = 'la_joaquina_orders';
+export const STORAGE_KEY_USER = 'la_joaquina_user';
+export const STORAGE_KEY_ALERTS = 'la_joaquina_stock_alerts';
+export const STORAGE_KEY_DISTRIBUTORS = 'la_joaquina_distributors';
+export const STORAGE_KEY_ADMIN_TOKEN = 'la_joaquina_admin_token';
+
+// Canal para sincronización bidireccional en tiempo real entre pestañas (tienda y panel admin)
+export const joaquinaSyncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('la_joaquina_sync') : null;
+
+export function broadcastSync(type: 'order_created' | 'order_updated' | 'products_updated', detail?: any) {
+  try {
+    joaquinaSyncChannel?.postMessage({ type, detail, timestamp: Date.now() });
+  } catch { /* ignore */ }
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('la_joaquina_last_sync', `${type}_${Date.now()}`);
+    }
+  } catch { /* ignore */ }
+}
+
+export function playOrderNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+    
+    // Tono 1 (D5 ~ 587Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, now);
+    gain1.gain.setValueAtTime(0.2, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.35);
+
+    // Tono 2 (A5 ~ 880Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, now + 0.12);
+    gain2.gain.setValueAtTime(0.25, now + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.12);
+    osc2.stop(now + 0.65);
+  } catch {
+    // Si el navegador bloquea audio antes de interacción del usuario, ignorar silenciosamente
+  }
+}
 
 // Prioridad: 1) Supabase (nube compartida real), 2) backend /api (local o Vercel), 3) navegador.
 export function supaMode(): boolean {
@@ -36,7 +85,7 @@ let apiCache: { ok: boolean; at: number } | null = null;
 async function apiUp(): Promise<boolean> {
   if (supaMode()) return false;
   const now = Date.now();
-  if (apiCache && now - apiCache.at < 60000) return apiCache.ok;
+  if (apiCache && now - apiCache.at < 15000) return apiCache.ok;
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 4000);
@@ -54,22 +103,41 @@ async function apiUp(): Promise<boolean> {
 
 export function getAdminToken(): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY_ADMIN_TOKEN);
+    return localStorage.getItem(STORAGE_KEY_ADMIN_TOKEN) || localStorage.getItem('la_juaquina_admin_token');
   } catch {
     return null;
   }
 }
 
-function setAdminToken(token: string) {
+export function setAdminToken(token: string) {
   try {
     localStorage.setItem(STORAGE_KEY_ADMIN_TOKEN, token);
+    localStorage.setItem('la_juaquina_admin_token', token);
   } catch { /* ignore */ }
 }
 
-function clearAdminToken() {
+export function clearAdminToken() {
   try {
     localStorage.removeItem(STORAGE_KEY_ADMIN_TOKEN);
+    localStorage.removeItem('la_juaquina_admin_token');
   } catch { /* ignore */ }
+}
+
+export function decodeTokenPayload(token: string): any {
+  try {
+    const parts = token.split('.');
+    if (parts.length >= 2) {
+      let b64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) {
+        b64 += '=';
+      }
+      const json = atob(b64);
+      return JSON.parse(json);
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
@@ -79,7 +147,7 @@ function authHeaders(extra: Record<string, string> = {}): Record<string, string>
 
 function getStoredUser(): AuthUserProfile | null {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_USER);
+    const saved = localStorage.getItem(STORAGE_KEY_USER) || localStorage.getItem('la_juaquina_user');
     return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
@@ -233,66 +301,184 @@ function markOrderTarget(t: SaveTarget) {
 
 // Save Order (público: lo usa el checkout de la tienda)
 export async function saveCloudOrder(order: OrderDetails): Promise<OrderDetails> {
+  // Garantizar estructura válida, sanitizada y con tipos correctos para el backend
+  const formattedOrder: OrderDetails = {
+    orderId: order.orderId || `JQ-${Math.floor(100000 + Math.random() * 900000)}`,
+    customerId: order.customerId,
+    customerName: (order.customerName || '').trim() || 'Cliente Anónimo',
+    customerPhone: (order.customerPhone || '').trim(),
+    customerEmail: (order.customerEmail || '').trim().toLowerCase(),
+    deliveryMethod: order.deliveryMethod || 'pickup',
+    address: order.address || 'Retiro en local',
+    notes: order.notes || '',
+    paymentMethod: order.paymentMethod || 'efectivo',
+    items: Array.isArray(order.items)
+      ? order.items.map((i) => ({
+          product: {
+            id: i.product?.id || '',
+            name: i.product?.name || 'Producto',
+            brand: i.product?.brand || '',
+            category: i.product?.category || 'otros',
+            image: i.product?.image || '',
+            variants: i.product?.variants || [],
+            rating: i.product?.rating || 5,
+            reviewsCount: i.product?.reviewsCount || 0,
+            description: i.product?.description || '',
+            mercadolibreQuery: i.product?.mercadolibreQuery || '',
+          } as any,
+          selectedVariant: {
+            weight: i.selectedVariant?.weight || '',
+            price: Number(i.selectedVariant?.price) || 0,
+            inStock: i.selectedVariant?.inStock !== false,
+            stock: typeof i.selectedVariant?.stock === 'number' ? i.selectedVariant.stock : undefined,
+          },
+          quantity: Math.max(1, Number(i.quantity) || 1),
+        }))
+      : [],
+    subtotal: Number(order.subtotal) || 0,
+    discount: Number(order.discount) || 0,
+    shippingCost: Number(order.shippingCost) || 0,
+    total: Number(order.total) || 0,
+    status: order.status || 'pendiente',
+    createdAt: order.createdAt || new Date().toISOString(),
+    trackingCode: order.trackingCode || '',
+    adminNotes: order.adminNotes || '',
+    history: order.history || [],
+  };
+
+  console.log('[saveCloudOrder] Iniciando guardado de orden:', formattedOrder.orderId, {
+    itemsCount: formattedOrder.items.length,
+    total: formattedOrder.total,
+    email: formattedOrder.customerEmail,
+  });
+
   if (supaMode()) {
     try {
-      const saved = await supa.supaSaveOrder(order);
+      console.log('[saveCloudOrder] Guardando en Supabase...');
+      const saved = await supa.supaSaveOrder(formattedOrder);
       saveOrderLocally(saved);
       markOrderTarget('ok');
+      console.log('[saveCloudOrder] Guardado exitoso en Supabase:', saved.orderId);
       return saved;
     } catch (err) {
-      console.warn('Supabase order error, guardando local:', err);
+      console.error('[saveCloudOrder] Error al guardar en Supabase:', err);
     }
-    saveOrderLocally(order);
-    markOrderTarget('local');
-    return order;
   }
-  if (!(await apiUp())) {
-    saveOrderLocally(order);
-    markOrderTarget('local');
-    return order;
-  }
+
+  // Enviar a la API cloud del backend (/api/cloud/orders)
   try {
+    console.log('[saveCloudOrder] Enviando a /api/cloud/orders...');
     const res = await fetch('/api/cloud/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order }),
+      body: JSON.stringify({ order: formattedOrder }),
     });
+
     if (res.ok) {
       const data = await res.json();
-      if (data.order) {
+      if (data && data.order) {
+        console.log('[saveCloudOrder] Pedido confirmado por /api/cloud/orders:', data.order.orderId);
         saveOrderLocally(data.order);
         markOrderTarget('ok');
         return data.order;
       }
+    } else {
+      const text = await res.text();
+      console.error(`[saveCloudOrder] Error HTTP ${res.status} en /api/cloud/orders:`, text);
     }
   } catch (err) {
-    console.warn('Network error saving order to cloud:', err);
+    console.error('[saveCloudOrder] Error de red en /api/cloud/orders:', err);
   }
 
-  saveOrderLocally(order);
+  // Fallback endpoint directo (/api/order)
+  try {
+    console.warn('[saveCloudOrder] Intentando fallback en /api/order para pedido:', formattedOrder.orderId);
+    const res2 = await fetch('/api/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formattedOrder),
+    });
+
+    if (res2.ok) {
+      const data2 = await res2.json();
+      if (data2 && data2.order) {
+        console.log('[saveCloudOrder] Pedido confirmado por fallback /api/order:', data2.order.orderId);
+        saveOrderLocally(data2.order);
+        markOrderTarget('ok');
+        return data2.order;
+      }
+    } else {
+      const text2 = await res2.text();
+      console.error(`[saveCloudOrder] Error HTTP ${res2.status} en fallback /api/order:`, text2);
+    }
+  } catch (err2) {
+    console.error('[saveCloudOrder] Error de red en fallback /api/order:', err2);
+  }
+
+  // Fallback local como última instancia
+  console.warn('[saveCloudOrder] Guardando orden en almacenamiento local (fallback offline):', formattedOrder.orderId);
+  saveOrderLocally(formattedOrder);
   markOrderTarget('local');
-  return order;
+  return formattedOrder;
 }
 
 // Fetch Orders (solo admin)
 export async function fetchCloudOrders(): Promise<OrderDetails[]> {
   if (supaMode()) {
-    const orders = await supa.supaGetOrders();
-    localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(orders));
-    return orders;
-  }
-  const res = await fetch('/api/cloud/orders', {
-    method: 'GET',
-    headers: { Accept: 'application/json', ...authHeaders() },
-  });
-  if (res.ok) {
-    const data = await res.json();
-    if (Array.isArray(data.orders)) {
-      localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(data.orders));
-      return data.orders;
+    try {
+      const orders = await supa.supaGetOrders();
+      localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(orders));
+      return orders;
+    } catch (err) {
+      console.warn('[fetchCloudOrders] Error leyendo pedidos de Supabase, usando local:', err);
+      return getStoredOrders();
     }
   }
-  if (res.status === 401) throw new Error('Sesión de administradora vencida. Volvé a ingresar.');
+
+  try {
+    const res = await fetch('/api/cloud/orders', {
+      method: 'GET',
+      headers: { Accept: 'application/json', ...authHeaders() },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        // Combinar pedidos del servidor con pedidos locales pendientes de sincronización
+        const local = getStoredOrders();
+        const map = new Map<string, OrderDetails>();
+
+        // 1. Priorizar pedidos del servidor
+        for (const o of data.orders) {
+          if (o && o.orderId) map.set(o.orderId, o);
+        }
+
+        // 2. Si hay pedidos locales que aún no llegaron al servidor, conservarlos y sincronizarlos
+        for (const loc of local) {
+          if (loc && loc.orderId && !map.has(loc.orderId)) {
+            map.set(loc.orderId, loc);
+            // Sincronizar en segundo plano al backend
+            fetch('/api/cloud/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order: loc }),
+            }).catch(() => {});
+          }
+        }
+
+        const merged = Array.from(map.values());
+        try {
+          localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(merged));
+        } catch { /* ignore */ }
+        return merged;
+      }
+    } else {
+      console.warn(`[fetchCloudOrders] Respuesta HTTP ${res.status} al obtener pedidos.`);
+    }
+  } catch (err) {
+    console.warn('[fetchCloudOrders] Error de conexión al consultar pedidos:', err);
+  }
+
   return getStoredOrders();
 }
 
@@ -480,31 +666,275 @@ export async function cloudLogin(email: string, password?: string): Promise<Auth
 
 // Verifica la sesión guardada
 export async function fetchAdminMe(): Promise<AuthUserProfile | null> {
+  const diag = await checkAdminSession();
+  return diag.user;
+}
+
+export interface SessionCheckResult {
+  valid: boolean;
+  status: 'valid' | 'expired' | 'invalid' | 'no_token' | 'server_unreachable';
+  user: AuthUserProfile | null;
+  expiresAt: Date | null;
+  detail: string;
+}
+
+// Diagnóstico detallado del token y sesión de administrador
+export async function checkAdminSession(): Promise<SessionCheckResult> {
   if (supaMode()) {
-    const me = await supa.supaMe().catch(() => null);
-    if (me) {
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(me));
-      return me;
+    try {
+      const { data, error } = await supa.supa().auth.getSession();
+      if (error) {
+        return {
+          valid: false,
+          status: 'invalid',
+          user: null,
+          expiresAt: null,
+          detail: `Error en sesión de Supabase: ${error.message}`,
+        };
+      }
+      const session = data?.session;
+      if (!session) {
+        const stored = getStoredUser();
+        if (stored && stored.role !== 'customer') {
+          return {
+            valid: false,
+            status: 'expired',
+            user: null,
+            expiresAt: null,
+            detail: 'La sesión de Supabase expiró o fue cerrada.',
+          };
+        }
+        return {
+          valid: false,
+          status: 'no_token',
+          user: null,
+          expiresAt: null,
+          detail: 'No hay sesión de Supabase iniciada.',
+        };
+      }
+      const exp = session.expires_at ? new Date(session.expires_at * 1000) : null;
+      if (exp && exp.getTime() < Date.now()) {
+        return {
+          valid: false,
+          status: 'expired',
+          user: null,
+          expiresAt: exp,
+          detail: `Sesión de Supabase expirada el ${exp.toLocaleTimeString('es-AR')}.`,
+        };
+      }
+      const profile = await supa.supaMe().catch(() => null);
+      if (!profile || profile.role === 'customer') {
+        return {
+          valid: false,
+          status: 'invalid',
+          user: null,
+          expiresAt: exp,
+          detail: 'La cuenta conectada no posee permisos de administrador.',
+        };
+      }
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
+      return {
+        valid: true,
+        status: 'valid',
+        user: profile,
+        expiresAt: exp,
+        detail: 'Sesión de Supabase activa y validada.',
+      };
+    } catch (e: any) {
+      return {
+        valid: false,
+        status: 'server_unreachable',
+        user: getStoredUser(),
+        expiresAt: null,
+        detail: e?.message || 'No se pudo contactar a Supabase para verificar sesión.',
+      };
     }
-    return null;
   }
+
+  // Backend Express nativo
   const token = getAdminToken();
-  if (!token) return null;
-  try {
-    const res = await fetch('/api/cloud/auth/me', {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.user) {
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
-        return data.user;
+  if (!token) {
+    return {
+      valid: false,
+      status: 'no_token',
+      user: null,
+      expiresAt: null,
+      detail: 'No se encontró token de sesión en el navegador.',
+    };
+  }
+
+  let expiresAt: Date | null = null;
+  const payload = decodeTokenPayload(token);
+  if (payload) {
+    if (payload.exp) {
+      expiresAt = new Date(payload.exp);
+      if (Date.now() > payload.exp) {
+        clearAdminToken();
+        localStorage.removeItem(STORAGE_KEY_USER);
+        return {
+          valid: false,
+          status: 'expired',
+          user: null,
+          expiresAt,
+          detail: `El token de sesión expiró el ${expiresAt.toLocaleString('es-AR')}.`,
+        };
       }
     }
-  } catch {
-    return getStoredUser();
+    if (payload.role && payload.role !== 'admin') {
+      clearAdminToken();
+      localStorage.removeItem(STORAGE_KEY_USER);
+      return {
+        valid: false,
+        status: 'invalid',
+        user: null,
+        expiresAt,
+        detail: 'El token no corresponde a una cuenta con rol de administrador.',
+      };
+    }
   }
-  return null;
+
+  try {
+    const res = await fetch('/api/cloud/auth/me', {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.status === 401) {
+      clearAdminToken();
+      localStorage.removeItem(STORAGE_KEY_USER);
+      return {
+        valid: false,
+        status: 'invalid',
+        user: null,
+        expiresAt,
+        detail: 'El servidor rechazó el token (sesión vencida, firma inválida o token revocado).',
+      };
+    }
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data?.user) {
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+        return {
+          valid: true,
+          status: 'valid',
+          user: data.user,
+          expiresAt,
+          detail: 'Sesión activa y confirmada por el servidor.',
+        };
+      }
+    }
+
+    return {
+      valid: false,
+      status: 'invalid',
+      user: null,
+      expiresAt,
+      detail: `El servidor devolvió respuesta de autenticación anómala (${res.status}).`,
+    };
+  } catch (err: any) {
+    // Si no hay conexión con el servidor
+    const stored = getStoredUser();
+    return {
+      valid: !!stored,
+      status: 'server_unreachable',
+      user: stored,
+      expiresAt,
+      detail: 'Sin conexión con el servidor para validar el token (modo sin conexión).',
+    };
+  }
+}
+
+export interface BackendHealthResult {
+  connected: boolean;
+  provider: string;
+  backendType: 'supabase' | 'custom_express';
+  latencyMs: number;
+  productsCount?: number;
+  ordersCount?: number;
+  error?: string;
+  detail: string;
+  timestamp: Date;
+}
+
+// Diagnóstico de conectividad en segundo plano (Supabase o Custom Express)
+export async function checkBackendHealth(): Promise<BackendHealthResult> {
+  const start = performance.now();
+  if (supaMode()) {
+    try {
+      const diag = await supa.supaDiagnostics();
+      const latency = Math.round(performance.now() - start);
+      return {
+        connected: diag.reachable && diag.tables,
+        provider: 'Supabase Cloud (PostgreSQL)',
+        backendType: 'supabase',
+        latencyMs: latency,
+        error: !diag.reachable || !diag.tables ? diag.detail : undefined,
+        detail: diag.detail,
+        timestamp: new Date(),
+      };
+    } catch (e: any) {
+      const latency = Math.round(performance.now() - start);
+      return {
+        connected: false,
+        provider: 'Supabase Cloud',
+        backendType: 'supabase',
+        latencyMs: latency,
+        error: e?.message || 'Error al conectar con Supabase',
+        detail: 'Fallo de conexión a Supabase',
+        timestamp: new Date(),
+      };
+    }
+  }
+
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch('/api/cloud/status', {
+      headers: { Accept: 'application/json' },
+      signal: ctrl.signal,
+    });
+    clearTimeout(timeout);
+    const latency = Math.round(performance.now() - start);
+    if (res.ok) {
+      const json = await res.json().catch(() => null);
+      return {
+        connected: true,
+        provider: json?.provider || 'Servidor Express (La Joaquina Cloud)',
+        backendType: 'custom_express',
+        latencyMs: latency,
+        productsCount: json?.productsCount,
+        ordersCount: json?.ordersCount,
+        detail: `Servidor Express activo (${json?.productsCount ?? 0} prod, ${json?.ordersCount ?? 0} pedidos) · ${latency}ms`,
+        timestamp: new Date(),
+      };
+    } else {
+      return {
+        connected: false,
+        provider: 'Servidor Express',
+        backendType: 'custom_express',
+        latencyMs: latency,
+        error: `HTTP ${res.status}: ${res.statusText || 'Error en servidor'}`,
+        detail: `El servidor respondió con error HTTP ${res.status}`,
+        timestamp: new Date(),
+      };
+    }
+  } catch (e: any) {
+    const latency = Math.round(performance.now() - start);
+    const isTimeout = e?.name === 'AbortError';
+    const errText = isTimeout ? 'Tiempo de espera agotado (>5s)' : (e?.message || 'Servidor no accesible');
+    return {
+      connected: false,
+      provider: 'Servidor Express',
+      backendType: 'custom_express',
+      latencyMs: latency,
+      error: errText,
+      detail: `Fallo silencioso de conexión: ${errText}`,
+      timestamp: new Date(),
+    };
+  }
 }
 
 // ============ CUENTAS DE CLIENTES (registro libre + historial) ============
@@ -517,16 +947,29 @@ export async function customerRegister(name: string, email: string, password: st
   return cloudRegister(name, email, password);
 }
 
-export async function customerLogin(email: string, password: string): Promise<AuthUserProfile> {
+export async function customerLogin(email: string, password?: string): Promise<AuthUserProfile> {
+  const clean = (email || '').toLowerCase().trim();
   if (supaMode()) {
-    const u = await supa.supaLogin(email, password);
+    const u = await supa.supaLogin(clean, password || '');
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(u));
     return u;
   }
+  // Si se ingresó contraseña, verificar si son credenciales del administrador
+  if (password) {
+    try {
+      const admin = await cloudLogin(clean, password);
+      if (admin && admin.role === 'admin') {
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(admin));
+        return admin;
+      }
+    } catch {
+      // Si falló verificación admin, continúa como cliente
+    }
+  }
   const profile: AuthUserProfile = {
     id: `user-${Date.now()}`,
-    email: email.toLowerCase().trim(),
-    name: email.split('@')[0] || 'Cliente',
+    email: clean,
+    name: clean.split('@')[0] || 'Cliente',
     role: 'customer',
   };
   localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
@@ -542,7 +985,29 @@ export async function fetchMyOrders(email: string): Promise<OrderDetails[]> {
   const clean = (email || '').toLowerCase().trim();
   if (!clean) return [];
   if (supaMode()) return supa.supaMyOrders(clean);
-  return getStoredOrders().filter((o) => (o.customerEmail || '').toLowerCase() === clean);
+
+  // Consultar al backend
+  let backendOrders: OrderDetails[] = [];
+  try {
+    const res = await fetch(`/api/cloud/my-orders?email=${encodeURIComponent(clean)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        backendOrders = data.orders;
+      }
+    }
+  } catch (err) {
+    console.warn('Error fetching my orders from cloud:', err);
+  }
+
+  const localOrders = getStoredOrders().filter((o) => (o.customerEmail || '').toLowerCase() === clean);
+  // Unificar sin duplicados
+  const map = new Map<string, OrderDetails>();
+  for (const o of localOrders) map.set(o.orderId, o);
+  for (const o of backendOrders) map.set(o.orderId, o);
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 // Cloud Register (clientes: solo perfil local, sin contraseñas ni usuarios Auth)
@@ -617,20 +1082,27 @@ function removeLocalProduct(productId: string) {
   localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(current));
 }
 
-function getStoredOrders(): OrderDetails[] {
+export function getStoredOrders(): OrderDetails[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_ORDERS);
+    const saved = localStorage.getItem(STORAGE_KEY_ORDERS) || localStorage.getItem('la_juaquina_orders');
     return saved ? JSON.parse(saved) : [];
   } catch {
     return [];
   }
 }
 
-function saveOrderLocally(order: OrderDetails) {
+export function saveOrderLocally(order: OrderDetails) {
   const current = getStoredOrders();
   const filtered = current.filter((o) => o.orderId !== order.orderId);
   filtered.unshift(order);
-  localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(filtered));
+  try {
+    localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(filtered));
+  } catch { /* ignore */ }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('joaquina:order_created', { detail: order }));
+  }
+  // Notificar a otras pestañas y ventanas abiertas (admin o tienda)
+  broadcastSync('order_created', order);
 }
 
 // ============ ORDER STATUS (Admin: ventas y envíos) ============
@@ -741,62 +1213,115 @@ export async function saveCloudSettings(settings: StoreSettings): Promise<StoreS
 
 // Decrementa stock luego de una compra (tienda -> admin)
 export async function decrementStockForOrder(order: OrderDetails, products: Product[]): Promise<Product[]> {
-  const updated = products.map((p) => {
-    const itemsForProduct = order.items.filter((i) => i.product.id === p.id);
-    if (itemsForProduct.length === 0) return p;
-    return {
-      ...p,
-      variants: p.variants.map((v) => {
-        const match = itemsForProduct.find((i) => i.selectedVariant.weight === v.weight);
-        if (!match) return v;
-        const current = typeof v.stock === 'number' ? v.stock : null;
-        if (current === null) return v;
-        const next = Math.max(0, current - match.quantity);
-        return { ...v, stock: next, inStock: next > 0 };
-      }),
-    };
-  });
-  for (const prod of updated) {
-    const orig = products.find((p) => p.id === prod.id);
-    if (orig && JSON.stringify(orig) !== JSON.stringify(prod)) {
-      try {
-        await saveCloudProduct(prod);
-      } catch (e) {
-        console.warn('Stock local actualizado, nube pendiente:', e);
+  if (!order || !Array.isArray(order.items) || order.items.length === 0) {
+    console.warn('[decrementStockForOrder] Orden sin items o vacía. No se modifica stock:', order);
+    return products;
+  }
+
+  console.log('[decrementStockForOrder] Descontando stock para pedido:', order.orderId, 'Items a procesar:', order.items.length);
+
+  try {
+    const updated = products.map((p) => {
+      const itemsForProduct = order.items.filter((i) => i.product && i.product.id === p.id);
+      if (itemsForProduct.length === 0) return p;
+      return {
+        ...p,
+        variants: p.variants.map((v) => {
+          const match = itemsForProduct.find((i) => {
+            const varW = (v.weight || '').trim().toLowerCase();
+            const itemW = (i.selectedVariant?.weight || '').trim().toLowerCase();
+            if (varW && itemW && varW === itemW) return true;
+            return i.selectedVariant?.price === v.price;
+          });
+          if (!match) return v;
+          const current = typeof v.stock === 'number' ? v.stock : null;
+          if (current === null) return v;
+          const qty = Number(match.quantity) || 1;
+          const next = Math.max(0, current - qty);
+          console.log(`[decrementStockForOrder] Producto "${p.name}" (${v.weight}): stock ${current} -> ${next}`);
+          return { ...v, stock: next, inStock: next > 0 };
+        }),
+      };
+    });
+
+    if (supaMode()) {
+      for (const prod of updated) {
+        const orig = products.find((p) => p.id === prod.id);
+        if (orig && JSON.stringify(orig) !== JSON.stringify(prod)) {
+          try {
+            await supa.supaSaveProduct(prod);
+            console.log('[decrementStockForOrder] Producto sincronizado con Supabase:', prod.id);
+          } catch (e) {
+            console.error('[decrementStockForOrder] Error al actualizar producto en Supabase:', e);
+          }
+        }
       }
     }
+
+    try {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
+      console.log('[decrementStockForOrder] Stock actualizado guardado en cache local.');
+    } catch (storageErr) {
+      console.error('[decrementStockForOrder] Error guardando productos en localStorage:', storageErr);
+    }
+
+    return updated;
+  } catch (err) {
+    console.error('[decrementStockForOrder] Error fatal durante el descuento de stock:', err);
+    return products;
   }
-  try {
-    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
-  } catch { /* ignore */ }
-  return updated;
 }
 
 // Devuelve stock al cancelar un pedido (inverso del descuento por compra)
 export async function restockForOrder(order: OrderDetails, products: Product[]): Promise<Product[]> {
-  const updated = products.map((p) => {
-    const itemsForProduct = order.items.filter((i) => i.product.id === p.id);
-    if (itemsForProduct.length === 0) return p;
-    return {
-      ...p,
-      variants: p.variants.map((v) => {
-        const match = itemsForProduct.find((i) => i.selectedVariant.weight === v.weight);
-        if (!match || typeof v.stock !== 'number') return v;
-        const next = v.stock + match.quantity;
-        return { ...v, stock: next, inStock: true };
-      }),
-    };
-  });
-  for (const prod of updated) {
-    const orig = products.find((p) => p.id === prod.id);
-    if (orig && JSON.stringify(orig) !== JSON.stringify(prod)) {
-      await saveCloudProduct(prod);
-    }
+  if (!order || !Array.isArray(order.items) || order.items.length === 0) {
+    return products;
   }
+  console.log('[restockForOrder] Reponiendo stock para pedido cancelado:', order.orderId);
   try {
-    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
-  } catch { /* ignore */ }
-  return updated;
+    const updated = products.map((p) => {
+      const itemsForProduct = order.items.filter((i) => i.product && i.product.id === p.id);
+      if (itemsForProduct.length === 0) return p;
+      return {
+        ...p,
+        variants: p.variants.map((v) => {
+          const match = itemsForProduct.find((i) => {
+            const varW = (v.weight || '').trim().toLowerCase();
+            const itemW = (i.selectedVariant?.weight || '').trim().toLowerCase();
+            if (varW && itemW && varW === itemW) return true;
+            return i.selectedVariant?.price === v.price;
+          });
+          if (!match || typeof v.stock !== 'number') return v;
+          const qty = Number(match.quantity) || 1;
+          const next = v.stock + qty;
+          console.log(`[restockForOrder] Repuesto "${p.name}" (${v.weight}): stock ${v.stock} -> ${next}`);
+          return { ...v, stock: next, inStock: true };
+        }),
+      };
+    });
+
+    if (supaMode()) {
+      for (const prod of updated) {
+        const orig = products.find((p) => p.id === prod.id);
+        if (orig && JSON.stringify(orig) !== JSON.stringify(prod)) {
+          try {
+            await supa.supaSaveProduct(prod);
+          } catch (e) {
+            console.error('[restockForOrder] Error sincronizando producto en Supabase:', e);
+          }
+        }
+      }
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
+    } catch { /* ignore */ }
+
+    return updated;
+  } catch (err) {
+    console.error('[restockForOrder] Error fatal durante reposición de stock:', err);
+    return products;
+  }
 }
 
 // ============ DISTRIBUIDORES (solo admin) ============
@@ -1029,9 +1554,54 @@ export async function createMpPayment(order: OrderDetails): Promise<MpPaymentRes
   return data as MpPaymentResult;
 }
 
-// ============ REALTIME (pedidos en vivo, solo Supabase) ============
+// ============ REALTIME (pedidos en vivo: Supabase + backend + eventos de ventana) ============
 
 export function subscribeOrdersLive(onInsert: (o: OrderDetails) => void): () => void {
-  if (!supaMode()) return () => {};
-  return supa.supaSubscribeOrders(onInsert);
+  if (supaMode()) {
+    return supa.supaSubscribeOrders(onInsert);
+  }
+
+  const handleOrderCreated = (e: Event) => {
+    const detail = (e as CustomEvent<OrderDetails>).detail;
+    if (detail) onInsert(detail);
+  };
+
+  const handleStorage = (e: StorageEvent) => {
+    if ((e.key === STORAGE_KEY_ORDERS || e.key === 'la_juaquina_orders') && e.newValue) {
+      try {
+        const list: OrderDetails[] = JSON.parse(e.newValue);
+        if (Array.isArray(list) && list.length > 0) {
+          onInsert(list[0]);
+        }
+      } catch { /* ignore */ }
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('joaquina:order_created', handleOrderCreated);
+    window.addEventListener('storage', handleStorage);
+  }
+
+  // Polling automático cada 8s para sincronizar ventas realizadas en otros dispositivos
+  let lastOrderId: string | null = null;
+  const pollTimer = setInterval(async () => {
+    try {
+      const orders = await fetchCloudOrders();
+      if (orders.length > 0) {
+        const newest = orders[0];
+        if (lastOrderId && newest.orderId !== lastOrderId) {
+          onInsert(newest);
+        }
+        lastOrderId = newest.orderId;
+      }
+    } catch { /* ignore */ }
+  }, 8000);
+
+  return () => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('joaquina:order_created', handleOrderCreated);
+      window.removeEventListener('storage', handleStorage);
+    }
+    clearInterval(pollTimer);
+  };
 }

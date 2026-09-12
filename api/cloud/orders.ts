@@ -10,11 +10,19 @@ export default async function handler(req: Request): Promise<Response> {
   }
   if (req.method === 'POST') {
     try {
-      const { order } = await bodyOf(req);
+      const body = await bodyOf(req);
+      const order = body?.order || body;
+      if (!order) {
+        console.error('[API /api/cloud/orders] Error: Payload de orden vacío o inválido:', body);
+        return err('Payload de orden vacío.', 400);
+      }
+      console.log('[API /api/cloud/orders] Recibido pedido:', order.orderId || 'sin-id', 'Cliente:', order.customerName);
       const saved = await createOrder(order);
+      console.log('[API /api/cloud/orders] Pedido guardado exitosamente:', saved.orderId);
       return json({ success: true, order: saved });
     } catch (e: any) {
-      return err(e.message || 'Error guardando orden.');
+      console.error('[API /api/cloud/orders] Excepción al guardar pedido:', e);
+      return err(e.message || 'Error guardando orden.', 500);
     }
   }
   return err('Método no permitido.', 405);

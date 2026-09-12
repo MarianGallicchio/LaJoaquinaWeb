@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -16,10 +16,19 @@ import {
   ArrowLeft,
   ArrowRight,
   MapPin,
-  Store
+  Store,
+  Loader2
 } from 'lucide-react';
-import { CartItem, OrderDetails, StoreSettings } from '../types';
-import { saveCloudOrder, createMpPayment, sendOrderEmail, getLastOrderTarget, SaveTarget } from '../lib/cloudDb';
+import { CartItem, OrderDetails, StoreSettings, Product } from '../types';
+import { 
+  saveCloudOrder, 
+  decrementStockForOrder, 
+  fetchCloudProducts, 
+  createMpPayment, 
+  sendOrderEmail, 
+  getLastOrderTarget, 
+  SaveTarget 
+} from '../lib/cloudDb';
 import { DEFAULT_SETTINGS, getShippingCost, getEnabledShipping, getMethodLabel } from '../lib/storeSettings';
 
 interface CheckoutModalProps {
@@ -28,9 +37,10 @@ interface CheckoutModalProps {
   items: CartItem[];
   shippingMethod: 'pickup' | 'express_amba' | 'correo_argentino';
   discountCode: string;
-  onOrderCompleted: (order: OrderDetails) => void;
+  onOrderCompleted: (order: OrderDetails) => void | Promise<void>;
   onBackToCart?: () => void;
   settings?: StoreSettings;
+  products?: Product[];
   customer?: {
     id?: string;
     name?: string;
@@ -54,6 +64,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onBackToCart,
   settings,
   customer,
+  products,
 }) => {
   const store = settings || DEFAULT_SETTINGS;
   const enabledMethods = getEnabledShipping(store);
@@ -91,6 +102,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }, [isOpen]);
   
   const [loading, setLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [confirmedOrder, setConfirmedOrder] = useState<OrderDetails | null>(null);
   const [mpInitPoint, setMpInitPoint] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -181,6 +193,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   const handleStepClick = (stepId: 'cart' | 'shipping' | 'payment') => {
+    if (loading || isSubmittingRef.current) return;
     if (stepId === 'cart') {
       if (onBackToCart) {
         onBackToCart();
@@ -207,11 +220,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || isSubmittingRef.current) return;
     if (!validateShippingForm()) {
       setCurrentStep('shipping');
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
     setFormError(null);
 
@@ -247,8 +262,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setMpInitPoint(mp.initPoint);
         setConfirmedOrder(mp.order);
         setSaveTarget(getLastOrderTarget());
+
+        // Descontar stock para MP
+        try {
+          const prods = (products && products.length > 0) ? products : await fetchCloudProducts();
+          if (Array.isArray(prods) && prods.length > 0) {
+            await decrementStockForOrder(mp.order, prods);
+          }
+        } catch (stockErr) {
+          console.warn('[CheckoutModal] Error en decrementStockForOrder (MP):', stockErr);
+        }
+
+        await onOrderCompleted(mp.order);
         setCurrentStep('success');
-        onOrderCompleted(mp.order);
         if (store.ordersEmail) sendOrderEmail(mp.order, store.ordersEmail).catch(() => {});
         window.open(mp.initPoint, '_blank', 'noopener,noreferrer');
       } catch (err: any) {
@@ -257,36 +283,54 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         );
       } finally {
         setLoading(false);
+        isSubmittingRef.current = false;
       }
       return;
     }
 
+    let finalOrder = newOrder;
     try {
-      // Save directly to cloud DB and backend
-      await saveCloudOrder(newOrder);
-      try {
-        const res = await fetch('/api/order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newOrder),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setConfirmedOrder(data.order || newOrder);
-        } else {
-          setConfirmedOrder(newOrder);
-        }
-      } catch {
-        setConfirmedOrder(newOrder);
+      console.log('[CheckoutModal] Guardando orden con saveCloudOrder:', newOrder.orderId);
+      // 1. Guardar orden en backend / nube
+      const saved = await saveCloudOrder(newOrder);
+      if (saved) {
+        finalOrder = saved;
+        console.log('[CheckoutModal] Orden confirmada y guardada:', saved.orderId);
       }
-    } catch {
-      setConfirmedOrder(newOrder);
-    } finally {
-      setLoading(false);
+      setConfirmedOrder(finalOrder);
+
+      // 2. Descontar stock mediante decrementStockForOrder manteniendo el estado de carga
+      try {
+        console.log('[CheckoutModal] Descontando stock con decrementStockForOrder para:', finalOrder.orderId);
+        const prods = (products && products.length > 0) ? products : await fetchCloudProducts();
+        if (Array.isArray(prods) && prods.length > 0) {
+          await decrementStockForOrder(finalOrder, prods);
+          console.log('[CheckoutModal] Stock descontado correctamente');
+        }
+      } catch (stockErr) {
+        console.warn('[CheckoutModal] Error en decrementStockForOrder:', stockErr);
+      }
+
+      // 3. Notificar a la tienda y esperar finalización antes de quitar el estado de carga
+      await onOrderCompleted(finalOrder);
+
       setSaveTarget(getLastOrderTarget());
       setCurrentStep('success');
-      onOrderCompleted(newOrder);
-      if (store.ordersEmail) sendOrderEmail(newOrder, store.ordersEmail).catch(() => {});
+    } catch (saveErr: any) {
+      console.error('[CheckoutModal] Error crítico al procesar orden:', saveErr);
+      setConfirmedOrder(newOrder);
+      try {
+        await onOrderCompleted(newOrder);
+      } catch { /* ignore */ }
+      setFormError(saveErr?.message || 'Hubo un error al procesar el pedido. Por favor intenta nuevamente.');
+    } finally {
+      setLoading(false);
+      isSubmittingRef.current = false;
+      if (store.ordersEmail) {
+        sendOrderEmail(finalOrder, store.ordersEmail).catch((mailErr) => {
+          console.warn('[CheckoutModal] No se pudo enviar email de notificación:', mailErr);
+        });
+      }
     }
   };
 
@@ -342,8 +386,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
           <button
             id="checkout-modal-close"
-            onClick={onClose}
-            className="p-1.5 rounded-full text-[#7A6A59] hover:text-[#2B231D] hover:bg-[#EFE7D7] transition-colors cursor-pointer"
+            disabled={loading}
+            onClick={() => !loading && onClose()}
+            className={`p-1.5 rounded-full text-[#7A6A59] transition-colors ${
+              loading ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'hover:text-[#2B231D] hover:bg-[#EFE7D7] cursor-pointer'
+            }`}
             title="Cerrar ventana"
           >
             <X className="w-5 h-5" />
@@ -852,14 +899,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Submit / Back actions */}
               <div className="space-y-2 pt-1">
+                {loading && (
+                  <div 
+                    id="checkout-processing-banner" 
+                    className="bg-[#E8F3EF] border border-[#256B5C]/30 text-[#1B4E43] rounded-xl p-3 flex items-center justify-center gap-2.5 text-xs font-semibold animate-pulse"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin text-[#256B5C] shrink-0" />
+                    <span>Procesando pedido... Por favor aguardá un instante.</span>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   id="btn-confirm-order"
                   disabled={loading}
-                  className="w-full py-3.5 bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] font-black rounded-xl text-sm font-display transition-all flex items-center justify-center gap-2 cursor-pointer btn-gloss"
+                  className={`w-full py-3.5 bg-gradient-to-b from-[#F5B44A] to-[#E39420] text-[#1E170E] font-black rounded-xl text-sm font-display transition-all flex items-center justify-center gap-2 btn-gloss ${
+                    loading 
+                      ? 'opacity-70 cursor-not-allowed pointer-events-none shadow-none' 
+                      : 'cursor-pointer hover:shadow-md active:scale-[0.99]'
+                  }`}
                 >
                   {loading ? (
-                    <span>Procesando pedido...</span>
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#1E170E]" />
+                      <span>Procesando pedido...</span>
+                    </span>
                   ) : (
                     <>
                       <ShieldCheck className="w-5 h-5 text-[#1B4E43]" />
@@ -871,8 +935,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <button
                   type="button"
                   id="btn-back-to-shipping"
-                  onClick={() => setCurrentStep('shipping')}
-                  className="w-full py-2 text-xs font-bold text-[#7A6A59] hover:text-[#1B4E43] text-center cursor-pointer hover:underline"
+                  disabled={loading}
+                  onClick={() => !loading && setCurrentStep('shipping')}
+                  className={`w-full py-2 text-xs font-bold text-[#7A6A59] text-center ${
+                    loading ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'hover:text-[#1B4E43] cursor-pointer hover:underline'
+                  }`}
                 >
                   ← Volver al paso de Envío
                 </button>
