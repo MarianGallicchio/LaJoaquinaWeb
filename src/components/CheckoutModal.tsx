@@ -19,7 +19,7 @@ import {
   Store
 } from 'lucide-react';
 import { CartItem, OrderDetails, StoreSettings } from '../types';
-import { saveCloudOrder, createMpPayment, sendOrderEmail, getLastOrderTarget, SaveTarget } from '../lib/cloudDb';
+import { saveCloudOrder, createMpPayment, sendOrderEmail, getLastOrderTarget, SaveTarget, fetchMpOrderStatus } from '../lib/cloudDb';
 import { DEFAULT_SETTINGS, getShippingCost, getEnabledShipping, getMethodLabel } from '../lib/storeSettings';
 
 interface CheckoutModalProps {
@@ -138,25 +138,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
       tries++;
       try {
-        const supaUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-        const supaAnon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
-        if (supaUrl && supaAnon && confirmedOrder.orderId) {
-          const res = await fetch(
-            `${String(supaUrl).replace(/\/$/, '')}/rest/v1/orders?order_id=eq.${encodeURIComponent(confirmedOrder.orderId)}&select=data`,
-            { headers: { apikey: supaAnon, Authorization: `Bearer ${supaAnon}` } }
-          );
-          if (res.ok) {
-            const rows = await res.json();
-            const remote = rows && rows[0] ? (rows[0] as any).data : null;
-            if (remote && remote.status) {
-              setVerifiedStatus(remote.status);
-              if (remote.status === 'pagado') {
-                setConfirmedOrder(remote as OrderDetails);
-                return;
-              }
-              if (remote.status === 'cancelado') return;
-            }
-          }
+        const real = await fetchMpOrderStatus(confirmedOrder.orderId);
+        if (real && real.status) {
+          setVerifiedStatus(real.status);
+          if (real.status === 'pagado' || real.status === 'cancelado') return;
         }
       } catch { /* reintenta */ }
       if (!cancelled && tries < maxTries) setTimeout(poll, 2000);
@@ -1017,24 +1002,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      try {
-                        const supaUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-                        const supaAnon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
-                        if (supaUrl && supaAnon && confirmedOrder.orderId) {
-                          const res = await fetch(
-                            `${String(supaUrl).replace(/\/$/, '')}/rest/v1/orders?order_id=eq.${encodeURIComponent(confirmedOrder.orderId)}&select=data`,
-                            { headers: { apikey: supaAnon, Authorization: `Bearer ${supaAnon}` } }
-                          );
-                          if (res.ok) {
-                            const rows = await res.json();
-                            const remote = rows && rows[0] ? (rows[0] as any).data : null;
-                            if (remote && remote.status) {
-                              setVerifiedStatus(remote.status);
-                              if (remote.status === 'pagado') setConfirmedOrder(remote as OrderDetails);
-                            }
-                          }
-                        }
-                      } catch { /* ignore */ }
+                      const real = await fetchMpOrderStatus(confirmedOrder.orderId);
+                      if (real && real.status) setVerifiedStatus(real.status);
                     }}
                     className="text-[11px] font-bold text-[#009EE3] hover:underline cursor-pointer"
                   >

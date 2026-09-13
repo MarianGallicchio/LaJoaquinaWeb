@@ -16,7 +16,7 @@ import { StockAlertModal } from './components/StockAlertModal';
 import { Reveal } from './components/Reveal';
 import { PRODUCTS } from './data/products';
 import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings, CustomerProfileData, emptyCustomerProfile } from './types';
-import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile, supaMode } from './lib/cloudDb';
+import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile, supaMode, fetchMpOrderStatus } from './lib/cloudDb';
 import { supa, supaMe } from './lib/supabase';
 import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
 import { Filter, ArrowUpDown, CheckCircle, Truck } from 'lucide-react';
@@ -70,21 +70,11 @@ export default function StoreApp() {
           params.delete('pedido');
           const clean = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
           window.history.replaceState(null, '', clean);
-          const supaUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-          const supaAnon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
           let real: string | null = null;
-          if (supaUrl && supaAnon) {
-            try {
-              const res = await fetch(
-                `${String(supaUrl).replace(/\/$/, '')}/rest/v1/orders?order_id=eq.${encodeURIComponent(pedido)}&select=data`,
-                { headers: { apikey: supaAnon, Authorization: `Bearer ${supaAnon}` } }
-              );
-              if (res.ok) {
-                const rows = await res.json();
-                real = rows && rows[0] ? (rows[0] as any).data?.status || null : null;
-              }
-            } catch { /* cae al mensaje neutro */ }
-          }
+          try {
+            const st = await fetchMpOrderStatus(pedido);
+            real = st ? st.status : null;
+          } catch { /* cae al mensaje neutro */ }
           if (real === 'pagado') showToast(`¡Pago acreditado! Pedido ${pedido} confirmado. 🎉`);
           else if (real === 'pago_pendiente' || pago === 'pendiente') showToast(`Pedido ${pedido}: el pago está pendiente de acreditación. Te avisamos cuando se acredite.`);
           else if (real) showToast(`Pedido ${pedido}: estado actual "${real}". Si pagaste, se actualiza solo en unos segundos.`);

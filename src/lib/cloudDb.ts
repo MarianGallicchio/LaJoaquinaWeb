@@ -1957,6 +1957,25 @@ export async function createMpPayment(order: OrderDetails): Promise<MpPaymentRes
   return data as MpPaymentResult;
 }
 
+// Estado REAL del pedido para anti-estafa: lo escribe mercadopago-webhook.
+// Usa la Edge Function (service role) porque RLS bloquea lectura anónima
+// de `orders`. La URL (?pago=exito) y lo que diga el cliente NO valen.
+export async function fetchMpOrderStatus(orderId: string): Promise<{ status: string; total?: number } | null> {
+  const supaUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
+  const supaAnon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (!supaUrl || !supaAnon || !orderId) return null;
+  try {
+    const res = await fetch(
+      `${String(supaUrl).replace(/\/$/, '')}/functions/v1/mercadopago-status?order_id=${encodeURIComponent(orderId)}`,
+      { headers: { apikey: supaAnon, Authorization: `Bearer ${supaAnon}` } }
+    );
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (j && j.ok && j.status) return { status: j.status, total: j.total };
+  } catch { /* ignore */ }
+  return null;
+}
+
 // ============ REALTIME (pedidos en vivo: Supabase + backend + eventos de ventana) ============
 
 export function subscribeOrdersLive(onInsert: (o: OrderDetails) => void): () => void {
