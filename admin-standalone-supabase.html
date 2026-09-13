@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>La Joaquina · Panel Admin — Supabase</title>
+<meta name="robots" content="noindex, nofollow" />
+<!--
+  ============================================================
+  INSTRUCCIONES - LEER ANTES DE SUBIR A NETLIFY (lajoaquina.shop)
+  ============================================================
+  1. Reemplaza SUPABASE_URL y SUPABASE_ANON_KEY abajo (líneas 89-90)
+     - URL: https://TU_PROYECTO.supabase.co  ( sin barra final )
+     - ANON KEY: eyJ... o sb_publishable_... (la copias de Supabase > Project Settings > API > anon public)
+  2. Copia TODO este archivo y pegalo como "admin.html" en la carpeta que subes a Netlify.
+     Para tu caso: C:\Users\Mariano\Desktop\lajoaquina WEB\admin.html
+  3. No necesita build, ni npm, ni localhost:3000. Es 100% estático y funciona en Netlify.
+  4. Si ves "Sin conexión" revisa: URL sin barra final, key completa, y que desactivaste bloqueador de anuncios para lajoaquina.shop
+  ============================================================
+-->
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;background:#FAF7F2;color:#2B231D;line-height:1.5}
+  header{background:linear-gradient(135deg,#0C1F1B 0%,#1B4E43 100%);color:#fff;padding:16px 20px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:10}
+  header h1{font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px}
+  header h1 span{font-size:22px}
+  header .hdr-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:0;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+  .btn-primary{background:#EFA332;color:#1E170E}
+  .btn-primary:hover{background:#e39420}
+  .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)}
+  .btn-ghost:hover{background:rgba(255,255,255,.2)}
+  .btn-dark{background:#1B4E43;color:#FFE194}
+  .btn-dark:hover{background:#256B5C}
+  .btn-danger{background:#B91C1C;color:#fff}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  #app{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+  .card{background:#FFFDF9;border:1px solid #E5D7BF;border-radius:16px;padding:18px;box-shadow:0 4px 16px rgba(0,0,0,.06);margin-bottom:16px}
+  .status{border-radius:12px;padding:12px 14px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:10px;border:1px solid}
+  .status.ok{background:#E8F3EF;color:#1B4E43;border-color:#BCE0D4}
+  .status.bad{background:#FEF2F2;color:#991B1B;border-color:#FECACA}
+  .status.warn{background:#FFFBEB;color:#92400E;border-color:#FDE68A}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  label{font-size:12px;font-weight:700;color:#5A4D3F;display:block;margin-bottom:6px}
+  input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #E3D6BE;background:#FAF5EC;font-size:13px}
+  input:focus{outline:2px solid #1B4E43;border-color:#1B4E43}
+  .error-box{background:#FEF2F2;border:1px solid #FECACA;color:#7F1D1D;border-radius:12px;padding:14px;font-size:13px;white-space:pre-wrap;word-break:break-word;display:none}
+  .ok-box{background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;border-radius:12px;padding:12px;font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;border-bottom:1px solid #E5D7BF;text-align:left}
+  th{background:#FAF5EC;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#5A4D3F}
+  .badge{font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px}
+  .badge-pendiente{background:#FEF3C7;color:#92400E}
+  .badge-enviado{background:#DBEAFE;color:#1E40AF}
+  .badge-entregado{background:#D1FAE5;color:#065F46}
+  footer{background:#FFFDF9;border-top:1px solid #E5D7BF;padding:16px;text-align:center;font-size:11px;color:#8A7969}
+  footer a{color:#1B4E43;font-weight:700;text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .hidden{display:none !important}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  .muted{color:#8A7969;font-size:12px}
+</style>
+<script>
+// NUNCA pantalla en blanco: captura TODO error global y lo muestra en pantalla + console
+(function(){
+  function showFatal(msg, err){
+    try{ console.error("[FATAL]", msg, err); }catch(e){}
+    var box = document.getElementById("fatal-error");
+    var app = document.getElementById("app");
+    var txt = msg + (err && (err.message || err.stack || String(err)) ? "\n\n" + (err.stack || err.message || String(err)) : "");
+    if(box){ box.style.display="block"; box.textContent = "⚠️ " + txt; }
+    if(app && app.innerHTML.trim().length < 20){
+      // Si la app nunca renderizó, mostrar al menos el header de error
+      app.innerHTML = '<div class="card"><h2 style="color:#991B1B">⚠️ Error al iniciar</h2><p class="muted" style="margin-top:6px">El panel detectó un error y evitó la pantalla en blanco. Detalle arriba.</p></div>';
+    }
+  }
+  window.addEventListener("error", function(e){
+    // Ignorar errores benignos de extensiones, pero mostrar errores de este archivo
+    var msg = e.message || "";
+    if(msg.indexOf("Supabase")!==-1 || msg.indexOf("admin")!==-1 || msg.indexOf("fetch")!==-1 || e.filename && e.filename.indexOf("admin")!==-1){
+      showFatal(msg || "Error de script", e.error || e.message);
+    } else {
+      // Igual loguear todo para debug
+      try{ console.log("[window.onerror]", e.message, e.filename, e.lineno); }catch(_){}
+    }
+  });
+  window.addEventListener("unhandledrejection", function(e){
+    var r = e.reason;
+    var msg = (r && (r.message || String(r))) || "Promesa rechazada sin mensaje";
+    showFatal("Error no capturado: " + msg, r);
+  });
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1><span>🐾</span> Panel Admin — La Joaquina</h1>
+  <div class="hdr-actions">
+    <button class="btn btn-ghost" onclick="goHome()" title="Volver a la tienda">← Volver a la tienda</button>
+    <button class="btn btn-ghost hidden" id="btnLogout" onclick="doLogout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- Caja de error fatal: NUNCA blanca, siempre visible -->
+<div id="fatal-error" class="error-box" style="margin:12px 16px 0;max-width:1100px;margin-inline:auto;display:none"></div>
+
+<main id="app">
+  <!-- Contenido renderizado por JS. Estado inicial NUNCA blanco -->
+  <div class="card">
+    <div id="statusBox" class="status warn">🟡 Iniciando… verificando configuración</div>
+    <p class="muted" style="margin-top:10px">Si ves esta pantalla, el HTML cargó correctamente. Si algo falla, verás el error aquí mismo — nunca en blanco.</p>
+    <div id="errorBox" class="error-box" style="margin-top:12px"></div>
+    <div id="okBox" class="ok-box hidden" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Login -->
+  <div id="loginCard" class="card">
+    <h2 style="font-size:16px;color:#1B4E43">Ingresar al panel</h2>
+    <p class="muted" style="margin:6px 0 14px">Usa el email y contraseña de Supabase Auth. La dueña es <b>marianoagusting1996@gmail.com</b>.</p>
+    <div class="grid2">
+      <div>
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="admin@lajoaquina.com" value="marianoagusting1996@gmail.com" autocomplete="username" />
+      </div>
+      <div>
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button id="btnLogin" class="btn btn-dark" onclick="doLogin()">Ingresar</button>
+      <button class="btn btn-ghost" style="color:#1B4E43;border-color:#E5D7BF;background:#FAF5EC" onclick="checkConnection()">🔄 Probar conexión</button>
+    </div>
+    <p class="mono muted" id="configPreview" style="margin-top:10px"></p>
+  </div>
+
+  <!-- Dashboard (oculto hasta login) -->
+  <div id="dashCard" class="card hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <h2 style="font-size:16px;color:#1B4E43">Dashboard</h2>
+      <span id="userBadge" class="badge badge-pendiente"></span>
+    </div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card" style="margin:0">
+        <b>Productos</b>
+        <div id="prodCount" class="mono" style="font-size:22px;margin-top:4px">—</div>
+        <div class="muted">en Supabase (tabla products)</div>
+      </div>
+      <div class="card" style="margin:0">
+        <b>Pedidos</b>
+        <div id="orderCount" class="mono" style="font-size:22px;margin-top:4px">—</div>
+        <div class="muted">tabla orders (últimos 100)</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-dark" onclick="loadData()">🔄 Actualizar datos</button>
+      <button class="btn btn-ghost" style="color:#1B4E43;border-color:#E5D7BF;background:#FAF5EC" onclick="clearAndReload()">Limpiar sesión y recargar</button>
+    </div>
+  </div>
+
+  <!-- Tablas -->
+  <div id="productsCard" class="card hidden">
+    <h3 style="font-size:14px;color:#1B4E43">Productos (primeros 20)</h3>
+    <div style="overflow:auto;margin-top:10px">
+      <table id="productsTable"><thead><tr><th>ID</th><th>Nombre</th><th>Marca</th><th>Categoría</th></tr></thead><tbody><tr><td colspan="4" class="muted">Sin datos aún</td></tr></tbody></table>
+    </div>
+  </div>
+  <div id="ordersCard" class="card hidden">
+    <h3 style="font-size:14px;color:#1B4E43">Pedidos recientes</h3>
+    <div style="overflow:auto;margin-top:10px">
+      <table id="ordersTable"><thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead><tbody><tr><td colspan="5" class="muted">Sin datos aún</td></tr></tbody></table>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Panel Admin &middot; <a href="./index.html">← Volver al inicio (index.html)</a> &middot; Bella Vista &middot; Solo online &middot;
+  <button class="btn btn-ghost" style="color:#1B4E43;border-color:#E5D7BF;background:#FAF5EC;padding:6px 10px;margin-left:8px" onclick="goHome()">Salir a la tienda</button>
+</footer>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN SUPABASE — CAMBIA ESTAS 2 LÍNEAS
+// ============================================================
+const SUPABASE_URL = "https://wvxmzdtcyraxmwvbuwiy.supabase.co"; // <-- TU URL (sin / al final)
+const SUPABASE_ANON_KEY = "sb_publishable_bMD-AWyvV4JA67pZylU00A_v2t2jMx0"; // <-- TU ANON KEY (eyJ... o sb_publishable_...)
+// ============================================================
+// No tocar debajo salvo que sepas qué haces
+// ============================================================
+
+const $ = (id) => document.getElementById(id);
+const statusBox = $("statusBox");
+const errorBox = $("errorBox");
+const okBox = $("okBox");
+const loginCard = $("loginCard");
+const dashCard = $("dashCard");
+const productsCard = $("productsCard");
+const ordersCard = $("ordersCard");
+const btnLogin = $("btnLogin");
+const btnLogout = $("btnLogout");
+
+let supaSession = null; // { access_token, user }
+
+function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
+function logErr(){ try{ console.error.apply(console, arguments); }catch(e){} }
+
+function setStatus(text, kind){
+  // kind: ok | bad | warn
+  if(!statusBox) return;
+  statusBox.textContent = text;
+  statusBox.className = "status " + (kind||"warn");
+  log("[STATUS]", text);
+}
+function showError(msg, err){
+  logErr(msg, err||"");
+  if(!errorBox) return;
+  var detail = "";
+  if(err){
+    if(err.message) detail += "\n" + err.message;
+    else if(typeof err==="string") detail += "\n" + err;
+    else try{ detail += "\n" + JSON.stringify(err,null,2); }catch(e){ detail += "\n" + String(err); }
+    if(err.stack) detail += "\n" + err.stack.slice(0,600);
+  }
+  errorBox.textContent = "❌ " + msg + detail;
+  errorBox.style.display = "block";
+  // auto-scroll
+  try{ errorBox.scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(e){}
+}
+function clearError(){
+  if(errorBox){ errorBox.style.display="none"; errorBox.textContent=""; }
+}
+function showOk(msg){
+  if(!okBox) return;
+  okBox.textContent = "✅ " + msg;
+  okBox.classList.remove("hidden");
+  okBox.style.display="block";
+  setTimeout(()=>{ try{ okBox.style.display="none"; }catch(e){} }, 4000);
+}
+function goHome(){
+  try{ window.location.href = "./index.html"; }catch(e){ window.location.href = "/"; }
+}
+function clearAndReload(){
+  try{ localStorage.removeItem("lj_supabase_session"); }catch(e){}
+  location.reload();
+}
+function doLogout(){
+  try{
+    supaSession = null;
+    localStorage.removeItem("lj_supabase_session");
+    showOk("Sesión cerrada");
+    setStatus("🟡 Sesión cerrada. Ingresá nuevamente.", "warn");
+    loginCard.classList.remove("hidden");
+    dashCard.classList.add("hidden");
+    productsCard.classList.add("hidden");
+    ordersCard.classList.add("hidden");
+    btnLogout.classList.add("hidden");
+    clearError();
+    log("Logout OK");
+  }catch(err){ showError("Error al cerrar sesión", err); }
+}
+
+function hdrAnon(){
+  return { "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY, "Content-Type":"application/json", "Accept":"application/json" };
+}
+function hdrAuth(token){
+  return { "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + token, "Content-Type":"application/json", "Accept":"application/json" };
+}
+
+// Verifica que URL y KEY no sean placeholders
+function validateConfig(){
+  if(!SUPABASE_URL || SUPABASE_URL.indexOf("XXXXX")!==-1 || SUPABASE_URL.indexOf("TU_PROYECTO")!==-1){
+    throw new Error("SUPABASE_URL no configurada. Reemplaza 'https://XXXXX.supabase.co' por tu URL real arriba (línea 89).");
+  }
+  if(!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.indexOf("XXXXX")!==-1 || SUPABASE_ANON_KEY.length < 20){
+    throw new Error("SUPABASE_ANON_KEY no configurada. Reemplaza 'eyJXXXXX...' por tu anon key real arriba (línea 90).");
+  }
+  if(SUPABASE_URL.endsWith("/")) throw new Error("SUPABASE_URL no debe terminar con /. Quita la barra final.");
+}
+
+async function checkConnection(){
+  clearError();
+  try{
+    validateConfig();
+    setStatus("🟡 Probando conexión con Supabase…", "warn");
+    $("configPreview").textContent = "URL: " + SUPABASE_URL + " | Key: " + SUPABASE_ANON_KEY.slice(0,18) + "… (" + SUPABASE_ANON_KEY.length + " chars)";
+    log("checkConnection start", SUPABASE_URL);
+
+    // 1) Health de Auth (más tolerante: si responde aunque sea 401/404, hay red)
+    var ctrl = new AbortController();
+    var t = setTimeout(()=>ctrl.abort(), 9000);
+    var r;
+    try{
+      r = await fetch(SUPABASE_URL + "/auth/v1/health", { headers: hdrAnon(), signal: ctrl.signal });
+    }catch(err){
+      clearTimeout(t);
+      if(err && err.name==="AbortError") throw new Error("Timeout (>9s) conectando a " + SUPABASE_URL + "/auth/v1/health. Revisa URL, internet o bloqueador.");
+      throw new Error("Fetch falló a /auth/v1/health: " + (err.message||String(err)) + ". En Netlify revisa que no haya bloqueo CORS/adblock.");
+    }
+    clearTimeout(t);
+    log("health status", r.status, r.statusText);
+    if(r.ok){
+      setStatus("🟢 Supabase conectado (auth ok " + r.status + "). Listo para login.", "ok");
+      showOk("Conexión OK (" + r.status + ")");
+      return true;
+    }
+    // 2) Fallback: probar REST products (si auth health da 404 en proyectos nuevos)
+    var ctrl2 = new AbortController();
+    var t2 = setTimeout(()=>ctrl2.abort(), 9000);
+    var r2 = await fetch(SUPABASE_URL + "/rest/v1/products?select=id&limit=1", { headers: hdrAnon(), signal: ctrl2.signal });
+    clearTimeout(t2);
+    log("rest fallback", r2.status);
+    if(r2.ok || r2.status===401){ // 401 significa que llegó pero pide auth -> igual hay conexión
+      setStatus("🟢 Supabase alcanzable (REST " + r2.status + "). Revisa que ejecutaste schema.sql si ves 401/PGRST.", "ok");
+      return true;
+    }
+    var txt = await r2.text().catch(()=>"");
+    throw new Error("Supabase respondió con error " + r.status + " (auth) y " + r2.status + " (rest). Detalle: " + (txt||r.statusText).slice(0,300));
+  }catch(err){
+    logErr("checkConnection failed", err);
+    setStatus("🔴 Sin conexión: " + (err.message||String(err)).slice(0,120), "bad");
+    showError("No se pudo conectar a Supabase. Revisa URL y ANON KEY arriba, y que tu proyecto esté activo.", err);
+    return false;
+  }
+}
+
+async function doLogin(){
+  clearError();
+  try{
+    validateConfig();
+    var email = ($("email").value||"").trim();
+    var password = ($("password").value||"").trim();
+    if(!email || !email.includes("@")) throw new Error("Ingresa un email válido.");
+    if(!password) throw new Error("Ingresa tu contraseña.");
+    btnLogin.disabled = true;
+    btnLogin.textContent = "Verificando…";
+    setStatus("🟡 Iniciando sesión contra Supabase…", "warn");
+    log("login attempt", email);
+
+    var ctrl = new AbortController();
+    var t = setTimeout(()=>ctrl.abort(), 15000);
+    var res;
+    try{
+      res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+        method:"POST",
+        headers: hdrAnon(),
+        body: JSON.stringify({ email: email, password: password }),
+        signal: ctrl.signal
+      });
+    }catch(err){
+      clearTimeout(t);
+      if(err.name==="AbortError") throw new Error("Timeout (>15s) al intentar login. Revisa tu conexión.");
+      throw new Error("Error de red en login: " + (err.message||String(err)) + ". Si estás en Netlify con localhost, este archivo ya NO usa localhost.");
+    }
+    clearTimeout(t);
+    var j = await res.json().catch(async()=>{
+      var txt = await res.text().catch(()=>"");
+      return { _raw: txt };
+    });
+    log("login response", res.status, j);
+    if(!res.ok){
+      var msg = (j && (j.error_description || j.msg || j.error || j.message || j._raw)) || ("HTTP "+res.status);
+      // Traducir errores comunes
+      var low = String(msg).toLowerCase();
+      if(low.includes("invalid login")||low.includes("invalid_credentials")||low.includes("email not confirmed") ){
+        throw new Error("Credenciales inválidas o email no confirmado. Revisa email/contraseña. Detalle: " + msg);
+      }
+      if(low.includes("failed to fetch")) throw new Error("Sin conexión con Supabase (Failed to fetch). Revisa URL/KEY y que no haya adblock.");
+      throw new Error("Login falló (" + res.status + "): " + msg);
+    }
+    if(!j.access_token) throw new Error("Respuesta de login sin access_token. Detalle: " + JSON.stringify(j).slice(0,400));
+
+    supaSession = { access_token: j.access_token, refresh_token: j.refresh_token||"", user: j.user||{email:email} };
+    try{ localStorage.setItem("lj_supabase_session", JSON.stringify(supaSession)); }catch(e){}
+    setStatus("🟢 Sesión iniciada como " + (j.user&&j.user.email||email), "ok");
+    showOk("Sesión iniciada. Cargando datos…");
+    loginCard.classList.add("hidden");
+    dashCard.classList.remove("hidden");
+    productsCard.classList.remove("hidden");
+    ordersCard.classList.remove("hidden");
+    btnLogout.classList.remove("hidden");
+    $("userBadge").textContent = (j.user&&j.user.email||email);
+    await loadData();
+  }catch(err){
+    logErr("doLogin failed", err);
+    showError(err.message||"Error al iniciar sesión", err);
+    setStatus("🔴 " + (err.message||"Error en login").slice(0,140), "bad");
+  }finally{
+    btnLogin.disabled = false;
+    btnLogin.textContent = "Ingresar";
+  }
+}
+
+async function loadData(){
+  clearError();
+  try{
+    if(!supaSession || !supaSession.access_token){
+      throw new Error("Sin sesión. Iniciá sesión primero.");
+    }
+    setStatus("🟡 Cargando productos y pedidos…", "warn");
+    log("loadData start");
+
+    // Productos y pedidos en paralelo, cada uno con su try/catch para no dejar pantalla blanca
+    var prodResult = { ok:false, data:[], err:null };
+    var orderResult = { ok:false, data:[], err:null };
+
+    try{
+      var rp = await fetch(SUPABASE_URL + "/rest/v1/products?select=data&limit=100", { headers: hdrAuth(supaSession.access_token) });
+      if(!rp.ok){
+        var txt = await rp.text().catch(()=>"");
+        throw new Error("products " + rp.status + " " + txt.slice(0,300));
+      }
+      var jp = await rp.json();
+      var list = Array.isArray(jp) ? jp.map(function(r){ return r.data||r; }) : [];
+      prodResult = { ok:true, data:list, err:null };
+      log("products loaded", list.length);
+    }catch(err){
+      prodResult = { ok:false, data:[], err:err };
+      logErr("products fetch failed", err);
+    }
+
+    try{
+      var ro = await fetch(SUPABASE_URL + "/rest/v1/orders?select=data&order=created_at.desc&limit=100", { headers: hdrAuth(supaSession.access_token) });
+      if(!ro.ok){
+        var txt2 = await ro.text().catch(()=>"");
+        // Si RLS niega, mostramos mensaje claro en lugar de blanco
+        if(ro.status===401 || ro.status===403) throw new Error("Sin permiso para leer pedidos (RLS). Tu usuario no es admin/stock/ventas. Asigna rol en Supabase > staff. Detalle: " + txt2.slice(0,200));
+        throw new Error("orders " + ro.status + " " + txt2.slice(0,300));
+      }
+      var jo = await ro.json();
+      var olist = Array.isArray(jo) ? jo.map(function(r){ return r.data||r; }) : [];
+      orderResult = { ok:true, data:olist, err:null };
+      log("orders loaded", olist.length);
+    }catch(err){
+      orderResult = { ok:false, data:[], err:err };
+      logErr("orders fetch failed", err);
+    }
+
+    // Render aunque uno falle
+    $("prodCount").textContent = prodResult.ok ? String(prodResult.data.length) : "—";
+    $("orderCount").textContent = orderResult.ok ? String(orderResult.data.length) : "—";
+
+    // Tabla productos
+    var tbodyP = document.querySelector("#productsTable tbody");
+    if(prodResult.ok && prodResult.data.length>0){
+      tbodyP.innerHTML = prodResult.data.slice(0,20).map(function(p){
+        return "<tr><td class='mono'>"+esc(p.id||"")+"</td><td>"+esc(p.name||"—")+"</td><td>"+esc(p.brand||"")+"</td><td>"+esc(p.category||"")+"</td></tr>";
+      }).join("");
+    } else if(prodResult.err){
+      tbodyP.innerHTML = "<tr><td colspan='4' style='color:#991B1B'>⚠️ "+esc(prodResult.err.message||String(prodResult.err)).slice(0,300)+"</td></tr>";
+    } else {
+      tbodyP.innerHTML = "<tr><td colspan='4' class='muted'>Sin productos (tabla vacía o sin permiso)</td></tr>";
+    }
+
+    // Tabla pedidos
+    var tbodyO = document.querySelector("#ordersTable tbody");
+    if(orderResult.ok && orderResult.data.length>0){
+      tbodyO.innerHTML = orderResult.data.slice(0,20).map(function(o){
+        return "<tr><td class='mono'>"+esc(o.orderId||"")+"</td><td>"+esc(o.customerName||o.customerEmail||"—")+"</td><td>$"+esc(String(o.total||0))+"</td><td><span class='badge badge-"+esc((o.status||"pendiente"))+"'>"+esc(o.status||"pendiente")+"</span></td><td class='mono'>"+esc((o.createdAt||"").slice(0,10))+"</td></tr>";
+      }).join("");
+    } else if(orderResult.err){
+      tbodyO.innerHTML = "<tr><td colspan='5' style='color:#991B1B'>⚠️ "+esc(orderResult.err.message||String(orderResult.err)).slice(0,400)+"</td></tr>";
+    } else {
+      tbodyO.innerHTML = "<tr><td colspan='5' class='muted'>Sin pedidos aún</td></tr>";
+    }
+
+    if(prodResult.ok && orderResult.ok){
+      setStatus("🟢 Datos sincronizados con Supabase ("+prodResult.data.length+" prod, "+orderResult.data.length+" pedidos)", "ok");
+    } else if(prodResult.ok || orderResult.ok){
+      setStatus("🟡 Carga parcial: " + (prodResult.err? "productos fallaron. ":"") + (orderResult.err? "pedidos fallaron. ":"") + "Revisa permisos RLS.", "warn");
+      if(prodResult.err) showError("Productos: " + (prodResult.err.message||String(prodResult.err)), prodResult.err);
+      if(orderResult.err) showError("Pedidos: " + (orderResult.err.message||String(orderResult.err)), orderResult.err);
+    } else {
+      throw new Error("No se pudo leer ni productos ni pedidos. " + (prodResult.err&&prodResult.err.message||"") + " | " + (orderResult.err&&orderResult.err.message||""));
+    }
+  }catch(err){
+    logErr("loadData failed", err);
+    showError("Error al cargar datos de Supabase", err);
+    setStatus("🔴 Error al cargar datos: " + (err.message||String(err)).slice(0,140), "bad");
+  }
+}
+function esc(s){
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// Init: nunca pantalla blanca
+(function init(){
+  try{
+    log("init admin-standalone", { url: SUPABASE_URL, keyLen: (SUPABASE_ANON_KEY||"").length });
+    $("configPreview").textContent = "URL: " + SUPABASE_URL + " | Key: " + SUPABASE_ANON_KEY.slice(0,18) + "…";
+    // Restaurar sesión si existe
+    try{
+      var saved = localStorage.getItem("lj_supabase_session");
+      if(saved){ var parsed = JSON.parse(saved); if(parsed && parsed.access_token){ supaSession = parsed; log("restored session", parsed.user&&parsed.user.email); } }
+    }catch(e){ logErr("restore session failed", e); }
+
+    if(supaSession && supaSession.access_token){
+      setStatus("🟡 Sesión previa encontrada. Verificando…", "warn");
+      loginCard.classList.add("hidden");
+      dashCard.classList.remove("hidden");
+      productsCard.classList.remove("hidden");
+      ordersCard.classList.remove("hidden");
+      btnLogout.classList.remove("hidden");
+      $("userBadge").textContent = (supaSession.user&&supaSession.user.email)||"Sesión";
+      loadData().catch(function(e){ logErr(e); });
+      checkConnection().catch(function(e){ logErr(e); });
+    } else {
+      checkConnection().catch(function(e){ logErr("checkConnection init failed", e); });
+    }
+
+    // Enter en password hace login
+    $("password").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+    $("email").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+  }catch(err){
+    logErr("init failed", err);
+    showError("Error al iniciar el panel (no es pantalla en blanco, es error visible)", err);
+    setStatus("🔴 Error al iniciar: " + (err.message||String(err)).slice(0,140), "bad");
+  }
+})();
+</script>
+</body>
+</html>

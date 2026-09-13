@@ -10,27 +10,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>/* Anti-pantalla-blanca: overlay de error visible sin CSS externo */#admin-fatal{max-width:720px;margin:24px auto;background:#FEF2F2;border:1px solid #FECACA;color:#7F1D1D;border-radius:16px;padding:18px;font:13px/1.5 system-ui,sans-serif;white-space:pre-wrap;word-break:break-word;display:none}#admin-boot{max-width:720px;margin:24px auto;background:#FFFDF9;border:1px solid #E5D7BF;border-radius:16px;padding:18px;font:13px system-ui,sans-serif;color:#5A4D3F;text-align:center}</style>
     <script>
-      // Suprimir errores de WebSocket benignos de Vite en entorno iframe sandbox
-      window.addEventListener('unhandledrejection', function(event) {
-        var r = event.reason;
-        var msg = (r && (r.message || (typeof r === 'string' ? r : ''))) || '';
-        if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1 || (r && r.stack && r.stack.indexOf('vite') !== -1)) {
-          event.preventDefault();
-          event.stopPropagation();
+      (function(){
+        function showFatal(msg, err){
+          try{console.error("[admin.html fatal]",msg,err);}catch(e){}
+          var box=document.getElementById("admin-fatal");
+          var txt=String(msg||"Error")+ (err&& (err.stack||err.message) ? "\n\n"+(err.stack||err.message) : "");
+          if(box){box.style.display="block";box.textContent="⚠️ "+txt.slice(0,2000);}
         }
-      });
-      window.addEventListener('error', function(event) {
-        var msg = event.message || '';
-        if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      });
+        window.addEventListener("error", function(e){
+          var msg=e.message||"";
+          // Mostrar TODOS los errores excepto WebSocket de Vite (que es ruido) — pero nunca ocultar errores reales
+          if(msg.indexOf("WebSocket")!==-1 && e.filename && e.filename.indexOf("vite")!==-1) return;
+          showFatal(msg||"Error de script", e.error||msg);
+        });
+        window.addEventListener("unhandledrejection", function(e){
+          var r=e.reason; var m=(r&&(r.message||String(r)))||"Promesa rechazada";
+          if(String(m).indexOf("WebSocket")!==-1||String(m).indexOf("vite")!==-1) return;
+          showFatal("Error no capturado: "+m, r);
+        });
+        // Si React no monta en 8s, avisar que no es pantalla en blanco sino error de build
+        setTimeout(function(){
+          var root=document.getElementById("root");
+          if(root && root.innerHTML.trim()===""){
+            showFatal("El panel no se inicializó (root vacío luego de 8s). Causas: 1) Build sin VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY en Netlify > Environment variables  2) Subiste la carpeta sin hacer 'npm run build'  3) Error de JS. Revisa consola (F12) y usa admin-standalone-supabase.html para Netlify estático sin build.");
+          }
+        }, 8000);
+      })();
     </script>
   </head>
   <body class="bg-[#FAF7F2] text-[#2B231D] antialiased">
+    <div id="admin-fatal"></div>
+    <div id="admin-boot">🟡 Cargando Panel Admin… Si ves esto y no carga, revisa el mensaje de error arriba (nunca quedará en blanco).</div>
     <div id="root"></div>
+    <script>document.getElementById("root").addEventListener && (new MutationObserver(function(){ var r=document.getElementById("root"); var b=document.getElementById("admin-boot"); if(r && r.innerHTML.trim().length>20 && b) b.style.display="none"; })).observe(document.getElementById("root"),{childList:true});</script>
     <script type="module" src="/src/admin-main.tsx"></script>
   </body>
 </html>
