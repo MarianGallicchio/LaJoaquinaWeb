@@ -56,7 +56,10 @@ Deno.serve(async (req)=>{
     });
     const mpData=await mpRes.json();
     if(!mpRes.ok) return new Response(JSON.stringify({error: mpData.message || "MP error", details: mpData}),{status:500, headers:{...corsHeaders, "Content-Type":"application/json"}});
-    return new Response(JSON.stringify({order, initPoint: mpData.init_point, sandboxInitPoint: mpData.sandbox_init_point, preferenceId: mpData.id}),{status:200, headers:{...corsHeaders, "Content-Type":"application/json"}});
+    // Guardar estado del pago en Supabase: ID compra, monto, estado, email + preference
+    const orderWithMp={...order, mpPreferenceId: mpData.id, mpInitPoint: mpData.init_point, mpStatus:"pending", customerEmail: order.customerEmail||""};
+    await supabase.from("orders").update({data: orderWithMp}).eq("order_id", orderId);
+    return new Response(JSON.stringify({order: orderWithMp, initPoint: mpData.init_point, sandboxInitPoint: mpData.sandbox_init_point, preferenceId: mpData.id}),{status:200, headers:{...corsHeaders, "Content-Type":"application/json"}});
   }catch(e:any){
     return new Response(JSON.stringify({error:String(e?.message||e)}),{status:500, headers:{...corsHeaders, "Content-Type":"application/json"}});
   }

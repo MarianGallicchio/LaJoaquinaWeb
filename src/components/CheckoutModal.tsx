@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -97,6 +97,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [saveTarget, setSaveTarget] = useState<SaveTarget | null>(null);
   const [verifiedStatus, setVerifiedStatus] = useState<string | null>(null);
+  const [idCopiedAuto, setIdCopiedAuto] = useState(false);
+  const popupRef = useRef<Window | null>(null);
 
   // Cupón editable en el checkout (inicia con el del carrito, si hay)
   const [couponInput, setCouponInput] = useState(discountCode);
@@ -121,16 +123,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }, [initialShippingMethod]);
 
   // Autodetección de pago Mercado Pago (anti-estafa): sondea el estado real
-  // del pedido en Supabase (lo actualiza mercadopago-webhook). Si se acredita,
-  // la pantalla cambia sola a "Pago acreditado" sin que el cliente lo afirme.
+  // del pedido en Supabase cada 2s (lo actualiza mercadopago-webhook).
+  // pagado → acreditado solo · cancelado → rechazado · timeout 5 min → reintentar.
   useEffect(() => {
     if (currentStep !== 'success' || !confirmedOrder || confirmedOrder.paymentMethod !== 'mercadopago') return;
     if (verifiedStatus === 'pagado') return;
     let cancelled = false;
     let tries = 0;
-    const maxTries = 40;
+    const maxTries = 150;
     const poll = async () => {
-      if (cancelled || tries >= maxTries) return;
+      if (cancelled || tries >= maxTries) {
+        if (!cancelled && tries >= maxTries) setVerifiedStatus((prev) => (prev === 'pagado' ? prev : 'timeout'));
+        return;
+      }
       tries++;
       try {
         const supaUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
@@ -149,15 +154,30 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 setConfirmedOrder(remote as OrderDetails);
                 return;
               }
+              if (remote.status === 'cancelado') return;
             }
           }
         }
       } catch { /* reintenta */ }
-      if (!cancelled && tries < maxTries) setTimeout(poll, 3000);
+      if (!cancelled && tries < maxTries) setTimeout(poll, 2000);
+      else if (!cancelled) setVerifiedStatus((prev) => (prev === 'pagado' || prev === 'cancelado' ? prev : 'timeout'));
     };
     poll();
     return () => { cancelled = true; };
   }, [currentStep, confirmedOrder, verifiedStatus]);
+
+  // Detectar cierre de la ventana de Mercado Pago sin pagar → pago cancelado
+  useEffect(() => {
+    if (currentStep !== 'success' || !confirmedOrder || confirmedOrder.paymentMethod !== 'mercadopago') return;
+    const timer = setInterval(() => {
+      const win = popupRef.current;
+      if (win && win.closed) {
+        popupRef.current = null;
+        setVerifiedStatus((prev) => (prev === 'pagado' ? prev : 'ventana_cerrada'));
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentStep, confirmedOrder]);
 
   // Reset to shipping step when reopened
   useEffect(() => {
@@ -280,17 +300,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }),
     };
 
-    // Mercado Pago: pago online real con link de Checkout Pro
+    // Mercado Pago: pago online con link de Checkout Pro en ventana nueva
     if (paymentMethod === 'mercadopago') {
       try {
         const mp = await createMpPayment(newOrder);
         setMpInitPoint(mp.initPoint);
         setConfirmedOrder(mp.order);
         setSaveTarget(getLastOrderTarget());
+        setVerifiedStatus('pago_pendiente');
+        setIdCopiedAuto(false);
         setCurrentStep('success');
         onOrderCompleted(mp.order);
         if (store.ordersEmail) sendOrderEmail(mp.order, store.ordersEmail).catch(() => {});
-        window.open(mp.initPoint, '_blank', 'noopener,noreferrer');
+        popupRef.current = window.open(mp.initPoint, '_blank', 'noopener,noreferrer');
+        // Copiar ID de compra automáticamente al portapapeles
+        try {
+          await navigator.clipboard.writeText(mp.order.orderId);
+          setIdCopiedAuto(true);
+        } catch { /* portapapeles no disponible */ }
       } catch (err: any) {
         setFormError(
           err.message || 'No se pudo generar el link de pago. Probá con transferencia o escribinos por WhatsApp.'
@@ -336,6 +363,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Reintentar pago: reabre Mercado Pago en ventana nueva y reinicia la verificación
+  const retryMpPayment = () => {
+    if (mpInitPoint) popupRef.current = window.open(mpInitPoint, '_blank', 'noopener,noreferrer');
+    setVerifiedStatus('pago_pendiente');
   };
 
   const getWhatsAppOrderUrl = () => {
@@ -782,7 +815,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           Mercado Pago online
                         </span>
                         <span className="bg-[#009EE3] text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow-2xs">
-                          PAGO REAL
+                          Pago seguro
                         </span>
                       </div>
                       <p className="text-[#6A5949] mt-0.5 text-[11px]">
@@ -957,30 +990,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </p>
               </div>
 
-              {/* Mercado Pago: completar el pago online + autodetección */}
-              {confirmedOrder?.paymentMethod === 'mercadopago' && verifiedStatus !== 'pagado' && confirmedOrder.status !== 'pagado' && (
+              {/* Mercado Pago: pago pendiente + verificación automática */}
+              {confirmedOrder?.paymentMethod === 'mercadopago' && !['pagado', 'cancelado', 'ventana_cerrada', 'timeout'].includes(verifiedStatus || '') && confirmedOrder.status !== 'pagado' && confirmedOrder.status !== 'cancelado' && (
                 <div className="bg-[#E8F4FD] border border-[#7CC4EA] p-4 rounded-2xl text-left text-xs space-y-2 text-[#0C4A6E]">
                   <p className="font-bold text-sm flex items-center gap-1.5">
                     <Wallet className="w-4 h-4 text-[#009EE3]" />
                     Completá tu pago online:
                   </p>
                   <p>
-                    Tu pedido quedó reservado como <strong>pago pendiente</strong>. Abrilo con el botón y pagá con tarjeta, débito o dinero en cuenta.
+                    Tu pedido <strong>{confirmedOrder.orderId}</strong> quedó reservado{ idCopiedAuto ? ' (ID copiado al portapapeles ✅)' : ''}. Pagá con tarjeta, débito o dinero en cuenta.
                   </p>
                   {mpInitPoint && (
-                    <a
-                      href={mpInitPoint}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0083C0] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all"
+                    <button
+                      type="button"
+                      onClick={() => { popupRef.current = window.open(mpInitPoint, '_blank', 'noopener,noreferrer'); }}
+                      className="w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0083C0] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all cursor-pointer"
                     >
                       <Wallet className="w-5 h-5" />
                       <span>Pagar {formatARS(confirmedOrder.total)} con Mercado Pago</span>
-                    </a>
+                    </button>
                   )}
                   <p className="text-[11px] flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full border-2 border-[#009EE3] border-t-transparent animate-spin inline-block" />
-                    Verificando tu pago automáticamente… no cierres esta ventana.
+                    Detectamos tu pago automáticamente… no cierres esta ventana.
                   </p>
                   <button
                     type="button"
@@ -1014,11 +1046,68 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="bg-[#ECFDF5] border border-[#6EE7B7] p-4 rounded-2xl text-left text-xs space-y-2 text-[#065F46]">
                   <p className="font-bold text-sm flex items-center gap-1.5">
                     <CheckCircle2 className="w-5 h-5 text-[#059669]" />
-                    ¡Pago acreditado! ✅
+                    ¡Pago aceptado! ✅
                   </p>
                   <p>
                     Verificamos tu pago de <strong>{formatARS(confirmedOrder.total)}</strong> con Mercado Pago. Ya estamos preparando tu envío del pedido <strong>{confirmedOrder.orderId}</strong>.
                   </p>
+                </div>
+              )}
+              {verifiedStatus === 'cancelado' && confirmedOrder?.paymentMethod === 'mercadopago' && (
+                <div className="bg-[#FEF2F2] border border-[#FECACA] p-4 rounded-2xl text-left text-xs space-y-2 text-[#991B1B]">
+                  <p className="font-bold text-sm flex items-center gap-1.5">
+                    <AlertCircle className="w-5 h-5 text-[#DC2626]" />
+                    Pago rechazado ❌
+                  </p>
+                  <p>
+                    Mercado Pago rechazó el pago del pedido <strong>{confirmedOrder?.orderId}</strong>. No se cobró nada. Probá con otra tarjeta o medio de pago.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={retryMpPayment}
+                    className="w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0083C0] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all cursor-pointer"
+                  >
+                    <Wallet className="w-5 h-5" />
+                    <span>Reintentar pago</span>
+                  </button>
+                </div>
+              )}
+              {verifiedStatus === 'ventana_cerrada' && confirmedOrder?.paymentMethod === 'mercadopago' && (
+                <div className="bg-[#FFFBEB] border border-[#FDE68A] p-4 rounded-2xl text-left text-xs space-y-2 text-[#92400E]">
+                  <p className="font-bold text-sm flex items-center gap-1.5">
+                    <AlertCircle className="w-5 h-5 text-[#D97706]" />
+                    Pago cancelado
+                  </p>
+                  <p>
+                    Cerraste la ventana de Mercado Pago sin completar el pago del pedido <strong>{confirmedOrder?.orderId}</strong>. Tu pedido sigue reservado.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={retryMpPayment}
+                    className="w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0083C0] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all cursor-pointer"
+                  >
+                    <Wallet className="w-5 h-5" />
+                    <span>Reintentar pago</span>
+                  </button>
+                </div>
+              )}
+              {verifiedStatus === 'timeout' && confirmedOrder?.paymentMethod === 'mercadopago' && (
+                <div className="bg-[#FFFBEB] border border-[#FDE68A] p-4 rounded-2xl text-left text-xs space-y-2 text-[#92400E]">
+                  <p className="font-bold text-sm flex items-center gap-1.5">
+                    <AlertCircle className="w-5 h-5 text-[#D97706]" />
+                    Esperando confirmación…
+                  </p>
+                  <p>
+                    Todavía no detectamos tu pago del pedido <strong>{confirmedOrder?.orderId}</strong>. Si ya pagaste, se actualiza solo. Si no, reintentá.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={retryMpPayment}
+                    className="w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0083C0] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all cursor-pointer"
+                  >
+                    <Wallet className="w-5 h-5" />
+                    <span>Reintentar</span>
+                  </button>
                 </div>
               )}
 
