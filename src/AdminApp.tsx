@@ -592,21 +592,9 @@ export default function AdminApp() {
                 className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-[#8A7969] bg-[#FAF5EC] border border-[#E8DFC9] rounded-xl px-3 py-2">
-              <div>
-                Acceso inicial: <strong>admin@lajoaquina.com</strong> · Clave: <strong>admin1234</strong>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setGateEmail('admin@lajoaquina.com');
-                  setGatePassword('admin1234');
-                }}
-                className="ml-2 underline font-bold text-[#1B4E43] hover:text-[#256B5C] cursor-pointer shrink-0"
-              >
-                Autocompletar
-              </button>
-            </div>
+            <p className="text-[11px] text-[#8A7969] bg-[#FAF5EC] border border-[#E8DFC9] rounded-xl px-3 py-2">
+              Usá tu email y contraseña de administradora. Si las olvidaste, recuperalas desde Supabase Auth.
+            </p>
             <button
               type="submit"
               disabled={loginLoading}

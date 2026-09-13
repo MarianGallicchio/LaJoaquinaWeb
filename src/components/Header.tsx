@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { ProductCategory, StoreSettings } from '../types';
 import { AuthUserProfile } from '../lib/cloudDb';
-import { DEFAULT_SETTINGS } from '../lib/storeSettings';
+import { DEFAULT_SETTINGS, waLink } from '../lib/storeSettings';
 
 interface HeaderProps {
   activeCategory: ProductCategory;
@@ -23,10 +23,8 @@ interface HeaderProps {
   onSearchChange: (query: string) => void;
   cartCount: number;
   onOpenCart: () => void;
-  onOpenHelp: () => void;
   currentUser: AuthUserProfile | null;
   onOpenAuth: () => void;
-  onOpenTracking: () => void;
   settings?: StoreSettings;
 }
 
@@ -37,10 +35,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   cartCount,
   onOpenCart,
-  onOpenHelp,
   currentUser,
   onOpenAuth,
-  onOpenTracking,
   settings,
 }) => {
   const store = settings || DEFAULT_SETTINGS;
@@ -132,25 +128,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Tracking Button */}
-            <button
-              onClick={onOpenTracking}
-              className="hidden lg:flex items-center gap-2 text-xs font-bold text-[#1B4E43] bg-[#FFF4DE] hover:bg-[#FFE9B8] border border-[#EFC86B] px-3.5 py-2 rounded-full transition-colors cursor-pointer"
-              title="Seguí tu pedido con el número y tu email"
-            >
-              <Truck className="w-4 h-4 text-[#B45309]" />
-              <span>Seguir pedido</span>
-            </button>
-
-            {/* Help Button */}
-            <button
-              onClick={onOpenHelp}
+            {/* Help Button (WhatsApp directo, sin chat AI) */}
+            <a
+              href={waLink(store.whatsapp, '¡Hola La Joaquina! Tengo una consulta sobre la tienda.')}
+              target="_blank"
+              rel="noopener noreferrer"
               className="hidden lg:flex items-center gap-2 text-xs font-bold text-[#1B4E43] bg-[#E8F3EF] hover:bg-[#D7EBE4] border border-[#BCE0D4] px-3.5 py-2 rounded-full transition-colors cursor-pointer"
-              title="Ayuda y contacto"
+              title="Ayuda y contacto por WhatsApp"
             >
               <Sparkles className="w-4 h-4 text-[#256B5C]" />
               <span>Ayuda</span>
-            </button>
+            </a>
 
             {/* Auth / Profile Button */}
             <motion.button
@@ -186,9 +174,9 @@ export const Header: React.FC<HeaderProps> = ({
                 {cartCount > 0 && (
                   <motion.span
                     key={`cart-badge-${cartCount}`}
-                    initial={{ scale: 0.4, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.4, opacity: 0 }}
+                    initial={{ scale: 0.3, opacity: 0 }}
+                    animate={{ scale: [1, 1.35, 1], opacity: 1 }}
+                    exit={{ scale: 0.3, opacity: 0 }}
                     transition={{ type: 'spring', stiffness: 600, damping: 14 }}
                     className="bg-[#1B4E43] text-white text-xs font-black w-5 h-5 rounded-full flex items-center justify-center -mr-1 shadow-xs"
                   >
@@ -291,27 +279,18 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{currentUser ? 'Mi Perfil' : 'Iniciar Sesión'}</span>
             </button>
 
-              <button
+              <a
+                href={waLink(store.whatsapp, '¡Hola La Joaquina! Tengo una consulta sobre la tienda.')}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => {
-                  onOpenTracking();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#FFF4DE] border border-[#EFC86B] text-[#7C4A03] text-xs font-bold"
-              >
-                <Truck className="w-4 h-4" />
-                Seguir mi pedido
-              </button>
-
-              <button
-                onClick={() => {
-                  onOpenHelp();
                   setMobileMenuOpen(false);
                 }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#E8F3EF] text-[#1B4E43] text-xs font-bold"
               >
                 <Sparkles className="w-4 h-4 text-[#256B5C]" />
                 Ayuda y contacto
-              </button>
+              </a>
 
             <div className="flex justify-around pt-2 text-xs font-semibold text-[#5A4C3D]">
               <a 
