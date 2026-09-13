@@ -30,13 +30,14 @@ import {
   Factory,
   X,
 } from 'lucide-react';
-import { Product, OrderDetails, StockAlert, StoreSettings } from './types';
+import { Product, OrderDetails, StockAlert, StoreSettings, Distributor } from './types';
 import { PRODUCTS } from './data/products';
 import {
   AuthUserProfile,
   fetchCloudProducts,
   fetchCloudOrders,
   fetchCloudStockAlerts,
+  fetchCloudDistributors,
   cloudLogin,
   cloudLogout,
   supaMode,
@@ -57,6 +58,11 @@ import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminShipping } from './components/admin/AdminShipping';
 import { AdminTools } from './components/admin/AdminTools';
 import { AdminTeam } from './components/admin/AdminTeam';
+import { AdminReviews } from './components/admin/AdminReviews';
+import { AdminMovements } from './components/admin/AdminMovements';
+import { AdminRecovery } from './components/admin/AdminRecovery';
+import { AdminDistributors } from './components/admin/AdminDistributors';
+import { AdminPendingBell } from './components/admin/AdminPendingBell';
 
 type Tab = 'resumen' | 'productos' | 'ventas' | 'recupero' | 'resenas' | 'movimientos' | 'mayoristas' | 'envios' | 'herramientas' | 'equipo';
 
