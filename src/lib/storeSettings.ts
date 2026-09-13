@@ -1,17 +1,27 @@
 import { StoreSettings } from '../types';
+import { fetchCloudSettings, saveCloudSettings, supaMode } from './cloudDb';
 
 export const DEFAULT_SETTINGS: StoreSettings = {
   storeName: 'La Joaquina Pet Shop',
   address: 'Bella Vista, Buenos Aires',
   city: 'Bella Vista, Buenos Aires',
   hours: 'Atención online: Lun a Sáb de 9 a 19:30 hs',
-  whatsapp: '5491123456789',
+  whatsapp: '5491165683976',
   instagram: '@lajoaquinapetshop',
   aliasTransferencia: 'LA.JOAQUINA.PET',
   couponCode: 'JOAQUINA10',
   couponPercent: 10,
   transferPercent: 10,
   announcement: '',
+  promoText: '',
+  promoEndsAt: '',
+  gaId: '',
+  metaPixelId: '',
+  giftWrapPrice: 0,
+  packRules: [],
+  pointsPerARS: 1000,
+  arsPerPoint: 10,
+  birthdayPoints: 100,
   shipping: [
     { id: 'pickup', label: 'Punto de entrega a coordinar', cost: 0, enabled: false, detail: 'Se coordina por WhatsApp' },
     { id: 'express_amba', label: 'Envío AMBA', cost: 3500, enabled: true, detail: 'Bella Vista y alrededores en 24/48 hs' },
@@ -55,6 +65,18 @@ export function saveLocalSettings(s: StoreSettings) {
 }
 
 export async function fetchStoreSettings(): Promise<StoreSettings> {
+  // 1) Nube compartida (Supabase): lo que cambia el admin se ve igual en todos lados
+  if (supaMode()) {
+    try {
+      const cloud = await fetchCloudSettings();
+      if (cloud) {
+        saveLocalSettings(cloud);
+        return { ...DEFAULT_SETTINGS, ...cloud };
+      }
+    } catch { /* cae a local */ }
+    return getLocalSettings();
+  }
+  // 2) Backend /api (local o Vercel)
   try {
     const res = await fetch('/api/cloud/settings', { headers: { Accept: 'application/json' } });
     if (res.ok) {
@@ -70,6 +92,18 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
 
 export async function saveStoreSettings(s: StoreSettings): Promise<StoreSettings> {
   saveLocalSettings(s);
+  // 1) Nube compartida primero
+  if (supaMode()) {
+    try {
+      const saved = await saveCloudSettings(s);
+      saveLocalSettings(saved);
+      return { ...DEFAULT_SETTINGS, ...saved };
+    } catch (e) {
+      console.warn('No se pudo guardar en la nube, queda local:', e);
+      return s;
+    }
+  }
+  // 2) Backend /api
   try {
     const res = await fetch('/api/cloud/settings', {
       method: 'POST',
@@ -112,4 +146,34 @@ export function instagramUrl(s: StoreSettings): string {
 export function waLink(phone: string, text: string): string {
   const clean = (phone || '').replace(/\D/g, '');
   return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
+}
+
+// Descuento por pack: por cada regla activa, si el carrito suma minQty unidades
+// de esa categoría, aplica percent sobre el subtotal de esos items
+export function calcPackDiscount(
+  items: Array<{ product: { category: string }; selectedVariant: { price: number }; quantity: number }>,
+  rules?: import('../types').PackRule[]
+): { amount: number; labels: string[] } {
+  if (!Array.isArray(rules)) return { amount: 0, labels: [] };
+  let amount = 0;
+  const labels: string[] = [];
+  for (const r of rules) {
+    if (!r || r.active === false) continue;
+    const minQty = Number(r.minQty) || 0;
+    const percent = Number(r.percent) || 0;
+    if (minQty < 2 || percent <= 0) continue;
+    const matching = items.filter(
+      (i) => r.category === 'todas' || i.product.category === r.category
+    );
+    const qty = matching.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    if (qty >= minQty) {
+      const sub = matching.reduce((s, i) => s + (Number(i.selectedVariant?.price) || 0) * (Number(i.quantity) || 0), 0);
+      const off = Math.round(sub * (percent / 100));
+      if (off > 0) {
+        amount += off;
+        labels.push(r.label || `Pack ${r.category} x${minQty}: ${percent}% OFF`);
+      }
+    }
+  }
+  return { amount, labels };
 }

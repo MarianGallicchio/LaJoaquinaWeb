@@ -29,7 +29,8 @@ import {
   getLastOrderTarget, 
   SaveTarget 
 } from '../lib/cloudDb';
-import { DEFAULT_SETTINGS, getShippingCost, getEnabledShipping, getMethodLabel } from '../lib/storeSettings';
+import { saveRecovery } from '../lib/cloudDb';
+import { DEFAULT_SETTINGS, getShippingCost, getEnabledShipping, getMethodLabel, calcPackDiscount } from '../lib/storeSettings';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ interface CheckoutModalProps {
   onBackToCart?: () => void;
   settings?: StoreSettings;
   products?: Product[];
+  loyaltyPoints?: number;
   customer?: {
     id?: string;
     name?: string;
@@ -65,6 +67,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   settings,
   customer,
   products,
+  loyaltyPoints,
 }) => {
   const store = settings || DEFAULT_SETTINGS;
   const enabledMethods = getEnabledShipping(store);
@@ -114,6 +117,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [activeCoupon, setActiveCoupon] = useState(discountCode);
   const [couponMsg, setCouponMsg] = useState<string | null>(null);
 
+  // Envoltorio para regalo + puntos de fidelidad
+  const [giftWrap, setGiftWrap] = useState(false);
+  const [giftMessage, setGiftMessage] = useState('');
+  const [usePoints, setUsePoints] = useState(false);
+  // Si cierra sin concretar (con email cargado), se guarda como abandono recuperable
+  const orderDoneRef = useRef(false);
+
   // Sync shipping method when prop changes
   useEffect(() => {
     setSelectedShipping(initialShippingMethod);
@@ -139,6 +149,30 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [isOpen]);
 
+  // Carrito abandonado: si cierra sin concretar y dejó email, se guarda para recupero
+  useEffect(() => {
+    if (isOpen) return;
+    if (orderDoneRef.current) {
+      orderDoneRef.current = false;
+      return;
+    }
+    const mail = (email || '').trim();
+    if (!mail.includes('@') || items.length === 0) return;
+    const summary = items
+      .slice(0, 5)
+      .map((i) => `${i.product?.name || 'Producto'} ${i.selectedVariant?.weight || ''} x${i.quantity}`)
+      .join(', ');
+    saveRecovery({
+      customerName: name.trim() || 'Cliente',
+      customerEmail: mail,
+      customerPhone: phone.trim(),
+      itemsCount: items.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
+      itemsSummary: summary,
+      total,
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const subtotal = items.reduce(
@@ -147,9 +181,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   );
 
   const couponDiscount = activeCoupon.trim().toUpperCase() === store.couponCode.toUpperCase() && activeCoupon.trim() !== '' ? subtotal * (store.couponPercent / 100) : 0;
+  // Pack por cantidad (se aplica solo según reglas del comercio)
+  const pack = calcPackDiscount(items, store.packRules);
+  const packDiscount = pack.amount;
+  // Puntos: cada punto vale arsPerPoint, hasta agotar el subtotal restante
+  const arsPerPoint = Number(store.arsPerPoint) || 0;
+  const availPoints = Math.max(0, Math.floor(Number(loyaltyPoints) || 0));
+  const pointsDiscount = usePoints && arsPerPoint > 0 && availPoints > 0
+    ? Math.min(availPoints * arsPerPoint, Math.max(0, subtotal - couponDiscount - packDiscount))
+    : 0;
+  const pointsToUse = arsPerPoint > 0 ? Math.ceil(pointsDiscount / arsPerPoint) : 0;
   // Descuento extra configurable si paga con transferencia
-  const transferDiscount = paymentMethod === 'transferencia' ? (subtotal - couponDiscount) * (store.transferPercent / 100) : 0;
-  const totalDiscount = couponDiscount + transferDiscount;
+  const transferDiscount = paymentMethod === 'transferencia' ? (subtotal - couponDiscount - packDiscount - pointsDiscount) * (store.transferPercent / 100) : 0;
+  const totalDiscount = couponDiscount + packDiscount + pointsDiscount + transferDiscount;
+  // Envoltorio para regalo (se suma, no descuenta)
+  const giftWrapPrice = giftWrap ? Math.max(0, Number(store.giftWrapPrice) || 0) : 0;
 
   const shippingCosts = {
     pickup: getShippingCost(store, 'pickup'),
@@ -157,7 +203,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     correo_argentino: getShippingCost(store, 'correo_argentino'),
   };
   const shippingCost = shippingCosts[selectedShipping];
-  const total = Math.max(0, subtotal - totalDiscount + shippingCost);
+  const total = Math.max(0, subtotal - totalDiscount + shippingCost + giftWrapPrice);
+  // Puntos que gana esta compra (1 cada pointsPerARS del total)
+  const pointsPerARS = Math.max(1, Number(store.pointsPerARS) || 1000);
+  const pointsEarned = Math.floor(total / pointsPerARS);
 
   const formatARS = (val: number) =>
     new Intl.NumberFormat('es-AR', {
@@ -238,13 +287,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       customerEmail: email.trim(),
       deliveryMethod: selectedShipping,
       address: selectedShipping === 'pickup' ? `Entrega a coordinar (${store.address})` : `${address}, ${city}`,
-      notes,
+      notes: giftWrap && giftMessage.trim() ? `🎁 PARA REGALO: ${giftMessage.trim()}${notes.trim() ? ` | ${notes.trim()}` : ''}` : notes,
       paymentMethod,
       items,
       subtotal,
       discount: totalDiscount,
-      shippingCost,
+      shippingCost: shippingCost + giftWrapPrice,
       total,
+      giftWrap: giftWrap ? { message: giftMessage.trim() } : undefined,
+      pointsUsed: pointsToUse,
+      pointsEarned,
       status: paymentMethod === 'mercadopago' ? 'pago_pendiente' : 'pendiente',
       createdAt: new Date().toLocaleDateString('es-AR', {
         day: '2-digit',
@@ -272,7 +324,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         } catch (stockErr) {
           console.warn('[CheckoutModal] Error en decrementStockForOrder (MP):', stockErr);
         }
+        // Marcada como ya persistida + stock descontado: StoreApp no debe repetirlo
+        (mp.order as any).__persisted = true;
+        (mp.order as any).__stockDone = true;
 
+        orderDoneRef.current = true;
         await onOrderCompleted(mp.order);
         setCurrentStep('success');
         if (store.ordersEmail) sendOrderEmail(mp.order, store.ordersEmail).catch(() => {});
@@ -311,7 +367,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         console.warn('[CheckoutModal] Error en decrementStockForOrder:', stockErr);
       }
 
+      // Marcada como ya persistida + stock descontado: StoreApp no debe repetirlo
+      (finalOrder as any).__persisted = true;
+      (finalOrder as any).__stockDone = true;
+
       // 3. Notificar a la tienda y esperar finalización antes de quitar el estado de carga
+      orderDoneRef.current = true;
       await onOrderCompleted(finalOrder);
 
       setSaveTarget(getLastOrderTarget());
@@ -320,6 +381,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       console.error('[CheckoutModal] Error crítico al procesar orden:', saveErr);
       setConfirmedOrder(newOrder);
       try {
+        orderDoneRef.current = true;
         await onOrderCompleted(newOrder);
       } catch { /* ignore */ }
       setFormError(saveErr?.message || 'Hubo un error al procesar el pedido. Por favor intenta nuevamente.');
@@ -869,6 +931,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 )}
               </div>
 
+              {/* Envoltorio para regalo */}
+              {Number(store.giftWrapPrice) > 0 && (
+                <div className="bg-[#FFFDF9] p-3.5 rounded-2xl border border-[#E5D7BF] text-xs">
+                  <label className="flex items-center gap-2 font-bold text-[#5B4E41] cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={giftWrap}
+                      onChange={(e) => setGiftWrap(e.target.checked)}
+                      className="w-4 h-4 accent-[#B45309] cursor-pointer"
+                    />
+                    🎁 Es para regalo (envoltorio {formatARS(Number(store.giftWrapPrice))})
+                  </label>
+                  {giftWrap && (
+                    <input
+                      value={giftMessage}
+                      onChange={(e) => setGiftMessage(e.target.value)}
+                      placeholder="Mensaje de la tarjeta (opcional)"
+                      maxLength={140}
+                      className="mt-2 w-full text-xs bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl px-3 py-2 outline-none focus:ring-1 focus:ring-[#1B4E43]"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Puntos de fidelidad */}
+              {availPoints > 0 && arsPerPoint > 0 && (
+                <div className="bg-[#FFFBEB] p-3.5 rounded-2xl border border-[#FDE68A] text-xs">
+                  <label className="flex items-center gap-2 font-bold text-[#5B4E41] cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={usePoints}
+                      onChange={(e) => setUsePoints(e.target.checked)}
+                      className="w-4 h-4 accent-[#B45309] cursor-pointer"
+                    />
+                    ⭐ Usar mis {availPoints} puntos (-{formatARS(Math.min(availPoints * arsPerPoint, Math.max(0, subtotal - couponDiscount - packDiscount)))})
+                  </label>
+                </div>
+              )}
+
               {/* Order Total Breakdown */}
               <div className="bg-[#F6EFE2] p-4 rounded-2xl space-y-2 text-xs border border-[#E8DFC9]">
                 <div className="flex justify-between text-[#7A6A59]">
@@ -881,6 +982,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <span>-{formatARS(couponDiscount)}</span>
                   </div>
                 )}
+                {packDiscount > 0 && (
+                  <div className="flex justify-between text-[#256B5C] font-bold">
+                    <span>📦 {pack.labels[0] || 'Pack'}:</span>
+                    <span>-{formatARS(packDiscount)}</span>
+                  </div>
+                )}
+                {pointsDiscount > 0 && (
+                  <div className="flex justify-between text-[#256B5C] font-bold">
+                    <span>⭐ Puntos ({pointsToUse}):</span>
+                    <span>-{formatARS(pointsDiscount)}</span>
+                  </div>
+                )}
                 {transferDiscount > 0 && (
                   <div className="flex justify-between text-[#256B5C] font-bold">
                     <span>{store.transferPercent}% OFF Pago por Transferencia:</span>
@@ -891,6 +1004,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>Envío ({getMethodLabel(store, selectedShipping)}):</span>
                   <span className="font-semibold text-[#2B231D]">{shippingCost === 0 ? 'Gratis' : formatARS(shippingCost)}</span>
                 </div>
+                {giftWrapPrice > 0 && (
+                  <div className="flex justify-between text-[#7A6A59]">
+                    <span>🎁 Envoltorio para regalo:</span>
+                    <span className="font-semibold text-[#2B231D]">{formatARS(giftWrapPrice)}</span>
+                  </div>
+                )}
+                {pointsEarned > 0 && (
+                  <div className="flex justify-between text-[#B45309] font-bold">
+                    <span>⭐ Ganás con esta compra:</span>
+                    <span>+{pointsEarned} puntos</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-base font-black text-[#1B4E43] pt-2 border-t border-[#E0D5BE]">
                   <span>Total a Pagar:</span>
                   <span className="font-display text-xl">{formatARS(total)}</span>

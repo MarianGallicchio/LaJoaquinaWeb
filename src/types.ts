@@ -6,6 +6,7 @@ export interface ProductVariant {
   originalPrice?: number;
   inStock: boolean;
   stock?: number; // unidades disponibles (si se omite = stock ilimitado mientras inStock sea true)
+  minStock?: number; // aviso de stock bajo (por defecto 5)
 }
 
 export type OrderStatus =
@@ -38,6 +39,9 @@ export interface CustomerProfileData {
   addresses: CustomerAddress[];
   defaultPayment?: PaymentMethodId;
   favorites: string[]; // ids de producto
+  birthDate?: string; // YYYY-MM-DD (para regalo de cumpleaños)
+  points?: number; // puntos de fidelidad acumulados
+  lastBirthdayBonus?: number; // año en que ya se acreditó el regalo
   updatedAt?: string;
 }
 
@@ -54,6 +58,7 @@ export interface Product {
   description: string;
   nutritionalInfo?: string;
   image: string;
+  images?: string[]; // fotos extra (la principal sigue siendo image)
   badge?: string;
   rating: number;
   reviewsCount: number;
@@ -90,6 +95,9 @@ export interface OrderDetails {
   status?: OrderStatus | string;
   trackingCode?: string;
   adminNotes?: string;
+  giftWrap?: { message?: string }; // envoltorio para regalo
+  pointsUsed?: number; // puntos canjeados en este pedido
+  pointsEarned?: number; // puntos ganados con este pedido
   history?: Array<{ at: string; from: string; to: string; by?: string }>;
 }
 
@@ -135,6 +143,54 @@ export interface StockAlert {
   status: 'pending' | 'notified' | 'resolved';
 }
 
+// Reseña de cliente (requiere aprobación del admin para publicarse)
+export interface Review {
+  id: string;
+  productId: string;
+  productName: string;
+  customerName: string;
+  rating: number; // 1..5
+  comment: string;
+  approved: boolean;
+  createdAt: string;
+}
+
+// Movimiento de stock (auditoría: ventas, cancelaciones y ajustes manuales)
+export interface StockMovement {
+  id: string;
+  productId: string;
+  productName: string;
+  variantLabel: string;
+  change: number; // negativo = salida, positivo = entrada
+  reason: 'venta' | 'cancelacion' | 'ajuste' | 'carga';
+  orderId?: string;
+  by?: string; // quién lo generó (admin email o "tienda")
+  createdAt: string;
+}
+
+// Estado público y acotado de un pedido (para seguimiento sin login)
+export interface OrderTracking {
+  orderId: string;
+  status: string;
+  trackingCode?: string;
+  deliveryMethod?: string;
+  updatedAt?: string;
+  history?: Array<{ at: string; from: string; to: string }>;
+}
+
+// Carrito abandonado: checkout iniciado con email pero compra no concretada
+export interface CartRecovery {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  itemsCount: number;
+  itemsSummary: string; // ej: "Dogui 15kg x2, Piedras x1"
+  total: number;
+  status: 'pending' | 'recovered' | 'dismissed';
+  createdAt: string;
+}
+
 export interface ShippingMethodConfig {
   id: 'pickup' | 'express_amba' | 'correo_argentino';
   label: string;
@@ -142,6 +198,16 @@ export interface ShippingMethodConfig {
   enabled: boolean;
   detail: string;
 }
+// Regla de pack: llevando minQty unidades de una categoría, % OFF automático
+export interface PackRule {
+  id: string;
+  label: string; // ej: "Pack Perros x3"
+  category: ProductCategory | 'todas';
+  minQty: number;
+  percent: number;
+  active: boolean;
+}
+
 export interface StoreSettings {
   storeName: string;
   address: string;
@@ -155,6 +221,20 @@ export interface StoreSettings {
   transferPercent: number;
   announcement?: string;
   ordersEmail?: string;
+  // Promo con cuenta regresiva (se edita en Envíos y Comercio)
+  promoText?: string; // ej: "Semana del Gato: 20% OFF en piedras"
+  promoEndsAt?: string; // ISO; vacía = sin cuenta regresiva
+  // Medición (se inyectan solo si están cargados)
+  gaId?: string; // G-XXXXXXX (Google Analytics 4)
+  metaPixelId?: string; // Meta Pixel
+  // Envoltorio para regalo
+  giftWrapPrice?: number; // 0 o vacío = desactivado
+  // Armá tu pack (descuentos por cantidad, se aplican solos)
+  packRules?: PackRule[];
+  // Fidelidad: 1 punto cada pointsPerARS gastados; cada punto vale arsPerPoint
+  pointsPerARS?: number;
+  arsPerPoint?: number;
+  birthdayPoints?: number; // regalo de cumpleaños en puntos
   shipping: ShippingMethodConfig[];
   updatedAt?: string;
 }

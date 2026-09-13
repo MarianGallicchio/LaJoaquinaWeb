@@ -3,7 +3,7 @@
 // La anon key es pública por diseño: los datos los protegen las políticas RLS
 // (ver supabase/schema.sql) y el login de dueña es por Supabase Auth.
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, OrderDetails, StockAlert, StoreSettings, Distributor, CustomerProfileData } from '../types';
+import { Product, OrderDetails, StockAlert, StoreSettings, Distributor, CustomerProfileData, Review, StockMovement, OrderTracking, CartRecovery } from '../types';
 import type { AuthUserProfile } from './cloudDb';
 
 const URL = (import.meta as any).env?.VITE_SUPABASE_URL || '';
@@ -279,7 +279,7 @@ export async function supaDiagnostics(): Promise<{ reachable: boolean; tables: b
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 10000);
-    const r = await fetch(`${URL}/auth/v1/health`, { signal: ctrl.signal });
+    const r = await fetch(`${URL}/auth/v1/health`, { headers: { apikey: ANON, Authorization: `Bearer ${ANON}` }, signal: ctrl.signal });
     clearTimeout(t);
     if (!r.ok) return { reachable: false, tables: false, detail: `La nube responde con error ${r.status}` };
   } catch {
@@ -403,4 +403,85 @@ export async function supaMyOrders(email: string): Promise<OrderDetails[]> {
     .limit(100);
   if (error) throw errMsg(error, 'No se pudo leer tu historial.');
   return (data || []).map((r: any) => r.data);
+}
+
+// ============ RESEÑAS ============
+export async function supaGetReviews(productId?: string): Promise<Review[]> {
+  let query: any = supa().from('reviews').select('data').order('created_at', { ascending: false }).limit(500);
+  if (productId) query = query.eq('data->>productId', productId);
+  const { data, error } = await query;
+  if (error) throw errMsg(error, 'No se pudieron leer las reseñas.');
+  return (data || []).map((r: any) => r.data as Review);
+}
+
+export async function supaCreateReview(r: Review): Promise<Review> {
+  const { error } = await supa().from('reviews').insert({ id: r.id, data: { ...r, approved: false } });
+  if (error) throw errMsg(error, 'No se pudo enviar tu reseña.');
+  return { ...r, approved: false };
+}
+
+export async function supaApproveReview(id: string, approved: boolean): Promise<void> {
+  const { data: rows } = await supa().from('reviews').select('data').eq('id', id).limit(1);
+  const current = rows && rows[0] ? (rows[0] as any).data : null;
+  if (!current) throw new Error('Reseña no encontrada.');
+  current.approved = approved;
+  const { error } = await supa().from('reviews').update({ data: current }).eq('id', id);
+  if (error) throw errMsg(error, 'No se pudo moderar la reseña.');
+}
+
+export async function supaDeleteReview(id: string): Promise<void> {
+  const { error } = await supa().from('reviews').delete().eq('id', id);
+  if (error) throw errMsg(error, 'No se pudo eliminar la reseña.');
+}
+
+// ============ MOVIMIENTOS DE STOCK ============
+export async function supaGetMovements(limit = 300): Promise<StockMovement[]> {
+  const { data, error } = await supa().from('stock_movements').select('data').order('created_at', { ascending: false }).limit(limit);
+  if (error) throw errMsg(error, 'No se pudieron leer los movimientos.');
+  return (data || []).map((r: any) => r.data as StockMovement);
+}
+
+export async function supaLogMovement(m: StockMovement): Promise<void> {
+  const { error } = await supa().from('stock_movements').insert({ id: m.id, data: m });
+  if (error) throw errMsg(error, 'No se pudo registrar el movimiento.');
+}
+
+// ============ SEGUIMIENTO PÚBLICO (RPC acotado) ============
+export async function supaTrackOrder(orderId: string, email: string): Promise<OrderTracking | null> {
+  const { data, error } = await supa().rpc('track_order', {
+    p_order_id: (orderId || '').trim(),
+    p_email: (email || '').trim(),
+  });
+  if (error) throw errMsg(error, 'No se pudo consultar el pedido.');
+  if (!data) return null;
+  return {
+    orderId: data.orderId,
+    status: data.status || 'pendiente',
+    trackingCode: data.trackingCode || '',
+    deliveryMethod: data.deliveryMethod || '',
+    updatedAt: data.updatedAt,
+    history: Array.isArray(data.history) ? data.history : [],
+  };
+}
+
+// ============ CARRITOS ABANDONADOS ============
+export async function supaGetRecoveries(): Promise<CartRecovery[]> {
+  const { data, error } = await supa().from('cart_recoveries').select('data').order('created_at', { ascending: false }).limit(300);
+  if (error) throw errMsg(error, 'No se pudieron leer los recuperos.');
+  return (data || []).map((r: any) => r.data as CartRecovery);
+}
+
+export async function supaSaveRecovery(r: CartRecovery): Promise<CartRecovery> {
+  const { error } = await supa().from('cart_recoveries').upsert({ id: r.id, data: r }, { onConflict: 'id' });
+  if (error) throw errMsg(error, 'No se pudo guardar el recupero.');
+  return r;
+}
+
+export async function supaPatchRecovery(id: string, status: CartRecovery['status']): Promise<void> {
+  const { data: rows } = await supa().from('cart_recoveries').select('data').eq('id', id).limit(1);
+  const current = rows && rows[0] ? (rows[0] as any).data : null;
+  if (!current) throw new Error('Recupero no encontrado.');
+  current.status = status;
+  const { error } = await supa().from('cart_recoveries').update({ data: current }).eq('id', id);
+  if (error) throw errMsg(error, 'No se pudo actualizar el recupero.');
 }

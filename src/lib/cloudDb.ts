@@ -1,4 +1,4 @@
-import { Product, OrderDetails, StockAlert, StoreSettings, Distributor, CustomerProfileData, emptyCustomerProfile } from '../types';
+import { Product, OrderDetails, StockAlert, StoreSettings, Distributor, CustomerProfileData, emptyCustomerProfile, Review, StockMovement, OrderTracking, CartRecovery } from '../types';
 import { PRODUCTS as DEFAULT_PRODUCTS } from '../data/products';
 import * as supa from './supabase';
 
@@ -25,6 +25,9 @@ export const STORAGE_KEY_USER = 'la_joaquina_user';
 export const STORAGE_KEY_ALERTS = 'la_joaquina_stock_alerts';
 export const STORAGE_KEY_DISTRIBUTORS = 'la_joaquina_distributors';
 export const STORAGE_KEY_ADMIN_TOKEN = 'la_joaquina_admin_token';
+export const STORAGE_KEY_REVIEWS = 'la_joaquina_reviews';
+export const STORAGE_KEY_MOVEMENTS = 'la_joaquina_stock_movements';
+export const STORAGE_KEY_RECOVERIES = 'la_joaquina_recoveries';
 
 // Canal para sincronización bidireccional en tiempo real entre pestañas (tienda y panel admin)
 export const joaquinaSyncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('la_joaquina_sync') : null;
@@ -1258,6 +1261,9 @@ export async function decrementStockForOrder(order: OrderDetails, products: Prod
       }
     }
 
+    // Auditoría: registrar la salida por venta
+    recordMovements(diffMovements(products, updated, 'venta', order.orderId, 'tienda')).catch(() => {});
+
     try {
       localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
       console.log('[decrementStockForOrder] Stock actualizado guardado en cache local.');
@@ -1313,6 +1319,9 @@ export async function restockForOrder(order: OrderDetails, products: Product[]):
       }
     }
 
+    // Auditoría: registrar la entrada por cancelación
+    recordMovements(diffMovements(products, updated, 'cancelacion', order.orderId, 'admin')).catch(() => {});
+
     try {
       localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
     } catch { /* ignore */ }
@@ -1322,6 +1331,393 @@ export async function restockForOrder(order: OrderDetails, products: Product[]):
     console.error('[restockForOrder] Error fatal durante reposición de stock:', err);
     return products;
   }
+}
+
+// ============ MOVIMIENTOS DE STOCK (auditoría) ============
+
+function newMovementId(prefix = 'mov'): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Compara stock antes/después y genera un movimiento por variante cambiada
+function diffMovements(
+  before: Product[],
+  after: Product[],
+  reason: StockMovement['reason'],
+  orderId: string | undefined,
+  by: string
+): StockMovement[] {
+  const out: StockMovement[] = [];
+  const now = new Date().toISOString();
+  for (const prod of after) {
+    const orig = before.find((p) => p.id === prod.id);
+    if (!orig) continue;
+    prod.variants.forEach((v, vi) => {
+      const prev = orig.variants[vi];
+      if (!prev || typeof prev.stock !== 'number' || typeof v.stock !== 'number') return;
+      if (v.stock === prev.stock) return;
+      out.push({
+        id: newMovementId(),
+        productId: prod.id,
+        productName: prod.name,
+        variantLabel: v.weight || 'Estándar',
+        change: v.stock - prev.stock,
+        reason,
+        orderId,
+        by,
+        createdAt: now,
+      });
+    });
+  }
+  return out;
+}
+
+async function recordMovements(list: StockMovement[]): Promise<void> {
+  if (list.length === 0) return;
+  if (supaMode()) {
+    for (const m of list) {
+      try {
+        await supa.supaLogMovement(m);
+      } catch (e) {
+        console.warn('[movements] No se pudo registrar en la nube:', e);
+      }
+    }
+    return;
+  }
+  try {
+    const stored = getStoredMovements();
+    localStorage.setItem(STORAGE_KEY_MOVEMENTS, JSON.stringify([...list, ...stored].slice(0, 1000)));
+  } catch { /* ignore */ }
+}
+
+// Registro manual suelto (lo usa el stock rápido del admin)
+export async function logManualMovement(m: Omit<StockMovement, 'id' | 'createdAt'>): Promise<void> {
+  const full: StockMovement = {
+    ...m,
+    id: newMovementId(),
+    createdAt: new Date().toISOString(),
+  };
+  await recordMovements([full]);
+}
+
+export function getStoredMovements(): StockMovement[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_MOVEMENTS);
+    const list = saved ? JSON.parse(saved) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchMovements(): Promise<StockMovement[]> {
+  if (supaMode()) {
+    try {
+      return await supa.supaGetMovements();
+    } catch (e) {
+      console.warn('[movements] Error leyendo la nube, usando local:', e);
+    }
+  }
+  return getStoredMovements();
+}
+
+// Ajuste manual desde el admin (carga de mercadería o corrección)
+export async function adjustStockManual(
+  products: Product[],
+  productId: string,
+  variantLabel: string,
+  delta: number,
+  by: string
+): Promise<Product[]> {
+  const updated = products.map((p) => {
+    if (p.id !== productId) return p;
+    return {
+      ...p,
+      variants: p.variants.map((v) =>
+        (v.weight || '') === (variantLabel || '')
+          ? { ...v, stock: Math.max(0, (typeof v.stock === 'number' ? v.stock : 0) + delta), inStock: true }
+          : v
+      ),
+    };
+  });
+  const changed = updated.find((p) => p.id === productId);
+  if (changed) {
+    if (supaMode()) {
+      try {
+        await supa.supaSaveProduct(changed);
+      } catch (e) {
+        console.warn('[movements] No se pudo guardar el ajuste en la nube:', e);
+      }
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(updated));
+    } catch { /* ignore */ }
+  }
+  await recordMovements(diffMovements(products, updated, delta >= 0 ? 'carga' : 'ajuste', undefined, by || 'admin'));
+  return updated;
+}
+
+// ============ RESEÑAS ============
+
+export function getStoredReviews(productId?: string, onlyApproved = false): Review[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_REVIEWS);
+    const list: Review[] = saved ? JSON.parse(saved) : [];
+    if (!Array.isArray(list)) return [];
+    return list.filter(
+      (r) => (!productId || r.productId === productId) && (!onlyApproved || r.approved)
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveReviewLocal(r: Review) {
+  try {
+    const stored = getStoredReviews();
+    const idx = stored.findIndex((x) => x.id === r.id);
+    const next = idx > -1 ? stored.map((x) => (x.id === r.id ? r : x)) : [r, ...stored];
+    localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(next.slice(0, 1000)));
+  } catch { /* ignore */ }
+}
+
+// Públicas: solo aprobadas
+export async function fetchReviews(productId: string): Promise<Review[]> {
+  if (supaMode()) {
+    try {
+      return (await supa.supaGetReviews(productId)).filter((r) => r.approved);
+    } catch (e) {
+      console.warn('[reviews] Error leyendo la nube, usando local:', e);
+    }
+  }
+  return getStoredReviews(productId, true);
+}
+
+// Admin: todas (pendientes + aprobadas)
+export async function fetchAllReviewsAdmin(): Promise<Review[]> {
+  if (supaMode()) {
+    try {
+      return await supa.supaGetReviews();
+    } catch (e) {
+      console.warn('[reviews] Error leyendo la nube, usando local:', e);
+    }
+  }
+  return getStoredReviews();
+}
+
+export async function submitReview(input: {
+  productId: string;
+  productName: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+}): Promise<Review> {
+  const review: Review = {
+    id: `rev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    productId: input.productId,
+    productName: input.productName,
+    customerName: (input.customerName || 'Cliente').trim().slice(0, 60) || 'Cliente',
+    rating: Math.min(5, Math.max(1, Math.round(input.rating) || 5)),
+    comment: (input.comment || '').trim().slice(0, 600),
+    approved: false,
+    createdAt: new Date().toISOString(),
+  };
+  if (!review.comment) throw new Error('Contanos qué te pareció el producto.');
+  if (supaMode()) {
+    try {
+      const saved = await supa.supaCreateReview(review);
+      saveReviewLocal(saved);
+      return saved;
+    } catch (e: any) {
+      saveReviewLocal(review);
+      throw e;
+    }
+  }
+  saveReviewLocal(review);
+  return review;
+}
+
+export async function moderateReview(id: string, approved: boolean): Promise<void> {
+  if (supaMode()) {
+    try {
+      await supa.supaApproveReview(id, approved);
+    } catch (e) {
+      console.warn('[reviews] No se pudo moderar en la nube:', e);
+      throw e;
+    }
+  }
+  try {
+    const stored = getStoredReviews();
+    const next = stored.map((r) => (r.id === id ? { ...r, approved } : r));
+    localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(next));
+  } catch { /* ignore */ }
+}
+
+export async function removeReview(id: string): Promise<void> {
+  if (supaMode()) {
+    try {
+      await supa.supaDeleteReview(id);
+    } catch (e) {
+      console.warn('[reviews] No se pudo eliminar en la nube:', e);
+      throw e;
+    }
+  }
+  try {
+    const stored = getStoredReviews();
+    localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(stored.filter((r) => r.id !== id)));
+  } catch { /* ignore */ }
+}
+
+// Promedio combinado: base del producto + reseñas aprobadas
+export function ratingWithReviews(product: Product, approved: Review[]): { rating: number; count: number } {
+  const base = Number(product.rating) || 5;
+  const baseCount = Number(product.reviewsCount) || 0;
+  const sum = approved.reduce((s, r) => s + (Number(r.rating) || 5), 0);
+  const count = baseCount + approved.length;
+  if (count === 0) return { rating: base, count: 0 };
+  return { rating: Math.round(((base * baseCount + sum) / count) * 10) / 10, count };
+}
+
+// ============ SEGUIMIENTO PÚBLICO ============
+
+export async function trackPublicOrder(orderId: string, email: string): Promise<OrderTracking | null> {
+  const oid = (orderId || '').trim();
+  const mail = (email || '').trim().toLowerCase();
+  if (!oid || !mail) throw new Error('Ingresá el número de pedido y tu email.');
+  if (supaMode()) {
+    try {
+      const found = await supa.supaTrackOrder(oid, mail);
+      if (found) return found;
+    } catch (e) {
+      console.warn('[tracking] Error en la nube:', e);
+    }
+  }
+  // Backend /api (local o Vercel)
+  try {
+    const res = await fetch(`/api/cloud/my-orders?email=${encodeURIComponent(mail)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const o = ((data.orders || []) as OrderDetails[]).find(
+        (x) => (x.orderId || '').toLowerCase() === oid.toLowerCase()
+      );
+      if (o) {
+        return {
+          orderId: o.orderId,
+          status: o.status || 'pendiente',
+          trackingCode: o.trackingCode || '',
+          deliveryMethod: o.deliveryMethod || '',
+          updatedAt: o.createdAt,
+          history: (o.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to })),
+        };
+      }
+    }
+  } catch { /* sin backend */ }
+  // Local (este navegador)
+  try {
+    const stored = getStoredOrders();
+    const o = stored.find(
+      (x) => (x.orderId || '').toLowerCase() === oid.toLowerCase() && (x.customerEmail || '').toLowerCase() === mail
+    );
+    if (o) {
+      return {
+        orderId: o.orderId,
+        status: o.status || 'pendiente',
+        trackingCode: o.trackingCode || '',
+        deliveryMethod: o.deliveryMethod || '',
+        updatedAt: o.createdAt,
+        history: (o.history || []).map((h) => ({ at: h.at, from: h.from, to: h.to })),
+      };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+// ============ CARRITOS ABANDONADOS ============
+
+export function getStoredRecoveries(): CartRecovery[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_RECOVERIES);
+    const list = saved ? JSON.parse(saved) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchRecoveries(): Promise<CartRecovery[]> {
+  if (supaMode()) {
+    try {
+      return await supa.supaGetRecoveries();
+    } catch (e) {
+      console.warn('[recoveries] Error leyendo la nube, usando local:', e);
+    }
+  }
+  return getStoredRecoveries();
+}
+
+// Guarda/actualiza el abandono por email (uno vigente por email)
+export async function saveRecovery(input: {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  itemsCount: number;
+  itemsSummary: string;
+  total: number;
+}): Promise<void> {
+  const mail = (input.customerEmail || '').trim().toLowerCase();
+  if (!mail || !mail.includes('@') || input.itemsCount < 1) return;
+  const rec: CartRecovery = {
+    id: `rec-${mail}`,
+    customerName: (input.customerName || 'Cliente').trim().slice(0, 60),
+    customerEmail: mail,
+    customerPhone: (input.customerPhone || '').trim().slice(0, 30),
+    itemsCount: input.itemsCount,
+    itemsSummary: input.itemsSummary.slice(0, 300),
+    total: Math.round(Number(input.total) || 0),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+  if (supaMode()) {
+    try {
+      await supa.supaSaveRecovery(rec);
+    } catch (e) {
+      console.warn('[recoveries] No se pudo guardar en la nube:', e);
+    }
+  }
+  try {
+    const stored = getStoredRecoveries().filter((r) => r.id !== rec.id);
+    localStorage.setItem(STORAGE_KEY_RECOVERIES, JSON.stringify([rec, ...stored].slice(0, 200)));
+  } catch { /* ignore */ }
+}
+
+// Si ese email termina comprando, el abandono se marca recuperado solo
+export async function markRecoveryDone(email: string): Promise<void> {
+  const mail = (email || '').trim().toLowerCase();
+  if (!mail) return;
+  const id = `rec-${mail}`;
+  if (supaMode()) {
+    try {
+      await supa.supaPatchRecovery(id, 'recovered');
+    } catch { /* puede no existir todavía */ }
+  }
+  try {
+    const stored = getStoredRecoveries().map((r) => (r.id === id ? { ...r, status: 'recovered' as const } : r));
+    localStorage.setItem(STORAGE_KEY_RECOVERIES, JSON.stringify(stored));
+  } catch { /* ignore */ }
+}
+
+export async function dismissRecovery(id: string): Promise<void> {
+  if (supaMode()) {
+    try {
+      await supa.supaPatchRecovery(id, 'dismissed');
+    } catch (e) {
+      console.warn('[recoveries] No se pudo actualizar en la nube:', e);
+    }
+  }
+  try {
+    const stored = getStoredRecoveries().map((r) => (r.id === id ? { ...r, status: 'dismissed' as const } : r));
+    localStorage.setItem(STORAGE_KEY_RECOVERIES, JSON.stringify(stored));
+  } catch { /* ignore */ }
 }
 
 // ============ DISTRIBUIDORES (solo admin) ============
@@ -1537,18 +1933,25 @@ export interface MpPaymentResult {
 }
 
 export async function createMpPayment(order: OrderDetails): Promise<MpPaymentResult> {
+  // Supabase Edge Function (cuando está configurado) -> no necesita backend /api
+  const supaUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
+  const supaAnon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
+  const useSupa = Boolean(supaUrl && supaAnon);
+  const url = useSupa ? `${String(supaUrl).replace(/\/$/, '')}/functions/v1/mercadopago-create` : '/api/payments/create';
+  const headers: Record<string,string> = { 'Content-Type': 'application/json' };
+  if (useSupa && supaAnon) { headers['apikey'] = supaAnon; headers['Authorization'] = `Bearer ${supaAnon}`; }
   let res: Response;
   try {
-    res = await fetch('/api/payments/create', {
+    res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ order }),
     });
   } catch {
     throw new Error('Sin conexión con el servidor de pagos. Elegí transferencia o coordiná por WhatsApp.');
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'No se pudo generar el link de pago.');
+  if (!res.ok) throw new Error(data.error || data.details?.message || 'No se pudo generar el link de pago.');
   saveOrderLocally(data.order);
   markOrderTarget('ok');
   return data as MpPaymentResult;

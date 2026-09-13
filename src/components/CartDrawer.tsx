@@ -62,6 +62,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const shippingCost = getShippingCost(store, shippingMethod);
   const total = Math.max(0, subtotal - discountAmount + shippingCost);
 
+  // Aviso de packs: cuánto falta para activar cada regla
+  const packHints = (store.packRules || [])
+    .filter((r) => r && r.active !== false && (Number(r.minQty) || 0) >= 2 && (Number(r.percent) || 0) > 0)
+    .map((r) => {
+      const qty = items
+        .filter((i) => r.category === 'todas' || i.product.category === r.category)
+        .reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+      return { rule: r, qty, missing: Math.max(0, (Number(r.minQty) || 0) - qty) };
+    });
+
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = couponCode.trim().toUpperCase();
@@ -309,6 +319,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           {/* Footer with totals and action buttons */}
           {items.length > 0 && (
             <div className="p-4 sm:p-5 bg-[#FAF7F2] border-t border-[#E8DFC9] space-y-3">
+              {packHints.map(({ rule, qty, missing }) => (
+                <div
+                  key={rule.id}
+                  className={`text-[11px] font-bold rounded-xl px-3 py-2 ${missing === 0 ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A]'}`}
+                >
+                  {missing === 0
+                    ? `📦 ${rule.label || 'Pack'}: ¡${rule.percent}% OFF aplicado en el checkout!`
+                    : `📦 ${rule.label || 'Pack'}: sumá ${missing} u. más y tenés ${rule.percent}% OFF`}
+                </div>
+              ))}
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between text-[#7A6A59]">
                   <span>Subtotal productos:</span>

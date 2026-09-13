@@ -47,7 +47,7 @@ function safeEqual(a: string, b: string): boolean {
 export function verifyAdminCredentials(email: string, password: string): AdminProfile | null {
   if (!adminConfigured()) return null;
   const emailOk = safeEqual((email || '').toLowerCase().trim(), adminEmail());
-  const passOk = safeEqual(password || '', adminPassword()) || safeEqual(password || '', 'admin1234');
+  const passOk = safeEqual(password || '', adminPassword());
   if (!emailOk || !passOk) return null;
   return { id: 'admin-master', email: adminEmail(), name: 'Administrador La Joaquina', role: 'admin' };
 }

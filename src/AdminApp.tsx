@@ -24,6 +24,10 @@ import {
   Activity,
   ShieldAlert,
   Server,
+  Star,
+  History,
+  Undo2,
+  Factory,
   X,
 } from 'lucide-react';
 import { Product, OrderDetails, StockAlert, StoreSettings } from './types';
@@ -54,12 +58,16 @@ import { AdminShipping } from './components/admin/AdminShipping';
 import { AdminTools } from './components/admin/AdminTools';
 import { AdminTeam } from './components/admin/AdminTeam';
 
-type Tab = 'resumen' | 'productos' | 'ventas' | 'envios' | 'herramientas' | 'equipo';
+type Tab = 'resumen' | 'productos' | 'ventas' | 'recupero' | 'resenas' | 'movimientos' | 'mayoristas' | 'envios' | 'herramientas' | 'equipo';
 
 const TAB_META: Record<Tab, { label: string; desc: string }> = {
   resumen: { label: 'Resumen', desc: 'Facturación, estados y alertas de un vistazo' },
   productos: { label: 'Productos y Stock', desc: 'Catálogo, precios, stock y alertas de clientes' },
   ventas: { label: 'Ventas y Pedidos', desc: 'Pedidos, envíos, seguimiento y cobranzas' },
+  recupero: { label: 'Recupero', desc: 'Carritos abandonados para contactar' },
+  resenas: { label: 'Reseñas', desc: 'Opiniones de clientes para aprobar y publicar' },
+  movimientos: { label: 'Movimientos', desc: 'Historial de stock y ajustes manuales' },
+  mayoristas: { label: 'Mayoristas', desc: 'Distribuidores, marcas y contactos' },
   envios: { label: 'Envíos y Comercio', desc: 'Costos de envío, cupones y datos de la tienda' },
   herramientas: { label: 'Herramientas', desc: 'Aumentos masivos, respaldos e importación' },
   equipo: { label: 'Equipo y Mi Cuenta', desc: 'Tu perfil, tu clave y empleados por puesto' },
@@ -78,6 +86,7 @@ export default function AdminApp() {
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [orders, setOrders] = useState<OrderDetails[]>(() => getStoredOrders());
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
+  const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [toast, setToast] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -142,12 +151,13 @@ export default function AdminApp() {
     let fetchErrorDetail = '';
 
     try {
-      const [prodsRes, ordsRes, alsRes, settRes, healthRes] = await Promise.allSettled([
+      const [prodsRes, ordsRes, alsRes, settRes, healthRes, distRes] = await Promise.allSettled([
         fetchCloudProducts(),
         fetchCloudOrders(),
         fetchCloudStockAlerts(),
         fetchStoreSettings(),
         checkBackendHealth(),
+        fetchCloudDistributors().catch(() => [] as Distributor[]),
       ]);
 
       if (prodsRes.status === 'fulfilled' && prodsRes.value && prodsRes.value.length > 0) {
@@ -182,6 +192,7 @@ export default function AdminApp() {
 
       if (alsRes.status === 'fulfilled' && alsRes.value) setAlerts(alsRes.value);
       if (settRes.status === 'fulfilled' && settRes.value) setSettings(settRes.value);
+      if (distRes.status === 'fulfilled' && distRes.value) setDistributors(distRes.value as Distributor[]);
 
       // Evaluación del monitor de salud del backend
       if (healthRes.status === 'fulfilled') {
@@ -446,6 +457,38 @@ export default function AdminApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // --- Estado derivado y navegación (OBLIGATORIO antes de cualquier return condicional, regla de hooks) ---
+  const pendingAlerts = alerts.filter((a) => a.status === 'pending').length;
+  const pendingOrders = orders.filter((o) => (o.status || 'pendiente') === 'pendiente').length;
+
+  // Permisos por puesto (la dueña ve todo)
+  const staffRole = currentUser?.role || 'customer';
+  const isOwner = !!currentUser?.isOwner;
+  const canProductos = isOwner || staffRole === 'admin' || staffRole === 'stock';
+  const canVentas = isOwner || staffRole === 'admin' || staffRole === 'ventas';
+  const canComercio = isOwner || staffRole === 'admin';
+
+  const navItems: { id: Tab; icon: React.ReactNode; badge?: number }[] = [
+    { id: 'resumen', icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
+    ...(canProductos ? [{ id: 'productos' as Tab, icon: <Package className="w-[18px] h-[18px]" />, badge: pendingAlerts }] : []),
+    ...(canVentas ? [{ id: 'ventas' as Tab, icon: <ShoppingBag className="w-[18px] h-[18px]" />, badge: pendingOrders }] : []),
+    ...(canVentas ? [{ id: 'recupero' as Tab, icon: <Undo2 className="w-[18px] h-[18px]" /> }] : []),
+    ...(canComercio ? [{ id: 'resenas' as Tab, icon: <Star className="w-[18px] h-[18px]" /> }] : []),
+    ...(canProductos ? [{ id: 'movimientos' as Tab, icon: <History className="w-[18px] h-[18px]" /> }] : []),
+    ...(canComercio ? [{ id: 'mayoristas' as Tab, icon: <Factory className="w-[18px] h-[18px]" /> }] : []),
+    ...(canComercio ? [{ id: 'envios' as Tab, icon: <Truck className="w-[18px] h-[18px]" /> }] : []),
+    ...(canComercio ? [{ id: 'herramientas' as Tab, icon: <Wrench className="w-[18px] h-[18px]" /> }] : []),
+    ...(isOwner ? [{ id: 'equipo' as Tab, icon: <Users className="w-[18px] h-[18px]" /> }] : []),
+  ];
+
+  const allowedTabIds = navItems.map((n) => n.id);
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'customer' && !allowedTabIds.includes(tab)) {
+      goTab(allowedTabIds[0] || 'resumen');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
+
   // Puerta de acceso: personal con rol (dueña, admin, stock, ventas).
   // Los clientes ven el aviso correspondiente en vez del login.
   if (!currentUser || currentUser.role === 'customer') {
@@ -590,33 +633,6 @@ export default function AdminApp() {
     );
   }
 
-  const pendingAlerts = alerts.filter((a) => a.status === 'pending').length;
-  const pendingOrders = orders.filter((o) => (o.status || 'pendiente') === 'pendiente').length;
-
-  // Permisos por puesto (la dueña ve todo)
-  const staffRole = currentUser?.role || 'customer';
-  const isOwner = !!currentUser?.isOwner;
-  const canProductos = isOwner || staffRole === 'admin' || staffRole === 'stock';
-  const canVentas = isOwner || staffRole === 'admin' || staffRole === 'ventas';
-  const canComercio = isOwner || staffRole === 'admin';
-
-  const navItems: { id: Tab; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'resumen', icon: <LayoutDashboard className="w-[18px] h-[18px]" /> },
-    ...(canProductos ? [{ id: 'productos' as Tab, icon: <Package className="w-[18px] h-[18px]" />, badge: pendingAlerts }] : []),
-    ...(canVentas ? [{ id: 'ventas' as Tab, icon: <ShoppingBag className="w-[18px] h-[18px]" />, badge: pendingOrders }] : []),
-    ...(canComercio ? [{ id: 'envios' as Tab, icon: <Truck className="w-[18px] h-[18px]" /> }] : []),
-    ...(canComercio ? [{ id: 'herramientas' as Tab, icon: <Wrench className="w-[18px] h-[18px]" /> }] : []),
-    ...(isOwner ? [{ id: 'equipo' as Tab, icon: <Users className="w-[18px] h-[18px]" /> }] : []),
-  ];
-
-  const allowedTabIds = navItems.map((n) => n.id);
-  useEffect(() => {
-    if (currentUser && currentUser.role !== 'customer' && !allowedTabIds.includes(tab)) {
-      goTab(allowedTabIds[0] || 'resumen');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
-
   const navButton = (t: Tab, icon: React.ReactNode, badge?: number, vertical = false) => (
     <button
       key={t}
@@ -630,7 +646,7 @@ export default function AdminApp() {
       }`}
     >
       <span className={tab === t ? '' : 'opacity-70 group-hover:opacity-100'}>{icon}</span>
-      <span className={vertical ? '' : 'hidden sm:inline'}>{TAB_META[t].label}</span>
+      <span className={vertical ? '' : 'hidden sm:inline'}>{(TAB_META[t] || TAB_META['resumen']).label}</span>
       {!!badge && badge > 0 && (
         <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === t ? 'bg-[#B91C1C] text-white' : 'bg-[#B91C1C] text-white animate-pulse'}`}>
           {badge}
@@ -766,9 +782,9 @@ export default function AdminApp() {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[200px]">
               <h1 className="text-lg sm:text-xl font-extrabold text-[#1B4E43] font-display leading-tight">
-                {TAB_META[tab].label}
+                {(TAB_META[tab] || TAB_META['resumen']).label}
               </h1>
-              <p className="text-[11px] text-[#8A7969]">{TAB_META[tab].desc}</p>
+              <p className="text-[11px] text-[#8A7969]">{(TAB_META[tab] || TAB_META['resumen']).desc}</p>
             </div>
             <span className="hidden md:inline-flex text-[11px] font-bold text-[#5A4D3F] bg-[#FAF5EC] border border-[#E8DFC9] px-3 py-1.5 rounded-xl">
               {products.length} productos · {orders.length} pedidos
@@ -910,6 +926,18 @@ export default function AdminApp() {
                   onProductsChange={handleUpdateProducts}
                   notify={notify}
                 />
+              )}
+              {tab === 'recupero' && canVentas && (
+                <AdminRecovery notify={notify} storeName={settings.storeName} />
+              )}
+              {tab === 'resenas' && canComercio && (
+                <AdminReviews products={products} onProductsChange={handleUpdateProducts} notify={notify} />
+              )}
+              {tab === 'movimientos' && canProductos && (
+                <AdminMovements products={products} onProductsChange={handleUpdateProducts} notify={notify} currentUserEmail={currentUser?.email} />
+              )}
+              {tab === 'mayoristas' && canComercio && (
+                <AdminDistributors distributors={distributors} onChange={setDistributors} notify={notify} />
               )}
               {tab === 'envios' && canComercio && (
                 <AdminShipping settings={settings} onSaved={(s) => { setSettings(s); notify('✅ Comercio y envíos guardados.'); }} />

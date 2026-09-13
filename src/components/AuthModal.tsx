@@ -30,7 +30,6 @@ import {
 } from '../lib/cloudDb';
 import { OrderDetails, Product, CustomerProfileData, CustomerAddress, PaymentMethodId } from '../types';
 import { formatARS } from '../lib/storeSettings';
-import { goAdmin } from '../lib/nav';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -309,53 +308,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   />
                 </div>
               </div>
-              {cloud && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-[#5B4E41]">Contraseña</label>
-                    {mode === 'login' && (
-                      <button
-                        type="button"
-                        disabled={resetSending}
-                        onClick={async () => {
-                          if (!email.trim()) {
-                            setErrorMsg('Escribí tu email arriba para enviarte el link.');
-                            return;
-                          }
-                          setResetSending(true);
-                          setResetMsg(null);
-                          try {
-                            await requestPasswordReset(email.trim());
-                            setResetMsg('✅ Te enviamos un email con el link. Abrilo y después volvé a entrar.');
-                          } catch (err: any) {
-                            setResetMsg(`⚠️ ${err.message || 'No se pudo enviar.'}`);
-                          } finally {
-                            setResetSending(false);
-                          }
-                        }}
-                        className="text-[11px] font-bold text-[#1B4E43] hover:underline cursor-pointer disabled:opacity-50"
-                      >
-                        {resetSending ? 'Enviando...' : '¿Olvidaste tu clave?'}
-                      </button>
-                    )}
-                  </div>
-                  {resetMsg && (
-                    <p className="mb-1.5 text-[11px] font-semibold text-[#1B4E43] bg-[#E8F3EF] border border-[#BCE0D4] rounded-xl px-3 py-2">
-                      {resetMsg}
-                    </p>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-[#5B4E41]">Contraseña</label>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      disabled={resetSending}
+                      onClick={async () => {
+                        if (!email.trim()) {
+                          setErrorMsg('Escribí tu email arriba para enviarte el link.');
+                          return;
+                        }
+                        setResetSending(true);
+                        setResetMsg(null);
+                        try {
+                          await requestPasswordReset(email.trim());
+                          setResetMsg('✅ Te enviamos un email con el link. Abrilo y después volvé a entrar.');
+                        } catch (err: any) {
+                          setResetMsg(`⚠️ ${err.message || 'No se pudo enviar.'}`);
+                        } finally {
+                          setResetSending(false);
+                        }
+                      }}
+                      className="text-[11px] font-bold text-[#1B4E43] hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      {resetSending ? 'Enviando...' : '¿Olvidaste tu clave?'}
+                    </button>
                   )}
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={mode === 'register' ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
-                      className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
-                    />
-                  </div>
                 </div>
-              )}
+                {resetMsg && (
+                  <p className="mb-1.5 text-[11px] font-semibold text-[#1B4E43] bg-[#E8F3EF] border border-[#BCE0D4] rounded-xl px-3 py-2">
+                    {resetMsg}
+                  </p>
+                )}
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#8A7969] absolute left-3 top-3" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={mode === 'register' ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
+                    className="w-full text-xs pl-9 pr-3 py-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B4E43]"
+                  />
+                </div>
+              </div>
               <button
                 type="submit"
                 disabled={loading}
@@ -365,18 +362,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{loading ? 'Procesando...' : mode === 'login' ? 'Ingresar' : 'Crear mi cuenta'}</span>
               </button>
             </form>
-            <div className="pt-3 text-center border-t border-[#EAE1CE] mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  goAdmin();
-                }}
-                className="text-xs text-[#1B4E43] hover:underline font-bold inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>🛠️ Acceso al Panel Administrador →</span>
-              </button>
-            </div>
           </div>
         ) : (
           <>
@@ -649,22 +634,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
 
-              {currentUser?.role === 'admin' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    goAdmin();
-                  }}
-                  className="mt-4 w-full bg-[#1B4E43] hover:bg-[#256B5C] text-[#FFE194] text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <span>🛠️ Ir al Panel Administrador</span>
-                </button>
-              )}
-
               <button
                 onClick={onLogout}
-                className="mt-2 w-full bg-[#FAF5EC] hover:bg-[#EFE8D8] text-[#DE5D4E] text-xs font-bold py-2.5 px-4 rounded-xl border border-[#E3D6BE] transition-colors cursor-pointer"
+                className="mt-4 w-full bg-[#FAF5EC] hover:bg-[#EFE8D8] text-[#DE5D4E] text-xs font-bold py-2.5 px-4 rounded-xl border border-[#E3D6BE] transition-colors cursor-pointer"
               >
                 Cerrar sesión
               </button>

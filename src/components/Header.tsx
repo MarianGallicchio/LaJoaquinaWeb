@@ -26,6 +26,7 @@ interface HeaderProps {
   onOpenHelp: () => void;
   currentUser: AuthUserProfile | null;
   onOpenAuth: () => void;
+  onOpenTracking: () => void;
   settings?: StoreSettings;
 }
 
@@ -39,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   currentUser,
   onOpenAuth,
+  onOpenTracking,
   settings,
 }) => {
   const store = settings || DEFAULT_SETTINGS;
@@ -130,6 +132,16 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Tracking Button */}
+            <button
+              onClick={onOpenTracking}
+              className="hidden lg:flex items-center gap-2 text-xs font-bold text-[#1B4E43] bg-[#FFF4DE] hover:bg-[#FFE9B8] border border-[#EFC86B] px-3.5 py-2 rounded-full transition-colors cursor-pointer"
+              title="Seguí tu pedido con el número y tu email"
+            >
+              <Truck className="w-4 h-4 text-[#B45309]" />
+              <span>Seguir pedido</span>
+            </button>
+
             {/* Help Button */}
             <button
               onClick={onOpenHelp}
@@ -278,6 +290,17 @@ export const Header: React.FC<HeaderProps> = ({
               <User className="w-4 h-4 text-[#1B4E43]" />
               <span>{currentUser ? 'Mi Perfil' : 'Iniciar Sesión'}</span>
             </button>
+
+              <button
+                onClick={() => {
+                  onOpenTracking();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#FFF4DE] border border-[#EFC86B] text-[#7C4A03] text-xs font-bold"
+              >
+                <Truck className="w-4 h-4" />
+                Seguir mi pedido
+              </button>
 
               <button
                 onClick={() => {

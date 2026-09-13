@@ -13,12 +13,17 @@ import {
 } from 'lucide-react';
 import { Product, ProductVariant, StoreSettings } from '../types';
 import { DEFAULT_SETTINGS, waLink } from '../lib/storeSettings';
+import { RelatedProducts } from './RelatedProducts';
+import { ProductReviews } from './ProductReviews';
 
 interface ProductModalProps {
   product: Product | null;
   onClose: () => void;
   onAddToCart: (product: Product, variant: ProductVariant, quantity: number) => void;
   onOpenStockAlert?: (product: Product, variant: ProductVariant) => void;
+  onOpenDetails?: (product: Product) => void;
+  products?: Product[];
+  customerName?: string;
   settings?: StoreSettings;
 }
 
@@ -27,6 +32,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   onClose,
   onAddToCart,
   onOpenStockAlert,
+  onOpenDetails,
+  products,
+  customerName,
   settings,
 }) => {
   if (!product) return null;
@@ -34,6 +42,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [selectedImg, setSelectedImg] = useState(0);
+
+  const gallery = [product.image, ...((product.images || []).filter((u) => u && u !== product.image))].slice(0, 6);
 
   const fallbackVariant: ProductVariant = { weight: 'Estándar', price: 0, inStock: true };
   const activeVariant = (product.variants && product.variants.length > 0)
@@ -85,12 +96,25 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2">
           
           {/* Image side */}
-          <div className="relative bg-[#F4EDE0] flex items-center justify-center p-6 min-h-[260px] md:min-h-full">
+          <div className="relative bg-[#F4EDE0] flex flex-col items-center justify-center p-6 min-h-[260px] md:min-h-full gap-3">
             <img
-              src={product.image}
+              src={gallery[Math.min(selectedImg, gallery.length - 1)]}
               alt={product.name}
               className="max-h-72 w-auto object-contain rounded-xl shadow-sm"
             />
+            {gallery.length > 1 && (
+              <div className="flex gap-1.5">
+                {gallery.map((src, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedImg(i)}
+                    className={`w-12 h-12 rounded-lg overflow-hidden border-2 cursor-pointer bg-white ${i === selectedImg ? 'border-[#1B4E43]' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                  >
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
             {product.badge && (
               <span className="absolute top-4 left-4 bg-[#DE5D4E] text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                 {product.badge}
@@ -118,6 +142,26 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             <p className="text-xs sm:text-sm text-[#5B4E41] mt-3 leading-relaxed">
               {product.description}
             </p>
+
+            {/* Guía de talles (accesorios: correas, pretales, ropa) */}
+            {product.category === 'accesorios' && (
+              <details className="mt-3 bg-[#FAF5EC] border border-[#E8DFC9] rounded-xl text-xs overflow-hidden">
+                <summary className="px-3 py-2 font-bold text-[#1B4E43] cursor-pointer select-none">
+                  📏 Guía de talles
+                </summary>
+                <div className="px-3 pb-3 text-[11px] text-[#5B4E41] leading-relaxed">
+                  <p><strong>Pretales y collares:</strong> medí el cuello/contorno con cinta métrica sin ajustar.</p>
+                  <ul className="list-disc ml-4 mt-1">
+                    <li><strong>Talle S:</strong> hasta 35 cm (gatos y razas mini)</li>
+                    <li><strong>Talle M:</strong> 35 a 55 cm (caniches, bulldog francés)</li>
+                    <li><strong>Talle L:</strong> 55 a 75 cm (labradores, ovejeros)</li>
+                    <li><strong>Talle XL:</strong> más de 75 cm (razas gigantes)</li>
+                  </ul>
+                  <p className="mt-1"><strong>Ropa:</strong> medí largo del lomo (cuello a cola) y elegí el talle más cercano hacia arriba. Entre dos talles, quedate con el más grande.</p>
+                  <p className="mt-1"><strong>Camas:</strong> tu mascota estirada + 15 cm de margen. ¿Dudás? consultanos por WhatsApp con el peso y la raza. 🐾</p>
+                </div>
+              </details>
+            )}
 
             {/* Nutritional info if exists */}
             {product.nutritionalInfo && (
@@ -298,6 +342,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 Garantía oficial La Joaquina
               </span>
             </div>
+
+            {products && products.length > 0 && (
+              <RelatedProducts
+                product={product}
+                products={products}
+                onAddToCart={onAddToCart}
+                onOpenDetails={(p) => (onOpenDetails ? onOpenDetails(p) : undefined)}
+              />
+            )}
+
+            <ProductReviews product={product} customerName={customerName} />
 
           </div>
 

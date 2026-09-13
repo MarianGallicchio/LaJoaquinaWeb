@@ -68,6 +68,15 @@ const IMAGE_PRESETS = [
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80';
 
+const BADGE_OPTIONS = ['', 'Nuevo', 'Más Vendido', 'Oferta', '15% OFF', '20% OFF', 'Recomendado', 'Premium', 'Destacado', 'Sin Stock', 'Agotado'];
+const SUBCATEGORIES: Record<string, string[]> = {
+  perros: ['Adulto', 'Cachorro', 'Senior', 'Mordida Pequeña', 'Mantenimiento', 'Hipoalergénico', 'Raza Pequeña'],
+  gatos: ['Adulto', 'Cachorro', 'Castrados', 'Senior', 'Urinary', 'Kitten'],
+  otras: ['Aves', 'Peces', 'Roedores', 'Reptiles', 'Accesorios'],
+  piedras: ['Aglomerante', 'Sílice', 'Tradicional', 'Pellets', 'Premium', 'Clásicas'],
+  accesorios: ['Camas', 'Paseo', 'Comederos', 'Rascadores', 'Higiene', 'Transporte', 'Juguetes'],
+};
+
 export const AdminCatalog: React.FC<AdminCatalogProps> = ({
   products,
   onUpdateProducts,
@@ -1258,24 +1267,29 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
 
                 <div>
                   <label className="block font-bold text-[#5B4E41] mb-1">Subcategoría / Etapa</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.subCategory || ''}
                     onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
-                    placeholder="Ej: Adulto, Cachorro, Senior..."
                     className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none"
-                  />
+                  >
+                    <option value="">Sin subcategoría</option>
+                    {(SUBCATEGORIES[formData.category as string] || SUBCATEGORIES['perros']).map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-[#5B4E41] mb-1">Insignia (Badge)</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.badge || ''}
                     onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-                    placeholder="Ej: 15% OFF, Más Vendido..."
                     className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none"
-                  />
+                  >
+                    {BADGE_OPTIONS.map((o) => (
+                      <option key={o} value={o}>{o || 'Sin insignia'}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -1425,9 +1439,10 @@ export const AdminCatalog: React.FC<AdminCatalogProps> = ({
                           placeholder="Stock"
                           value={typeof variant.stock === 'number' ? variant.stock : ''}
                           onChange={(e) => {
-                            const val = e.target.value === '' ? undefined : Number(e.target.value);
-                            handleUpdateVariant(idx, 'stock' as any, val);
-                            if (typeof val === 'number') handleUpdateVariant(idx, 'inStock', val > 0);
+                            const val = e.target.value === '' ? undefined : Math.max(0, Number(e.target.value));
+                            const updated = [...(formData.variants || [])];
+                            updated[idx] = { ...updated[idx], stock: val, inStock: typeof val === 'number' ? val > 0 : true };
+                            setFormData({ ...formData, variants: updated });
                           }}
                           className="w-full p-1.5 bg-white border border-[#E3D6BE] rounded-lg text-center font-bold"
                         />

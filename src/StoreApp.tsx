@@ -14,10 +14,13 @@ import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { AuthModal } from './components/AuthModal';
 import { StockAlertModal } from './components/StockAlertModal';
+import { TrackOrderModal } from './components/TrackOrderModal';
+import { CountdownBanner } from './components/CountdownBanner';
+import { Analytics } from './components/Analytics';
 import { Reveal } from './components/Reveal';
 import { PRODUCTS } from './data/products';
 import { Product, ProductVariant, CartItem, ProductCategory, OrderDetails, StoreSettings, CustomerProfileData, emptyCustomerProfile } from './types';
-import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, saveCloudOrder, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile, supaMode } from './lib/cloudDb';
+import { AuthUserProfile, fetchCloudProducts, saveCloudProduct, saveCloudOrder, cloudLogout, decrementStockForOrder, fetchCustomerProfile, saveCustomerProfile, supaMode, markRecoveryDone } from './lib/cloudDb';
 import { supa, supaMe } from './lib/supabase';
 import { DEFAULT_SETTINGS, fetchStoreSettings, formatARS } from './lib/storeSettings';
 import { Filter, ArrowUpDown, CheckCircle, Truck } from 'lucide-react';
@@ -29,6 +32,8 @@ export default function StoreApp() {
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [onlyOffers, setOnlyOffers] = useState(false);
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
+  const [isTrackOpen, setIsTrackOpen] = useState(false);
   const PAGE_SIZE = 12;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filtersOpen, setFiltersOpen] = useState(
@@ -168,8 +173,28 @@ export default function StoreApp() {
       return;
     }
     fetchCustomerProfile({ id: currentUser.id, email: currentUser.email, name: currentUser.name || '' })
-      .then(setProfile)
+      .then((p) => {
+        setProfile(p);
+        // Regalo de cumpleaños: una vez por año, en puntos
+        try {
+          if (p?.birthDate) {
+            const today = new Date();
+            const [y, m, d] = p.birthDate.split('-').map(Number);
+            const thisYear = today.getFullYear();
+            if (m === today.getMonth() + 1 && d === today.getDate() && p.lastBirthdayBonus !== thisYear) {
+              const bonus = Math.max(0, Number(settings.birthdayPoints) || 0);
+              if (bonus > 0) {
+                const next = { ...p, points: (Number(p.points) || 0) + bonus, lastBirthdayBonus: thisYear };
+                setProfile(next);
+                saveCustomerProfile({ id: currentUser.id, email: currentUser.email }, next).catch(() => {});
+                showToast(`🎂 ¡Feliz cumple! Te regalamos ${bonus} puntos de fidelidad.`);
+              }
+            }
+          }
+        } catch { /* ignore */ }
+      })
       .catch(() => setProfile(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   const persistProfile = async (next: CustomerProfileData, silent = false) => {
@@ -332,7 +357,10 @@ export default function StoreApp() {
     setIsCheckoutOpen(true);
   };
 
-  // Al confirmar la compra: vaciar carrito + asegurar persistencia + descontar stock (se refleja en el admin)
+  // Al confirmar la compra: vaciar carrito + refrescar stock (CheckoutModal ya
+  // persistió la orden y descontó el stock antes de llamar acá; solo se
+  // reintenta como fallback si el modal no lo logró, para no duplicar
+  // pedidos ni descontar stock dos veces).
   const handleOrderCompleted = async (order: OrderDetails) => {
     console.log('[StoreApp.handleOrderCompleted] Procesando orden completada:', order.orderId, {
       cliente: order.customerName,
@@ -343,27 +371,53 @@ export default function StoreApp() {
 
     handleClearCart();
 
-    // 1. Asegurar persistencia de la orden en la base de datos (backend API o Supabase)
+    const alreadySaved = (order as any).__persisted === true;
+    const stockDone = (order as any).__stockDone === true;
+
+    // 1. Fallback de persistencia: solo si el modal no pudo guardar
     let finalOrder = order;
-    try {
-      console.log('[StoreApp.handleOrderCompleted] Asegurando persistencia en base de datos:', order.orderId);
-      finalOrder = await saveCloudOrder(order);
-      console.log('[StoreApp.handleOrderCompleted] Orden persistida exitosamente:', finalOrder.orderId);
-    } catch (err) {
-      console.error('[StoreApp.handleOrderCompleted] Error al persistir la orden en base de datos:', err);
+    if (!alreadySaved) {
+      try {
+        console.log('[StoreApp.handleOrderCompleted] Fallback: persistiendo orden no guardada:', order.orderId);
+        finalOrder = await saveCloudOrder(order);
+        console.log('[StoreApp.handleOrderCompleted] Orden persistida por fallback:', finalOrder.orderId);
+      } catch (err) {
+        console.error('[StoreApp.handleOrderCompleted] Error al persistir la orden en base de datos:', err);
+      }
     }
 
-    // 2. Descontar stock localmente y persistir actualización
+    // 2. Sincronizar stock en la UI: si el modal ya descontó, refrescar desde
+    // la nube; si no, descontar una sola vez como fallback.
     try {
-      console.log('[StoreApp.handleOrderCompleted] Descontando stock para orden:', finalOrder.orderId);
-      const updated = await decrementStockForOrder(finalOrder, products);
-      setProducts(updated);
+      if (stockDone) {
+        console.log('[StoreApp.handleOrderCompleted] Stock ya descontado por el checkout, refrescando catálogo.');
+        const fresh = await fetchCloudProducts();
+        if (Array.isArray(fresh) && fresh.length > 0) setProducts(fresh);
+      } else {
+        console.log('[StoreApp.handleOrderCompleted] Fallback: descontando stock para orden:', finalOrder.orderId);
+        const updated = await decrementStockForOrder(finalOrder, products);
+        setProducts(updated);
+      }
       console.log('[StoreApp.handleOrderCompleted] Stock de productos actualizado en la tienda.');
     } catch (e) {
       console.error('[StoreApp.handleOrderCompleted] Error al descontar stock:', e);
     }
 
-    // 3. Notificación al cliente
+    // 3. Puntos de fidelidad + marcar abandono como recuperado
+    try {
+      const used = Number(finalOrder.pointsUsed) || 0;
+      const earned = Number(finalOrder.pointsEarned) || 0;
+      if ((used > 0 || earned > 0) && currentUser) {
+        const base = profile || emptyCustomerProfile(currentUser.email, currentUser.name || '');
+        const next = Math.max(0, (Number(base.points) || 0) - used + earned);
+        persistProfile({ ...base, points: next }, true);
+      }
+      markRecoveryDone(finalOrder.customerEmail).catch(() => {});
+    } catch (e) {
+      console.warn('[StoreApp.handleOrderCompleted] Error con puntos/recupero:', e);
+    }
+
+    // 4. Notificación al cliente
     if (order.status === 'pago_pendiente') {
       showToast(`¡Pedido ${order.orderId} creado! Completá el pago en Mercado Pago.`);
     } else {
@@ -390,6 +444,9 @@ export default function StoreApp() {
     if (onlyOffers) {
       list = list.filter((p) => p.variants.some((v) => v.originalPrice && v.originalPrice > v.price));
     }
+    if (maxPrice !== null) {
+      list = list.filter((p) => p.variants.some((v) => (Number(v.price) || 0) <= maxPrice));
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter(
@@ -408,12 +465,24 @@ export default function StoreApp() {
       list.sort((a, b) => b.rating - a.rating);
     }
     return list;
-  }, [products, activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock, onlyOffers]);
+  }, [products, activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock, onlyOffers, maxPrice]);
 
   // Al cambiar filtros se vuelve a la primera página
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock, onlyOffers]);
+  }, [activeCategory, selectedBrand, searchQuery, sortBy, onlyInStock, onlyOffers, maxPrice]);
+
+  // Tope del slider de precio: el producto más caro del catálogo
+  const priceCeil = useMemo(() => {
+    let max = 0;
+    for (const p of products) {
+      for (const v of p.variants || []) {
+        const price = Number(v.price) || 0;
+        if (price > max) max = price;
+      }
+    }
+    return Math.max(max, 1000);
+  }, [products]);
 
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const remaining = filteredProducts.length - visibleProducts.length;
@@ -422,6 +491,7 @@ export default function StoreApp() {
     (selectedBrand !== 'todas' ? 1 : 0) +
     (onlyInStock ? 1 : 0) +
     (onlyOffers ? 1 : 0) +
+    (maxPrice !== null ? 1 : 0) +
     (searchQuery.trim() ? 1 : 0);
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -467,12 +537,14 @@ export default function StoreApp() {
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
+        onOpenTracking={() => setIsTrackOpen(true)}
         currentUser={currentUser}
         onOpenAuth={() => {
           setAuthMode('login');
           setIsAuthOpen(true);
         }}
       />
+      <Analytics settings={settings} />
 
       {/* Barra promo configurable desde el admin */}
       <div className="bg-[#1B4E43] text-[#FFE9B8] text-[11px] sm:text-xs font-semibold text-center px-4 py-2 flex items-center justify-center gap-2">
@@ -489,6 +561,8 @@ export default function StoreApp() {
           </span>
         )}
       </div>
+
+      <CountdownBanner promoText={settings.promoText} promoEndsAt={settings.promoEndsAt} />
 
       <Hero
         settings={settings}
@@ -594,6 +668,28 @@ export default function StoreApp() {
             🏷️ Solo ofertas
           </label>
 
+          <label className="flex items-center gap-2 text-xs font-bold text-[#5A4D3F] select-none">
+            <span>Hasta {formatARS(maxPrice ?? priceCeil)}:</span>
+            <input
+              type="range"
+              min={1000}
+              max={priceCeil}
+              step={500}
+              value={maxPrice ?? priceCeil}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setMaxPrice(v >= priceCeil ? null : v);
+              }}
+              className="w-28 sm:w-36 accent-[#1B4E43] cursor-pointer"
+              title="Precio máximo"
+            />
+            {maxPrice !== null && (
+              <button onClick={() => setMaxPrice(null)} className="text-[#DE5D4E] hover:underline cursor-pointer">
+                ✕
+              </button>
+            )}
+          </label>
+
           {searchQuery && (
             <div className="text-xs text-[#1B4E43] font-semibold bg-[#E8F3EF] px-3 py-1 rounded-full flex items-center gap-2">
               <span>Buscando: "{searchQuery}"</span>
@@ -649,7 +745,7 @@ export default function StoreApp() {
         {filteredProducts.length > 0 ? (
           <>
           <div
-            key={`${activeCategory}-${selectedBrand}-${searchQuery}-${sortBy}-${onlyInStock}-${onlyOffers}`}
+            key={`${activeCategory}-${selectedBrand}-${searchQuery}-${sortBy}-${onlyInStock}-${onlyOffers}-${maxPrice ?? 'all'}`}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
             {visibleProducts.map((product, index) => (
@@ -707,6 +803,7 @@ export default function StoreApp() {
                 setActiveCategory('todos');
                 setOnlyInStock(false);
                 setOnlyOffers(false);
+                setMaxPrice(null);
               }}
               className="mt-5 bg-[#EFA332] text-[#1E170E] font-bold text-xs px-5 py-2.5 rounded-full font-display cursor-pointer"
             >
@@ -732,12 +829,18 @@ export default function StoreApp() {
       />
 
       <ProductModal
+        key={modalProduct?.id || 'empty'}
         product={modalProduct}
         onClose={() => setModalProduct(null)}
         onAddToCart={handleAddToCart}
         onOpenStockAlert={handleOpenStockAlert}
+        onOpenDetails={(p) => setModalProduct(p)}
+        products={products}
         settings={settings}
+        customerName={checkoutCustomer.name}
       />
+
+      <TrackOrderModal isOpen={isTrackOpen} onClose={() => setIsTrackOpen(false)} />
 
       <StockAlertModal
         isOpen={!!stockAlertTarget}
@@ -768,6 +871,7 @@ export default function StoreApp() {
         settings={settings}
         customer={checkoutCustomer}
         products={products}
+        loyaltyPoints={profile?.points ?? 0}
         onBackToCart={() => {
           setIsCheckoutOpen(false);
           setIsCartOpen(true);

@@ -18,6 +18,13 @@ export const AdminShipping: React.FC<Props> = ({ settings, onSaved }) => {
     setForm({ ...form, shipping: form.shipping.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
   };
 
+  const generateCoupon = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'JOAQUINA-';
+    for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    set({ couponCode: code });
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -85,7 +92,10 @@ export const AdminShipping: React.FC<Props> = ({ settings, onSaved }) => {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block font-bold text-[#5B4E41] mb-1">Cupón</label>
-              <input value={form.couponCode} onChange={(e) => set({ couponCode: e.target.value.toUpperCase() })} className="w-full p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none font-mono" />
+              <div className="flex gap-1.5">
+                <input value={form.couponCode} onChange={(e) => set({ couponCode: e.target.value.toUpperCase() })} placeholder="JOAQUINA-XXXX" className="flex-1 p-2.5 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none font-mono" />
+                <button type="button" onClick={generateCoupon} className="px-3 py-2.5 bg-[#EFA332] hover:bg-[#E39420] text-[#1E170E] font-bold text-xs rounded-xl whitespace-nowrap" title="Generar código aleatorio">Generar</button>
+              </div>
             </div>
             <div>
               <label className="block font-bold text-[#5B4E41] mb-1">% OFF cupón</label>

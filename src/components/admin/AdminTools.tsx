@@ -14,6 +14,7 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
   const [importText, setImportText] = useState('');
   const [badgeText, setBadgeText] = useState('Oferta');
   const [badgeScope, setBadgeScope] = useState<string>('todas');
+  const BADGE_OPTIONS = ['', 'Nuevo', 'Más Vendido', 'Oferta', '15% OFF', '20% OFF', 'Recomendado', 'Premium', 'Destacado', 'Sin Stock', 'Agotado'];
 
   const feedback = (m: string) => {
     setMsg(m);
@@ -235,12 +236,15 @@ export const AdminTools: React.FC<Props> = ({ products, onUpdateProducts }) => {
           <h3 className="font-bold text-sm text-[#1B4E43] mb-1">🏷️ Insignia masiva</h3>
           <p className="text-[11px] text-[#8A7969] mb-3">Marca (o quita) insignias por categoría o marca.</p>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <input
+            <select
               value={badgeText}
               onChange={(e) => setBadgeText(e.target.value)}
-              placeholder="Oferta (vacío = quitar)"
               className="flex-1 min-w-[110px] p-2 bg-[#FAF5EC] border border-[#E3D6BE] rounded-xl outline-none font-semibold"
-            />
+            >
+              {BADGE_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o || 'Sin insignia (quitar)'}</option>
+              ))}
+            </select>
             <select
               value={badgeScope}
               onChange={(e) => setBadgeScope(e.target.value)}
