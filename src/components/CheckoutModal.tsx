@@ -98,7 +98,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [saveTarget, setSaveTarget] = useState<SaveTarget | null>(null);
   const [verifiedStatus, setVerifiedStatus] = useState<string | null>(null);
   const [idCopiedAuto, setIdCopiedAuto] = useState(false);
+  const [payMsg, setPayMsg] = useState<string | null>(null);
   const popupRef = useRef<Window | null>(null);
+  const deadlineRef = useRef<number>(0);
+  const [secondsLeft, setSecondsLeft] = useState(300);
+  const fmtCountdown = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 
   // Cupón editable en el checkout (inicia con el del carrito, si hay)
   const [couponInput, setCouponInput] = useState(discountCode);
@@ -130,7 +134,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (verifiedStatus === 'pagado') return;
     let cancelled = false;
     let tries = 0;
-    const maxTries = 150;
+    const maxTries = 300;
     const poll = async () => {
       if (cancelled || tries >= maxTries) {
         if (!cancelled && tries >= maxTries) setVerifiedStatus((prev) => (prev === 'pagado' ? prev : 'timeout'));
@@ -163,6 +167,37 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, [currentStep, confirmedOrder]);
+
+  // Tiempo límite del intento (10 min): muestra cuenta regresiva y al vencer
+  // pasa a "Esperando confirmación" sin borrar el pedido
+  useEffect(() => {
+    if (currentStep !== 'success' || !confirmedOrder || confirmedOrder.paymentMethod !== 'mercadopago') return;
+    if (verifiedStatus === 'pagado') return;
+    const timer = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(timer);
+          setVerifiedStatus((prev) => (prev === 'pagado' || prev === 'cancelado' ? prev : 'timeout'));
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentStep, confirmedOrder, verifiedStatus]);
+
+  // Verificación en segundo plano: aunque venza el tiempo, se cancele o se
+  // cierre la ventana, seguimos leyendo el estado real cada 5s y si el pago
+  // se acreditó después, el pedido se marca OK solo
+  useEffect(() => {
+    if (currentStep !== 'success' || !confirmedOrder || confirmedOrder.paymentMethod !== 'mercadopago') return;
+    if (!['timeout', 'ventana_cerrada', 'cancelado'].includes(verifiedStatus || '')) return;
+    const timer = setInterval(async () => {
+      const real = await fetchMpOrderStatus(confirmedOrder.orderId);
+      if (real && real.status === 'pagado') setVerifiedStatus('pagado');
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [currentStep, confirmedOrder, verifiedStatus]);
 
   // Reset to shipping step when reopened
   useEffect(() => {
@@ -294,6 +329,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setSaveTarget(getLastOrderTarget());
         setVerifiedStatus('pago_pendiente');
         setIdCopiedAuto(false);
+        setSecondsLeft(300);
+        setPayMsg(null);
         setCurrentStep('success');
         onOrderCompleted(mp.order);
         if (store.ordersEmail) sendOrderEmail(mp.order, store.ordersEmail).catch(() => {});
@@ -350,10 +387,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Reintentar pago: reabre Mercado Pago en ventana nueva y reinicia la verificación
+  // Reintentar pago: reabre Mercado Pago en ventana nueva y reinicia tiempo + verificación
   const retryMpPayment = () => {
-    if (mpInitPoint) popupRef.current = window.open(mpInitPoint, '_blank', 'noopener,noreferrer');
+    if (mpInitPoint) {
+      const w = window.open(mpInitPoint, '_blank', 'noopener,noreferrer');
+      if (!w) {
+        setPayMsg('Tu navegador bloqueó la ventana de pago. Permití ventanas emergentes para este sitio y tocá Reintentar de nuevo.');
+        return;
+      }
+      popupRef.current = w;
+    }
+    setPayMsg(null);
+    setSecondsLeft(300);
     setVerifiedStatus('pago_pendiente');
+  };
+
+  // Cancelar intento manualmente (por si el detector automático de cierre falla)
+  const cancelMpAttempt = () => {
+    try { popupRef.current?.close(); } catch { /* ignore */ }
+    popupRef.current = null;
+    setVerifiedStatus('ventana_cerrada');
   };
 
   const getWhatsAppOrderUrl = () => {
@@ -980,25 +1033,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="bg-[#E8F4FD] border border-[#7CC4EA] p-4 rounded-2xl text-left text-xs space-y-2 text-[#0C4A6E]">
                   <p className="font-bold text-sm flex items-center gap-1.5">
                     <Wallet className="w-4 h-4 text-[#009EE3]" />
-                    Completá tu pago online:
+                    Pago en proceso ⏳
                   </p>
                   <p>
-                    Tu pedido <strong>{confirmedOrder.orderId}</strong> quedó reservado{ idCopiedAuto ? ' (ID copiado al portapapeles ✅)' : ''}. Pagá con tarjeta, débito o dinero en cuenta.
+                    Tu pedido <strong>{confirmedOrder.orderId}</strong> quedó reservado{ idCopiedAuto ? ' (ID copiado al portapapeles ✅)' : ''}. Te quedan <strong>{fmtCountdown(secondsLeft)}</strong> para completar el pago con tarjeta, débito o dinero en cuenta.
                   </p>
                   {mpInitPoint && (
                     <button
                       type="button"
-                      onClick={() => { popupRef.current = window.open(mpInitPoint, '_blank', 'noopener,noreferrer'); }}
+                      onClick={() => {
+                        const w = window.open(mpInitPoint, '_blank', 'noopener,noreferrer');
+                        if (!w) {
+                          setPayMsg('Tu navegador bloqueó la ventana de pago. Permití ventanas emergentes para este sitio y tocá Pagar de nuevo.');
+                        } else {
+                          popupRef.current = w;
+                          setPayMsg(null);
+                        }
+                      }}
                       className="w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0083C0] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all cursor-pointer"
                     >
                       <Wallet className="w-5 h-5" />
                       <span>Pagar {formatARS(confirmedOrder.total)} con Mercado Pago</span>
                     </button>
                   )}
+                  {payMsg && (
+                    <p className="text-[11px] font-bold text-[#991B1B] bg-[#FEF2F2] border border-[#FECACA] rounded-xl px-3 py-2">
+                      {payMsg}
+                    </p>
+                  )}
                   <p className="text-[11px] flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full border-2 border-[#009EE3] border-t-transparent animate-spin inline-block" />
                     Detectamos tu pago automáticamente… no cierres esta ventana.
                   </p>
+                  <button
+                    type="button"
+                    onClick={cancelMpAttempt}
+                    className="text-[11px] font-bold text-[#6A5949] hover:underline cursor-pointer"
+                  >
+                    No voy a pagar ahora
+                  </button>
                   <button
                     type="button"
                     onClick={async () => {
@@ -1067,7 +1140,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     Esperando confirmación…
                   </p>
                   <p>
-                    Todavía no detectamos tu pago del pedido <strong>{confirmedOrder?.orderId}</strong>. Si ya pagaste, se actualiza solo. Si no, reintentá.
+                    Todavía no detectamos tu pago del pedido <strong>{confirmedOrder?.orderId}</strong>. Seguimos verificando automáticamente: si se acredita, el pedido se marca OK solo. Si no pagaste, reintentá.
                   </p>
                   <button
                     type="button"
